@@ -27,15 +27,12 @@ const checks = [
 /** @param {string} path */
 function fetch(path) {
   return new Promise((resolve, reject) => {
-    const req = request(
-      { host: HOST, port: PORT, path, method: "GET" },
-      (res) => {
-        let body = "";
-        res.setEncoding("utf-8");
-        res.on("data", (c) => (body += c));
-        res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
-      },
-    );
+    const req = request({ host: HOST, port: PORT, path, method: "GET" }, (res) => {
+      let body = "";
+      res.setEncoding("utf-8");
+      res.on("data", (c) => (body += c));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+    });
     req.on("error", reject);
     req.setTimeout(5000, () => {
       req.destroy(new Error("timeout"));

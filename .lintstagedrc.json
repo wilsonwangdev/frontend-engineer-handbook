@@ -1,4 +1,5 @@
 {
   "*.{ts,tsx,js,jsx}": ["oxlint --fix", "oxfmt"],
-  "*.{json,md,mdx,css,yml,yaml}": ["oxfmt"]
+  "*.{json,md,mdx,css,yml,yaml}": ["oxfmt"],
+  "specs/**/spec.md": ["node scripts/validate-specs.mjs"]
 }

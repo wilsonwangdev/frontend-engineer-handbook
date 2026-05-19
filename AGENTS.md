@@ -46,6 +46,7 @@ specs/     skills/     journal/    docs/
 | E2E          | `pnpm test:e2e`       | Playwright + axe-core；CI 用这个                   |
 | E2E（本地）  | `pnpm test:e2e:local` | 跳过 webServer；TUN 模式代理用户用，见 GOTCHAS G.3 |
 | 烟雾测试     | `pnpm smoke`          | 纯 node:http 检查页面；绕过任何代理                |
+| 校验 SPEC    | `pnpm validate:specs` | MADR v4 frontmatter / section 校验；CI 强制        |
 | Lint         | `pnpm lint`           | oxlint                                             |
 | 格式化       | `pnpm format`         | oxfmt                                              |
 | 类型检查     | `pnpm type-check`     | tsc --noEmit（strict）                             |
