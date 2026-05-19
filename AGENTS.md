@@ -28,6 +28,7 @@
 - [0004](specs/0004-ai-delegation-criteria/spec.md) AI 可委托清单的判断依据
 - [0005](specs/0005-companion-tracks-and-test-strategy/spec.md) 附录 D 番外 + 测试策略
 - [0006](specs/0006-agent-skills-system/spec.md) Agent harness skills 体系
+- [0007](specs/0007-open-source-asset-boundary/spec.md) 开源资产边界
 
 ## 仓库结构
 
@@ -109,6 +110,10 @@ SPEC 里。
 8. **远端操作需授权**：本地 commit 自由，**push / force push / 删分支 /
    操作 PR / 推 Vercel** 等需用户当次明确同意。`gh` CLI 已配置好，授权
    后可代为执行。
+9. **守住开源资产边界**：写入仓库前过两道测试（fork 测试 / 客观性
+   测试）。个人推广策略、时间承诺、社交账号、主观呼吁不进项目——
+   去用户级笔记。详见
+   [SPEC-0007](specs/0007-open-source-asset-boundary/spec.md)。
 
 ## 代码风格
 
