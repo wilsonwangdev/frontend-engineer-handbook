@@ -2,16 +2,18 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeScript } from "@/components/ui/theme-script";
+import pkg from "../../package.json";
 import "@/styles/globals.css";
+
+const SITE_TITLE = "前端工程师手册";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://frontend-engineer-handbook.vercel.app"),
   title: {
-    default: "前端工程师手册 · AI 时代的精编学习路线",
-    template: "%s · 前端工程师手册",
+    default: `${SITE_TITLE} · ${pkg.description.replace(/。$/, "")}`,
+    template: `%s · ${SITE_TITLE}`,
   },
-  description:
-    "面向 2026 年的中文前端工程师精编手册——围绕 agent 协作的必要学习路线与核心知识点。小而美，不是大而全。",
+  description: pkg.description,
   keywords: [
     "前端",
     "前端工程师",
@@ -23,13 +25,12 @@ export const metadata: Metadata = {
     "TypeScript",
     "手册",
   ],
-  authors: [{ name: "Frontend Engineer Handbook" }],
+  authors: [{ name: SITE_TITLE }],
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    title: "前端工程师手册 · AI 时代的精编学习路线",
-    description:
-      "面向 2026 年的中文前端工程师精编手册——围绕 agent 协作的必要学习路线与核心知识点。",
+    title: `${SITE_TITLE} · ${pkg.description.replace(/。$/, "")}`,
+    description: pkg.description,
   },
   robots: {
     index: true,

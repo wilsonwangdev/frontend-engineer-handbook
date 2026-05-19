@@ -5,8 +5,8 @@
 
 ## 项目目标
 
-中文精编手册——面向 2026 年、围绕 agent 协作的前端工程师。**小而美，不是
-大而全**。读者：新入行 / 1–3 年 / 资深，三档。定位：导航 + 判断 + 速查 + 实践。
+围绕 agent 协作的前端工程师中文精编手册。**小而美，不是大而全**。
+读者：新入行 / 1–3 年 / 资深，三档。定位：导航 + 判断 + 速查 + 实践。
 完全免费，仅引一手来源。
 
 ## 入口
@@ -75,6 +75,22 @@ guide、knowledge base），不要凭印象。文档：
 - 错误信息原文（保留以便搜索匹配）
 
 **Commit subject 用英文小写**（Conventional Commits 惯例），body 用中文。
+
+## 项目描述（SSOT）
+
+项目内长描述以 `package.json.description` 为**单一数据源**。改描述时
+同步三处人类可读源（脚本读取的源自动跟随 `package.json`）：
+
+1. `package.json.description` —— 程序读取源（layout 元数据、Open Graph 等）
+2. `README.md` 副标题 —— 人类入口
+3. `AGENTS.md` 项目目标段首句 —— agent 入口
+
+**GitHub repo description 独立维护**——这是"展位牌"，与项目内长描述
+不必一致。当前定为「面向 AI 时代的前端工程师手册」。改动时同步
+[docs/DEPLOY.md](docs/DEPLOY.md) 里的 `gh repo create --description`。
+
+**少数场景例外**：landing page hero（`src/app/page.tsx`）属于产品营造
+而非元数据，允许保留独立文案（如「小而美，不是大而全」等立场表达）。
 
 ## 提交规范
 

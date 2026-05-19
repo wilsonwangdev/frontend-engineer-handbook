@@ -9,7 +9,7 @@ export default function HomePage() {
         </p>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">前端工程师手册</h1>
         <p className="text-lg leading-relaxed text-fg-muted">
-          面向 2026 年、围绕 agent 协作的精编学习路线。
+          围绕 agent 协作的精编学习路线。
           <br />
           小而美，不是大而全。导航 + 判断 + 快速复习 + 实践。
         </p>

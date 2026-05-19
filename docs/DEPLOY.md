@@ -11,7 +11,7 @@
 ```bash
 gh repo create wilsonwangdev/frontend-engineer-handbook \
   --public \
-  --description "面向 2026 年、围绕 agent 协作的前端工程师中文精编手册" \
+  --description "面向 AI 时代的前端工程师手册" \
   --source=. \
   --remote=origin \
   --push

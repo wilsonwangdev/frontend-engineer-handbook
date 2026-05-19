@@ -2,6 +2,7 @@
   "name": "frontend-engineer-handbook",
   "version": "0.0.1",
   "private": true,
+  "description": "围绕 agent 协作的前端工程师中文精编手册。",
   "type": "module",
   "scripts": {
     "dev": "next dev",
