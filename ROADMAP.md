@@ -15,7 +15,7 @@
 - [x] MDX 管线 + 章节路由
 - [x] 三层 agent 知识体系（MCP + skills + gotchas）
 - [x] README + LICENSE + DEPLOY.md
-- [ ] **推送到 GitHub `wilsonwangdev/frontend-engineer-handbook`**（gh CLI 已就绪，等用户授权）
+- [x] **推送到 GitHub** — https://github.com/wilsonwangdev/frontend-engineer-handbook
 - [ ] **接入 Vercel 完成首次生产部署**（Vercel 控制台操作，由用户完成）
 - [ ] 确认 Speed Insights + Web Analytics 收到数据
 - [ ] 首次部署后更新 README.md 中的 live URL
@@ -119,6 +119,10 @@
 
 ## 已发布（新 → 旧）
 
+- 2026-05-20 — 首次推送到 GitHub `wilsonwangdev/frontend-engineer-handbook`
+- 2026-05-20 — 项目长描述收敛到 `package.json.description` 作为 SSOT（commit `0df76d4`）
+- 2026-05-20 — SPEC-0008 动手前的反射性检查清单（commit `9dbd78e`）
+- 2026-05-20 — SPEC-0007 开源资产边界（commit `e7c4478`）
 - 2026-05-19 — 拆分 AGENTS.md，提取 GOTCHAS + ROADMAP（commit `24c120d`）
 - 2026-05-19 — README / LICENSE / DEPLOY.md（commit `d90de66`）
 - 2026-05-19 — SPEC-0006 agent skills 体系 + 2 示范 skill（commit `5b49f0e`）
