@@ -8,12 +8,15 @@
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
   --font-serif: "Noto Serif SC", "Source Han Serif", Georgia, serif;
 
-  /* Three-tier classification colors (oklch for perceptual uniformity) */
-  --color-tier-essential: oklch(0.6 0.2 250);
+  /* Three-tier classification colors (oklch for perceptual uniformity).
+     Foreground lightness chosen so contrast against the matching -bg
+     token meets WCAG AA (≥ 4.5:1) at 12px text. Verified by axe-core
+     in CI. Dark mode overrides further below. */
+  --color-tier-essential: oklch(0.42 0.18 250);
   --color-tier-essential-bg: oklch(0.96 0.04 250);
-  --color-tier-understand: oklch(0.7 0.15 80);
+  --color-tier-understand: oklch(0.45 0.15 80);
   --color-tier-understand-bg: oklch(0.97 0.04 80);
-  --color-tier-delegatable: oklch(0.6 0.02 260);
+  --color-tier-delegatable: oklch(0.42 0.02 260);
   --color-tier-delegatable-bg: oklch(0.96 0.005 260);
 
   /* Semantic colors */
@@ -38,6 +41,14 @@
     --color-bg-elevated: oklch(0.2 0.01 260);
     --color-border: oklch(0.3 0.01 260);
     --color-accent: oklch(0.7 0.2 250);
+    /* Dark-mode tier overrides: invert lightness relationship so the
+       text token stays on the darker bg token with adequate contrast. */
+    --color-tier-essential: oklch(0.82 0.18 250);
+    --color-tier-essential-bg: oklch(0.25 0.05 250);
+    --color-tier-understand: oklch(0.82 0.15 80);
+    --color-tier-understand-bg: oklch(0.27 0.04 80);
+    --color-tier-delegatable: oklch(0.82 0.02 260);
+    --color-tier-delegatable-bg: oklch(0.25 0.005 260);
   }
 
   html {

@@ -11,7 +11,7 @@ export function Sidebar({ tree }: { tree: ChapterMeta[] }) {
               href={ch.url}
               className="block rounded px-2 py-1.5 text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
             >
-              <span className="font-mono text-xs tabular-nums opacity-60">
+              <span className="font-mono text-xs tabular-nums text-fg-muted">
                 {String(ch.chapter).padStart(2, "0")}
               </span>{" "}
               {ch.title}
