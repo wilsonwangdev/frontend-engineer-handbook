@@ -14,21 +14,14 @@
 | 你想做什么            | 看哪个文件                                                                         |
 | --------------------- | ---------------------------------------------------------------------------------- |
 | 下一步该做什么        | [ROADMAP.md](ROADMAP.md)                                                           |
-| 某个决策为什么这么定  | [specs/](specs/)（编号文件，索引见下）                                             |
+| 某个决策为什么这么定  | [specs/README.md](specs/README.md)（全部 SPEC 索引在此）                           |
 | 可复用的 agent 工作流 | [skills/](skills/)                                                                 |
 | 过去踩过的坑          | [journal/](journal/)（逐条事故）、[docs/GOTCHAS.md](docs/GOTCHAS.md)（高频坑速查） |
 | 权限与 hook 配置      | [.claude/settings.json](.claude/settings.json)                                     |
 | 公网发布步骤          | [docs/DEPLOY.md](docs/DEPLOY.md)                                                   |
 
-### SPEC（载入性决策）
-
-- [0001](specs/0001-scope-and-audience/spec.md) 范围与读者
-- [0002](specs/0002-content-source-admission/spec.md) 内容来源准入
-- [0003](specs/0003-table-of-contents/spec.md) 目录结构与章节归位
-- [0004](specs/0004-ai-delegation-criteria/spec.md) AI 可委托清单的判断依据
-- [0005](specs/0005-companion-tracks-and-test-strategy/spec.md) 附录 D 番外 + 测试策略
-- [0006](specs/0006-agent-skills-system/spec.md) Agent harness skills 体系
-- [0007](specs/0007-open-source-asset-boundary/spec.md) 开源资产边界
+> **元规则**：写任何开源仓库内容前先过 [SPEC-0007 开源资产边界](specs/0007-open-source-asset-boundary/spec.md)
+> 的两道测试。这是每段内容都适用的元约束，其他 SPEC 按需查 specs/README.md。
 
 ## 仓库结构
 
