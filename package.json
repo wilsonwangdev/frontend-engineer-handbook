@@ -14,6 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:local": "PLAYWRIGHT_SKIP_WEBSERVER=1 playwright test",
+    "smoke": "node scripts/smoke.mjs",
     "ci": "pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
     "prepare": "husky"
   },
@@ -25,6 +27,9 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "reading-time": "^1.5.0",
+    "rehype-autolink-headings": "^7.1.0",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "shiki": "^4.0.2"
   },
   "devDependencies": {

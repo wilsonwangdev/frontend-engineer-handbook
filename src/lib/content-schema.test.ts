@@ -51,4 +51,12 @@ describe("frontmatterSchema", () => {
     expect(result.prerequisites).toEqual(["/chapter-02/http"]);
     expect(result.paths?.practice?.[0]?.project).toBe("mini-framework");
   });
+
+  it("coerces a Date object (from YAML parsing) to ISO date string", () => {
+    const result = frontmatterSchema.parse({
+      ...valid,
+      lastVerified: new Date("2026-05-19T00:00:00.000Z"),
+    });
+    expect(result.lastVerified).toBe("2026-05-19");
+  });
 });
