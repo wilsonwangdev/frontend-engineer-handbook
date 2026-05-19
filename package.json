@@ -16,8 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:local": "PLAYWRIGHT_SKIP_WEBSERVER=1 playwright test",
     "smoke": "node scripts/smoke.mjs",
-    "validate:specs": "node scripts/validate-specs.mjs",
-    "ci": "pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run validate:specs && pnpm run test && pnpm run build",
+    "ci": "pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
     "prepare": "husky"
   },
   "dependencies": {

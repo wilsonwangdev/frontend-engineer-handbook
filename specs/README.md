@@ -3,13 +3,21 @@
 SPEC 驱动的决策记录。一个 spec 一个文件夹。代码体现**做什么**、git 历史
 体现**何时做**，spec 解释**为什么这么做**。
 
-## 标准对标：MADR v4（强制）
+## 标准对标：MADR v4
 
 本项目的 SPEC 即 **ADR**（Architecture Decision Record / 架构决策记录），
-**严格遵循 [MADR v4](https://adr.github.io/madr/)** 社区标准。所有新增
-SPEC 必须通过 `scripts/validate-specs.mjs` 自动校验，CI 与
-pre-commit hook 双重把关——不符合 MADR 的 frontmatter 或 status 取值
-会阻断合并。
+对标 [MADR v4](https://adr.github.io/madr/) 社区标准。新 SPEC 需要遵守
+[Status 取值](#status-取值madr-v4-标准) 与下方模板。
+
+**约束方式**：人工 review + 模板示范，不引入自动化校验工具。理由：
+
+- 7 个 SPEC 体量小，单作者审稿可控
+- 业界已有 [`@lordcraymen/adr-toolkit`](https://www.npmjs.com/package/@lordcraymen/adr-toolkit)、
+  [`remark-lint-frontmatter-schema`](https://github.com/JulianCataldo/remark-lint-frontmatter-schema)
+  等成熟方案；本项目自写校验属于过度特化（详见
+  [journal/2026-05-20-premature-tool-self-implementation.md](../journal/2026-05-20-premature-tool-self-implementation.md)）
+- 真正出错的不是 status 字符串拼写，而是判断决策错误——自动化管不了
+- 若未来 SPEC 增长到几十条或有外部贡献者，再评估引入社区方案
 
 **为什么不用 spec-kit / OpenSpec**：那两个工具解决的是"从零开发新 feature
 的工作流"（propose → plan → tasks → implement），不是"决策记录"。本项目
@@ -165,23 +173,20 @@ date: YYYY-MM-DD
 …
 ```
 
-## 自动校验（强制）
+## Review 检查清单（写新 SPEC 时人工对照）
 
-`scripts/validate-specs.mjs` 在以下时机运行：
+写完 SPEC 后、提交前自查：
 
-- **pre-commit hook**：通过 lint-staged，改动 `specs/**/spec.md` 时触发
-- **CI**：每个 PR 都跑
+- [ ] 路径符合 `specs/NNNN-<kebab-slug>/spec.md`
+- [ ] frontmatter 含 `id` / `title` / `status` / `date` 四个必填字段
+- [ ] `status` 取值在 MADR v4 枚举内（`proposed` / `accepted` / `rejected` / `deprecated` / `superseded`）
+- [ ] `date` 是 `YYYY-MM-DD` 格式
+- [ ] frontmatter 的 `id` 与目录前缀编号一致
+- [ ] 新 SPEC（id ≥ 0008）含 MADR 必需章节：
+      `Context and Problem Statement` / `Decision Outcome` / `Consequences`
+- [ ] 在本 README 顶部"索引"表加一行
 
-校验项：
-
-- frontmatter 必须有 `id` (4 位数字) / `title` / `status` / `date`
-- `status` 必须在 MADR v4 枚举内
-- `date` 必须是合法 ISO date
-- 文件路径必须是 `specs/<id>-<kebab-slug>/spec.md`
-- 新 SPEC（id ≥ 0008）必须包含 MADR 必需章节：
-  `Context and Problem Statement` / `Decision Outcome` / `Consequences`
-
-历史 SPEC 0001–0007 用 minimal 变体免严格章节检查。
+PR review 时同样对照本清单。
 
 ## 生命周期
 
