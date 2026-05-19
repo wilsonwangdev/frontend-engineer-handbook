@@ -81,12 +81,10 @@ pnpm dev          # localhost:3000，启用 Turbopack
 ## 相关项目
 
 - [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/) ——
-  同作者维护的另一本中文手册，主题是 AI Native 项目的构建实践
-  （AGENTS.md / specs / skills / journal 等"agent ready"约定）。
-  两个项目存在**双向关系**：那本是本项目工程化骨架的参考资料；
-  本项目反过来作为活实践案例，用真实开发过程验证清单的覆盖度、
-  发现遗漏维度并反哺回去。可视为"内容矩阵"——那本讲怎么搭、
-  这本讲前端工程师在搭好的环境里该学什么。
+  同作者维护的中文手册，主题是 AI Native 项目的构建实践
+  （AGENTS.md / specs / skills / journal 等约定）。本项目在自己的
+  harness 中实践其中的 agent 约定；本手册涉及 agent 相关学习的章节，
+  可以把它列为参考资源之一。
 
 ## License
 

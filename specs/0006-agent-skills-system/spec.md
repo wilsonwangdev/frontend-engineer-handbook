@@ -150,14 +150,17 @@ status: experimental | stable | deprecated
 ## Changelog
 
 - 2026-05-19：初次落地。接入 `next-devtools-mcp`，建立 2 个示范 skill。
+
+## Changelog
+
+- 2026-05-19：初次落地。接入 `next-devtools-mcp`，建立 2 个示范 skill。
 - 2026-05-19：把 [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/)
-  纳入**项目工程化参考资料**（不是手册内容引用源）。两个项目存在**双向
-  验证关系**：
-  - 那个项目 → 本项目：提供 agent ready 实现维度清单、上下文工程模式、
-    harness 工程化最佳实践
-  - 本项目 → 那个项目：作为活实践案例，用真实开发过程验证清单的覆盖度、
-    可操作性，发现遗漏维度（如三层知识源、framework MCP 集成、内容站
-    测试策略约定）反哺回去
-  - **边界**：仅用于项目自身的 harness/工程化决策，不进入手册正文的
-    内容来源；[SPEC-0002](../0002-content-source-admission/spec.md)
-    禁止个人站作为内容引用源的红线不变。
+  纳入**项目工程化参考资料**（不是手册内容引用源——
+  [SPEC-0002](../0002-content-source-admission/spec.md) 内容来源准入
+  红线不变）。本项目在自己的 harness 中实践其 agent 约定；本手册涉及
+  agent 相关学习的章节，可以把它列为参考资源之一。
+- 2026-05-20：早期 Changelog 一度把这个关联描述为"双向验证 / 反哺
+  / 内容矩阵"，过度阐释——两个项目并非正式合作关系，那个项目也未
+  承诺接受本项目反馈。已修正为单向引用关系。修正过程留痕：
+  [journal/2026-05-19-agent-master-handbook-benchmark.md](../../journal/2026-05-19-agent-master-handbook-benchmark.md)
+  末段。
