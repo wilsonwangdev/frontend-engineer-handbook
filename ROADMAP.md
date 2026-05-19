@@ -2,25 +2,21 @@
 
 > 手册的前瞻计划。**新会话开始时扫这里**，找到当前最值得推进的任务。
 >
-> **范围规则**：ROADMAP 只装"已规划、未实现"的工作。每完成一项就移到末尾
-> "已发布"段并附 commit hash。执行过程中的失败记 [journal/](journal/)。
-> 载入性的设计决策另开 [SPEC](specs/)。
+> **范围规则**：ROADMAP 只装"未发生"的事。每完成一项就**直接删除条目**——
+> 已发生的事查 `git log` / GitHub Releases 即可，不在此重复维护。
+> 执行过程中的失败记 [journal/](journal/)。载入性的设计决策另开
+> [SPEC](specs/)。
 
 ---
 
 ## 当前焦点（active milestone）
 
-**M1 收尾 → 首次公网发布 ✅ 完成**
+**第 2 章 Web 平台基石**——见下方"下一步"。
 
-- [x] MDX 管线 + 章节路由
-- [x] 三层 agent 知识体系（MCP + skills + gotchas）
-- [x] README + LICENSE + DEPLOY.md
-- [x] **推送到 GitHub** — https://github.com/wilsonwangdev/frontend-engineer-handbook
-- [x] **接入 Vercel** — https://frontend-engineer-handbook.vercel.app/
-- [x] Analytics 启用（Speed Insights 因免费层限制暂留候补池）
-- [x] README 加 live URL
+M1 首次公网发布已完成；现状：
 
-下一阶段焦点：开始第 2 章 Web 平台基石（见下方"下一步"）。
+- GitHub: https://github.com/wilsonwangdev/frontend-engineer-handbook
+- Live: https://frontend-engineer-handbook.vercel.app/
 
 ---
 
@@ -111,34 +107,16 @@
 | 债务                                                                                                               | 创建于       | 关联 SPEC                                                          | 偿还计划                                                           |
 | ------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | `e2e/*.spec.ts` 用了具体文字断言；同因素：CI 上 e2e 暂关（push/PR 不跑），需按 SPEC-0005 §二 重写为快照 + 结构断言 | 2026-05-19   | [SPEC-0005](specs/0005-companion-tracks-and-test-strategy/spec.md) | 第 7 章动笔时一并重构，重构后从 ci.yml 删 if 一行恢复 push/PR 触发 |
-| AGENTS.md 一度超过预算（210 行）                                                                                   | 2026-05-19   | SPEC-0006                                                          | 已在同会话内瘦身完成                                               |
 | 首次季度 skills 复核                                                                                               | 2026-08 到期 | [SPEC-0006](specs/0006-agent-skills-system/spec.md)                | 日历提醒                                                           |
 | 首次附录 D 升级复核                                                                                                | 2026-08 到期 | [SPEC-0005](specs/0005-companion-tracks-and-test-strategy/spec.md) | 同上                                                               |
 
 ---
 
-## 已发布（新 → 旧）
+## 发布记录
 
-- 2026-05-20 — 修 a11y 颜色对比度违规（commit `96963f1`）
-- 2026-05-20 — 修正 e2e CI 真因（`use.proxy` 误配置），恢复 push/PR 触发
-- 2026-05-20 — M1 milestone 收尾：Vercel 部署 + README live URL
-- 2026-05-20 — CI 的 e2e job 暂改为手动触发（commit `7b143e7`）
-- 2026-05-20 — 首次推送到 GitHub `wilsonwangdev/frontend-engineer-handbook`
-- 2026-05-20 — 项目长描述收敛到 `package.json.description` 作为 SSOT（commit `0df76d4`）
-- 2026-05-20 — SPEC-0008 动手前的反射性检查清单（commit `9dbd78e`）
-- 2026-05-20 — SPEC-0007 开源资产边界（commit `e7c4478`）
-- 2026-05-19 — 拆分 AGENTS.md，提取 GOTCHAS + ROADMAP（commit `24c120d`）
-- 2026-05-19 — README / LICENSE / DEPLOY.md（commit `d90de66`）
-- 2026-05-19 — SPEC-0006 agent skills 体系 + 2 示范 skill（commit `5b49f0e`）
-- 2026-05-19 — 接入 next-devtools-mcp + inline gotchas（commit `57f7c98`）
-- 2026-05-19 — E2E 三轨制 + smoke 脚本（commit `def6018`）
-- 2026-05-19 — SPEC-0005 番外 + 测试策略（commit `e0230d1`）
-- 2026-05-19 — MDX 管线 + 章节路由（commit `253cc84`）
-- 2026-05-19 — 第 1 章 AI 时代能力地图（commit `13282ee`）
-- 2026-05-19 — 第 0 章 如何使用本手册（commit `5f86cc9`）
-- 2026-05-19 — SPEC-0001 → 0004 决策基线
-- 2026-05-19 — M0 质量门禁 + Next.js 16 骨架（commit `97ccc79`）
-- 2026-05-19 — Agent-ready harness 启动（commit `712d3d8`）
+发布历史**不在本文件维护**——`git log --oneline` 是真源，未来正式
+发布后 [GitHub Releases](https://github.com/wilsonwangdev/frontend-engineer-handbook/releases)
+会作为版本化记录。本文件只跟踪**未发生**的事；已发生的事查 git 即可。
 
 ---
 
@@ -147,6 +125,7 @@
 - **新会话**：从上到下读一遍。"当前焦点"或"下一步"里第一个未勾选项就是
   你最该接的任务。
 - **领任务**：超过 30 分钟工作量前先和用户确认方向。
-- **完成后**：把条目移到"已发布"段，附 commit hash。
+- **完成后**：把条目从"当前焦点 / 下一步"删除即可；commit hash 不必抄
+  进本文件（`git log` 即是发布记录的真源）。
 - **不要**：把本文件变成想到啥就堆啥的清单。条目要具体、要在 3 个月内
   有执行意图。再远的设想要么写进"已搁置"，要么删掉。
