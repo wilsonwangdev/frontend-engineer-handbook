@@ -35,16 +35,17 @@ spec-kit / OpenSpec；ADR 与 feature spec 可以并存。
 
 ## 索引（按编号）
 
-| #                                                       | 标题                      | 状态     | 适用场景                                      |
-| ------------------------------------------------------- | ------------------------- | -------- | --------------------------------------------- |
-| [0001](0001-scope-and-audience/spec.md)                 | 范围与读者                | accepted | 战略级；决定章节是否值得写                    |
-| [0002](0002-content-source-admission/spec.md)           | 内容来源准入              | accepted | 写章节正文、添加外链时                        |
-| [0003](0003-table-of-contents/spec.md)                  | 目录结构与章节归位        | accepted | 设计新章节 / 决定内容放哪一档                 |
-| [0004](0004-ai-delegation-criteria/spec.md)             | AI 可委托清单判断依据     | accepted | 第 1 章 / 涉及"什么任务可委托给 AI"的判断     |
-| [0005](0005-companion-tracks-and-test-strategy/spec.md) | 番外（附录 D）+ 测试策略  | accepted | 写 e2e 测试 / 把 journal 升级为附录条目时     |
-| [0006](0006-agent-skills-system/spec.md)                | Agent harness skills 体系 | accepted | 新增 skill / 选用社区 skill / 评估 MCP 集成时 |
-| [0007](0007-open-source-asset-boundary/spec.md)         | 开源资产边界              | accepted | **每段开源内容写入前必查**（元规则）          |
-| [0008](0008-pre-action-reflexive-checklist/spec.md)     | 动手前的反射性检查清单    | accepted | **写工具 / 改 git 历史前必查**（元规则）      |
+| #                                                       | 标题                       | 状态     | 适用场景                                                      |
+| ------------------------------------------------------- | -------------------------- | -------- | ------------------------------------------------------------- |
+| [0001](0001-scope-and-audience/spec.md)                 | 范围与读者                 | accepted | 战略级；决定章节是否值得写                                    |
+| [0002](0002-content-source-admission/spec.md)           | 内容来源准入               | accepted | 写章节正文、添加外链时                                        |
+| [0003](0003-table-of-contents/spec.md)                  | 目录结构与章节归位         | accepted | 设计新章节 / 决定内容放哪一档                                 |
+| [0004](0004-ai-delegation-criteria/spec.md)             | AI 可委托清单判断依据      | accepted | 第 1 章 / 涉及"什么任务可委托给 AI"的判断                     |
+| [0005](0005-companion-tracks-and-test-strategy/spec.md) | 番外（附录 D）+ 测试策略   | accepted | 写 e2e 测试 / 把 journal 升级为附录条目时                     |
+| [0006](0006-agent-skills-system/spec.md)                | Agent harness skills 体系  | accepted | 新增 skill / 选用社区 skill / 评估 MCP 集成时                 |
+| [0007](0007-open-source-asset-boundary/spec.md)         | 开源资产边界               | accepted | **每段开源内容写入前必查**（元规则）                          |
+| [0008](0008-pre-action-reflexive-checklist/spec.md)     | 动手前的反射性检查清单     | accepted | **写工具 / 改 git 历史前必查**（元规则）                      |
+| [0009](0009-release-cadence-and-versioning/spec.md)     | 发布节奏、版本号、历史版本 | accepted | 打 release 前必查；临近 v1.0.0 时再开新 SPEC 锁定历史版本实现 |
 
 新增 spec 时**只动这张表**，不动 AGENTS.md。
 

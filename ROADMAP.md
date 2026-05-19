@@ -122,8 +122,10 @@ GitHub Release 标题的事件。commit 粒度详情查 `git log`。
   skills / journal 四件套）+ Next.js 16 骨架 + 质量门禁基线（M0 完成）
 - **2026-05-19 内容基线** · 第 0 / 1 章上线 + SPEC-0001 至 SPEC-0008
   决策基线落齐 + MADR v4 对标
-- **2026-05-20 首次公网发布** · GitHub 仓库 + Vercel 部署 + Analytics
-  接入；live: https://frontend-engineer-handbook.vercel.app/（M1 完成）
+- **2026-05-20 首次公开可访问版本（[v0.1.0](https://github.com/wilsonwangdev/frontend-engineer-handbook/releases/tag/v0.1.0)）** ·
+  GitHub 仓库 + Vercel 部署 + Analytics 接入；
+  live: https://frontend-engineer-handbook.vercel.app/ ；
+  SPEC-0009 落地发布规则（M1 完成）
 
 未来里程碑示例：第 2 章上线、第一次依赖大升级、首个外部贡献者、
 PWA 上线、附录 D 首条升级等。
