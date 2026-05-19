@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # e2e job 改为只在手动触发时跑——见下方 job 定义里的 if 条件。
+  # 触发方式：GitHub UI 的 Actions → CI → Run workflow，或 gh workflow run ci.yml
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -49,11 +52,17 @@ jobs:
       - name: Build (Next.js + Turbopack)
         run: pnpm build
 
+  # e2e job 暂时只在 workflow_dispatch（手动触发）时运行，不阻塞 push/PR。
+  # 起因：GitHub Actions runner 上 chromium 报 ERR_PROXY_CONNECTION_FAILED
+  # 访问 localhost:4173；与本地 TUN 代理是同源问题但发生在不同栈。
+  # 完整记录与修复计划：journal/2026-05-20-e2e-proxy-on-ci.md
+  # ROADMAP 已记入"待还的债"。
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: quality
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
