@@ -150,3 +150,14 @@ status: experimental | stable | deprecated
 ## Changelog
 
 - 2026-05-19：初次落地。接入 `next-devtools-mcp`，建立 2 个示范 skill。
+- 2026-05-19：把 [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/)
+  纳入**项目工程化参考资料**（不是手册内容引用源）。两个项目存在**双向
+  验证关系**：
+  - 那个项目 → 本项目：提供 agent ready 实现维度清单、上下文工程模式、
+    harness 工程化最佳实践
+  - 本项目 → 那个项目：作为活实践案例，用真实开发过程验证清单的覆盖度、
+    可操作性，发现遗漏维度（如三层知识源、framework MCP 集成、内容站
+    测试策略约定）反哺回去
+  - **边界**：仅用于项目自身的 harness/工程化决策，不进入手册正文的
+    内容来源；[SPEC-0002](../0002-content-source-admission/spec.md)
+    禁止个人站作为内容引用源的红线不变。
