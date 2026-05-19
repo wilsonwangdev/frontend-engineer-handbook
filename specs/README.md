@@ -1,8 +1,8 @@
 # specs/
 
 SPEC-driven decision records. One folder per spec. Specs are the durable
-*why* behind non-obvious choices — code shows the *what*, git history shows
-*when*, specs explain *why*.
+_why_ behind non-obvious choices — code shows the _what_, git history shows
+_when_, specs explain _why_.
 
 ## When to write a spec
 

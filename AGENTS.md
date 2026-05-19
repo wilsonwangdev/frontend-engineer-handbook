@@ -43,19 +43,21 @@ When in doubt, read the local README before adding files.
 
 ## Commands
 
-The project does not yet have a build system. When one is added, document it
-here so agents can run it without guessing. Placeholders to fill in:
+| Task         | Command             | Notes                                     |
+| ------------ | ------------------- | ----------------------------------------- |
+| Install      | `pnpm install`      | Use exactly pnpm (see SPEC-0003)          |
+| Dev server   | `pnpm dev`          | Next.js 16 with Turbopack default         |
+| Build        | `pnpm build`        | Cache Components + React Compiler         |
+| Start        | `pnpm start`        | Production server                         |
+| Test         | `pnpm test`         | Vitest single-run                         |
+| Test (E2E)   | `pnpm test:e2e`     | Playwright + axe-core                     |
+| Lint         | `pnpm lint`         | OXC oxlint                                |
+| Format       | `pnpm format`       | OXC oxfmt (auto-fix)                      |
+| Format check | `pnpm format:check` | Read-only check, used in CI               |
+| Type check   | `pnpm type-check`   | `tsc --noEmit` strict                     |
+| All checks   | `pnpm ci`           | type-check + lint + format + test + build |
 
-| Task        | Command            | Notes                                  |
-|-------------|--------------------|----------------------------------------|
-| Install     | _TBD_              | e.g. `pnpm install`                    |
-| Dev server  | _TBD_              | e.g. `pnpm dev`                        |
-| Build       | _TBD_              | e.g. `pnpm build`                      |
-| Test        | _TBD_              | e.g. `pnpm test`                       |
-| Lint        | _TBD_              | e.g. `pnpm lint`                       |
-| Type-check  | _TBD_              | e.g. `pnpm typecheck`                  |
-
-Agents: if you add a build system, update this table in the same commit.
+Agents: if you add a script, update this table in the same commit.
 
 ## Commit Conventions
 
@@ -76,7 +78,7 @@ Prefixes:
 - `ci:` — CI pipeline changes
 
 Subject line ≤72 chars, imperative mood ("add X", not "added X"). If the
-*why* is non-obvious, put it in the body — not in code comments.
+_why_ is non-obvious, put it in the body — not in code comments.
 
 ## Working Agreements for Agents
 
@@ -101,17 +103,17 @@ Subject line ≤72 chars, imperative mood ("add X", not "added X"). If the
 
 ## Pointers to Context
 
-| Need                              | Look in                                     |
-|-----------------------------------|---------------------------------------------|
-| Why a decision was made           | [specs/](specs/)                            |
-| Reusable agent capabilities       | [skills/](skills/)                          |
-| Past mistakes / failure modes     | [journal/](journal/)                        |
-| Tool permission policy            | [.claude/settings.json](.claude/settings.json) |
-| Per-directory conventions         | The `README.md` inside each directory       |
+| Need                          | Look in                                        |
+| ----------------------------- | ---------------------------------------------- |
+| Why a decision was made       | [specs/](specs/)                               |
+| Reusable agent capabilities   | [skills/](skills/)                             |
+| Past mistakes / failure modes | [journal/](journal/)                           |
+| Tool permission policy        | [.claude/settings.json](.claude/settings.json) |
+| Per-directory conventions     | The `README.md` inside each directory          |
 
 ## Style
 
-- Default to **no comments**. Only comment when the *why* is non-obvious.
+- Default to **no comments**. Only comment when the _why_ is non-obvious.
 - Don't write multi-paragraph docstrings. One short line max.
 - Don't reference current task / PR / issue numbers in code — they rot.
 - Prefer clear identifiers over comments that explain unclear ones.
@@ -126,7 +128,7 @@ Subject line ≤72 chars, imperative mood ("add X", not "added X"). If the
 ## Memory and Persistence
 
 This file is the durable, repo-scoped contract. Agent-private memory
-(Claude's `/memory`, Cursor's rules, etc.) is for *cross-project* user
+(Claude's `/memory`, Cursor's rules, etc.) is for _cross-project_ user
 preferences, not project facts. Project facts go in `specs/`, this file,
 or the relevant directory README.
 
