@@ -2,6 +2,8 @@
 
 > 围绕 agent 协作的前端工程师中文精编手册。
 
+🌐 **Live**: https://frontend-engineer-handbook.vercel.app/
+
 [![CI](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml/badge.svg)](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml)
 
 ## 这是什么

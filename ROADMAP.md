@@ -10,17 +10,17 @@
 
 ## 当前焦点（active milestone）
 
-**M1 收尾 → 首次公网发布**
+**M1 收尾 → 首次公网发布 ✅ 完成**
 
 - [x] MDX 管线 + 章节路由
 - [x] 三层 agent 知识体系（MCP + skills + gotchas）
 - [x] README + LICENSE + DEPLOY.md
 - [x] **推送到 GitHub** — https://github.com/wilsonwangdev/frontend-engineer-handbook
-- [ ] **接入 Vercel 完成首次生产部署**（Vercel 控制台操作，由用户完成）
-- [ ] 确认 Speed Insights + Web Analytics 收到数据
-- [ ] 首次部署后更新 README.md 中的 live URL
+- [x] **接入 Vercel** — https://frontend-engineer-handbook.vercel.app/
+- [x] Analytics 启用（Speed Insights 因免费层限制暂留候补池）
+- [x] README 加 live URL
 
-操作步骤见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+下一阶段焦点：开始第 2 章 Web 平台基石（见下方"下一步"）。
 
 ---
 
@@ -120,6 +120,8 @@
 
 ## 已发布（新 → 旧）
 
+- 2026-05-20 — M1 milestone 收尾：Vercel 部署 + README live URL
+- 2026-05-20 — CI 的 e2e job 暂改为手动触发（commit `7b143e7`）
 - 2026-05-20 — 首次推送到 GitHub `wilsonwangdev/frontend-engineer-handbook`
 - 2026-05-20 — 项目长描述收敛到 `package.json.description` 作为 SSOT（commit `0df76d4`）
 - 2026-05-20 — SPEC-0008 动手前的反射性检查清单（commit `9dbd78e`）
