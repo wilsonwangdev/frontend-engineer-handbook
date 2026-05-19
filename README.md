@@ -1,6 +1,7 @@
 # 前端工程师手册
 
-> AI 时代的前端工程师手册。
+> 面向 2026 年、围绕 agent 协作的前端工程师中文精编手册。
+> 小而美，不是大而全。
 
 [![CI](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml/badge.svg)](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml)
 

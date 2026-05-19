@@ -4,9 +4,13 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-24">
       <div className="space-y-6">
-        <p className="text-sm font-medium tracking-widest text-fg-muted uppercase">AI 时代</p>
+        <p className="text-sm font-medium tracking-widest text-fg-muted uppercase">
+          AI 时代 · 中文精编手册
+        </p>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">前端工程师手册</h1>
         <p className="text-lg leading-relaxed text-fg-muted">
+          面向 2026 年、围绕 agent 协作的精编学习路线。
+          <br />
           小而美，不是大而全。导航 + 判断 + 快速复习 + 实践。
         </p>
 

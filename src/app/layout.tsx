@@ -7,10 +7,11 @@ import "@/styles/globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://frontend-engineer-handbook.vercel.app"),
   title: {
-    default: "AI 时代的前端工程师手册",
+    default: "前端工程师手册 · AI 时代的精编学习路线",
     template: "%s · 前端工程师手册",
   },
-  description: "AI 时代的前端工程师手册。",
+  description:
+    "面向 2026 年的中文前端工程师精编手册——围绕 agent 协作的必要学习路线与核心知识点。小而美，不是大而全。",
   keywords: [
     "前端",
     "前端工程师",
@@ -26,8 +27,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    title: "AI 时代的前端工程师手册",
-    description: "AI 时代的前端工程师手册。",
+    title: "前端工程师手册 · AI 时代的精编学习路线",
+    description:
+      "面向 2026 年的中文前端工程师精编手册——围绕 agent 协作的必要学习路线与核心知识点。",
   },
   robots: {
     index: true,
