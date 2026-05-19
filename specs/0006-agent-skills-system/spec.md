@@ -150,10 +150,6 @@ status: experimental | stable | deprecated
 ## Changelog
 
 - 2026-05-19：初次落地。接入 `next-devtools-mcp`，建立 2 个示范 skill。
-
-## Changelog
-
-- 2026-05-19：初次落地。接入 `next-devtools-mcp`，建立 2 个示范 skill。
 - 2026-05-19：把 [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/)
   纳入**项目工程化参考资料**（不是手册内容引用源——
   [SPEC-0002](../0002-content-source-admission/spec.md) 内容来源准入
