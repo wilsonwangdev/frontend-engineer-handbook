@@ -61,17 +61,15 @@ gh repo create wilsonwangdev/frontend-engineer-handbook \
 如果 e2e 在 CI 失败：先看 Playwright 报告 artifacts，按 SPEC-0005 测试
 策略章节评估是否需要先合并 e2e 重构 PR。
 
-## 步骤 6：开启 build-in-public 反馈循环
+## 步骤 6：开启反馈循环
 
-发布后建议立刻：
+发布后建议：
 
 - README.md 顶部加上正式的站点 URL
 - GitHub Issues 开启
-- 在自媒体（Twitter / 小红书 / 知乎等）公告（可选）
-
-新踩坑 → `journal/` 记录；季度末走
-[SPEC-0005](../specs/0005-companion-tracks-and-test-strategy/spec.md)
-评估升级到附录 D。
+- 新踩坑 → `journal/` 记录；季度末走
+  [SPEC-0005](../specs/0005-companion-tracks-and-test-strategy/spec.md)
+  评估是否升级到附录 D
 
 ## 故障排查
 

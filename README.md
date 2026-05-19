@@ -77,6 +77,14 @@ pnpm dev          # localhost:3000，启用 Turbopack
 - 强制 CI：type-check / oxlint / oxfmt / vitest / build / playwright (CI only)
 - 引用必走 [SPEC-0002 内容来源准入](specs/0002-content-source-admission/spec.md)
 
+## 相关项目
+
+- [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/) ——
+  同作者维护的另一本中文手册，主题是 AI Native 项目的构建实践
+  （AGENTS.md / specs / skills / journal 等"agent ready"约定）。本项目
+  的工程化骨架受其指导；两个项目可视为"内容矩阵"：那本讲怎么搭、
+  这本讲前端工程师在搭好的环境里该学什么。
+
 ## License
 
 MIT — 内容与代码均开源。详见 [LICENSE](LICENSE)。
