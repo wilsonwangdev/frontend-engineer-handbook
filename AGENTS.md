@@ -19,6 +19,7 @@
 - [SPEC-0002 内容来源准入标准](specs/0002-content-source-admission/spec.md)
 - [SPEC-0003 目录结构与章节归位规则](specs/0003-table-of-contents/spec.md)
 - [SPEC-0004 AI 可委托清单的判断依据](specs/0004-ai-delegation-criteria/spec.md)
+- [SPEC-0005 番外机制与测试策略](specs/0005-companion-tracks-and-test-strategy/spec.md)
 
 仓库本身同时是"agent-ready"实验：结构、specs、skills 都为 LLM 与人类双读者
 设计。
@@ -44,21 +45,30 @@ When in doubt, read the local README before adding files.
 
 ## Commands
 
-| Task         | Command             | Notes                                     |
-| ------------ | ------------------- | ----------------------------------------- |
-| Install      | `pnpm install`      | Use exactly pnpm (see SPEC-0003)          |
-| Dev server   | `pnpm dev`          | Next.js 16 with Turbopack default         |
-| Build        | `pnpm build`        | Cache Components + React Compiler         |
-| Start        | `pnpm start`        | Production server                         |
-| Test         | `pnpm test`         | Vitest single-run                         |
-| Test (E2E)   | `pnpm test:e2e`     | Playwright + axe-core                     |
-| Lint         | `pnpm lint`         | OXC oxlint                                |
-| Format       | `pnpm format`       | OXC oxfmt (auto-fix)                      |
-| Format check | `pnpm format:check` | Read-only check, used in CI               |
-| Type check   | `pnpm type-check`   | `tsc --noEmit` strict                     |
-| All checks   | `pnpm ci`           | type-check + lint + format + test + build |
+| Task                              | Command               | Notes                                                            |
+| --------------------------------- | --------------------- | ---------------------------------------------------------------- |
+| Install                           | `pnpm install`        | Use exactly pnpm                                                 |
+| Dev server                        | `pnpm dev`            | Next.js 16 with Turbopack default                                |
+| Build                             | `pnpm build`          | Cache Components + React Compiler                                |
+| Start                             | `pnpm start`          | Production server (default `PORT=3000`, `PORT=4173` for tests)   |
+| Test                              | `pnpm test`           | Vitest single-run                                                |
+| Test (E2E)                        | `pnpm test:e2e`       | Playwright + axe-core (auto-starts server; CI uses this)         |
+| Test (E2E local, TUN proxy users) | `pnpm test:e2e:local` | Skip webServer; start `PORT=4173 pnpm start` manually first      |
+| Smoke                             | `pnpm smoke`          | Pure-curl page check; works under any proxy. Requires server up. |
+| Lint                              | `pnpm lint`           | OXC oxlint                                                       |
+| Format                            | `pnpm format`         | OXC oxfmt (auto-fix)                                             |
+| Format check                      | `pnpm format:check`   | Read-only check, used in CI                                      |
+| Type check                        | `pnpm type-check`     | `tsc --noEmit` strict                                            |
+| All checks                        | `pnpm ci`             | type-check + lint + format + test + build                        |
 
 Agents: if you add a script, update this table in the same commit.
+
+**Local E2E gotcha**: if `pnpm test:e2e` hangs or fails with
+`ERR_CONNECTION_REFUSED` while `pnpm start` works manually, you likely have
+a system-level TUN-mode proxy (Clash/Surge etc.) intercepting localhost. Use
+`pnpm smoke` for a quick check, or `pnpm test:e2e:local` after starting the
+server in a separate terminal (you may need to temporarily disable the proxy).
+See [journal/2026-05-19-playwright-tun-mode-proxy.md](journal/2026-05-19-playwright-tun-mode-proxy.md).
 
 ## Commit Conventions
 
