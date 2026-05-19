@@ -22,7 +22,7 @@ page.goto: net::ERR_PROXY_CONNECTION_FAILED at http://localhost:4173/chapter-00
 
 ## 用户给出的关键反例
 
-用户指出姊妹项目 `wilsonwangdev/agent-master-handbook` 在同账号、
+用户指出对照项目 `wilsonwangdev/agent-master-handbook` 在同账号、
 同 GitHub Actions 基础设施上，访问 `http://localhost:3000` 是成功的
 （`lighthouse.yml` 用 `npx serve` + `npx wait-on` 跑通了）。
 
@@ -119,7 +119,7 @@ chromium 流量，断言代码从未执行过。整条 e2e 链路在本地从未
 
 本条 journal 经历了**三次归因升级**：
 
-1. ❌ "GitHub Actions runner 拦截 localhost"——被姊妹项目证伪
+1. ❌ "GitHub Actions runner 拦截 localhost"——被对照项目证伪
 2. ❌ "use.proxy='direct://' 误配置"——确实是个 bug 修了，但不是
    全部真因
 3. ✅ "测试断言风格反例 + 真实 a11y 违规 + 本地 e2e 一直是假阳性"

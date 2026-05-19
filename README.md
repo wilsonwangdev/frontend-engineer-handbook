@@ -80,8 +80,8 @@ pnpm dev          # localhost:3000，启用 Turbopack
 
 ## 相关项目
 
-- [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/) ——
-  同作者维护的中文手册，主题是 AI Native 项目的构建实践
+- [Agent Master Handbook](https://agent-master-handbook.vercel.app/) ——
+  英语优先的双语手册，主题是 AI Native 项目的构建实践
   （AGENTS.md / specs / skills / journal 等约定）。本项目在自己的
   harness 中实践其中的 agent 约定；本手册涉及 agent 相关学习的章节，
   可以把它列为参考资源之一。

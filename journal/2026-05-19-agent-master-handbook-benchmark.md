@@ -5,8 +5,9 @@ tags: [agent-ready, harness, benchmark, agent-master-handbook]
 
 ## What happened
 
-调研姊妹项目 [Agent Master Handbook](https://agent-master-handbook.vercel.app/zh/)
-（同作者维护），用其"agent ready 实现维度"清单核对本项目当前 harness 状态。
+调研 [Agent Master Handbook](https://agent-master-handbook.vercel.app/)
+（英语优先的双语手册，作者本人维护），用其"agent ready 实现维度"
+清单核对本项目当前 harness 状态。
 
 ## Findings
 
