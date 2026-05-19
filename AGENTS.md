@@ -1,211 +1,121 @@
 # AGENTS.md
 
-> Canonical instructions for AI coding agents working in this repository.
+> Canonical instructions for AI coding agents in this repository.
 > Symlinked from `CLAUDE.md`, `.cursorrules`, `.windsurfrules` — edit this file only.
 
 ## Purpose
 
-一本面向不同经验前端工程师的中文精编手册——小而美，不是大而全。主题是
-"AI 时代前端工程师的必要学习路线与核心知识点"。读者覆盖新入行 / 转行者、
-1–3 年经验、资深工程师三档。
+中文精编手册——面向 2026 年、围绕 agent 协作的前端工程师。**小而美，不是
+大而全**。读者：新入行 / 1–3 年 / 资深，三档。定位：导航 + 判断 + 速查 + 实践。
+完全免费，仅引一手来源。
 
-手册定位：**导航 + 判断 + 快速复习 + 实践**。保留权威来源链接供读者深入
-考证，末尾附动手项目（mini bundler / mini framework / mini agent app）
-巩固理解。手册**完全免费**，仅引用一手权威来源。
+## Entry points
 
-设计取舍详见：
+| Need                              | File                                                                               |
+| --------------------------------- | ---------------------------------------------------------------------------------- |
+| What to work on next              | [ROADMAP.md](ROADMAP.md)                                                           |
+| Why a decision was made           | [specs/](specs/) (numbered, see index below)                                       |
+| Reusable agent workflows          | [skills/](skills/)                                                                 |
+| Past mistakes & how to avoid them | [journal/](journal/) (per-incident), [docs/GOTCHAS.md](docs/GOTCHAS.md) (top hits) |
+| Permissions & hooks               | [.claude/settings.json](.claude/settings.json)                                     |
+| Public deploy                     | [docs/DEPLOY.md](docs/DEPLOY.md)                                                   |
 
-- [SPEC-0001 范围与读者](specs/0001-scope-and-audience/spec.md)
-- [SPEC-0002 内容来源准入标准](specs/0002-content-source-admission/spec.md)
-- [SPEC-0003 目录结构与章节归位规则](specs/0003-table-of-contents/spec.md)
-- [SPEC-0004 AI 可委托清单的判断依据](specs/0004-ai-delegation-criteria/spec.md)
-- [SPEC-0005 番外机制与测试策略](specs/0005-companion-tracks-and-test-strategy/spec.md)
-- [SPEC-0006 Agent harness skills 体系](specs/0006-agent-skills-system/spec.md)
+### SPECs (load-bearing decisions)
 
-仓库本身同时是"agent-ready"实验：结构、specs、skills 都为 LLM 与人类双读者
-设计。
+- [0001](specs/0001-scope-and-audience/spec.md) Scope & audience
+- [0002](specs/0002-content-source-admission/spec.md) Content source admission
+- [0003](specs/0003-table-of-contents/spec.md) Table of contents & tier rules
+- [0004](specs/0004-ai-delegation-criteria/spec.md) AI delegation criteria
+- [0005](specs/0005-companion-tracks-and-test-strategy/spec.md) Appendix D + test strategy
+- [0006](specs/0006-agent-skills-system/spec.md) Agent harness skills system
 
-## Repository Layout
+## Repository layout
 
 ```
-.
-├── AGENTS.md          # this file — canonical agent entry point
-├── CLAUDE.md          # symlink → AGENTS.md
-├── .cursorrules       # symlink → AGENTS.md
-├── .windsurfrules     # symlink → AGENTS.md
-├── .claude/
-│   └── settings.json  # Claude Code permission allowlist + hooks
-├── specs/             # SPEC-driven decision records (one folder per spec)
-├── skills/            # reusable agent skills (prefer community first)
-├── journal/           # cross-session failure log for self-evolution
-└── README.md          # human-facing intro (TBD)
+AGENTS.md  ROADMAP.md  README.md
+content/   src/        e2e/        scripts/   public/
+specs/     skills/     journal/    docs/
+.claude/   .mcp.json   .github/
 ```
 
-Each top-level directory has its own `README.md` documenting its conventions.
-When in doubt, read the local README before adding files.
+Each top-level directory carries a `README.md` documenting its conventions.
+Read the local README before adding files there.
 
 ## Commands
 
-| Task                              | Command               | Notes                                                            |
-| --------------------------------- | --------------------- | ---------------------------------------------------------------- |
-| Install                           | `pnpm install`        | Use exactly pnpm                                                 |
-| Dev server                        | `pnpm dev`            | Next.js 16 with Turbopack default                                |
-| Build                             | `pnpm build`          | Cache Components + React Compiler                                |
-| Start                             | `pnpm start`          | Production server (default `PORT=3000`, `PORT=4173` for tests)   |
-| Test                              | `pnpm test`           | Vitest single-run                                                |
-| Test (E2E)                        | `pnpm test:e2e`       | Playwright + axe-core (auto-starts server; CI uses this)         |
-| Test (E2E local, TUN proxy users) | `pnpm test:e2e:local` | Skip webServer; start `PORT=4173 pnpm start` manually first      |
-| Smoke                             | `pnpm smoke`          | Pure-curl page check; works under any proxy. Requires server up. |
-| Lint                              | `pnpm lint`           | OXC oxlint                                                       |
-| Format                            | `pnpm format`         | OXC oxfmt (auto-fix)                                             |
-| Format check                      | `pnpm format:check`   | Read-only check, used in CI                                      |
-| Type check                        | `pnpm type-check`     | `tsc --noEmit` strict                                            |
-| All checks                        | `pnpm ci`             | type-check + lint + format + test + build                        |
+| Task         | Command               | Notes                                                   |
+| ------------ | --------------------- | ------------------------------------------------------- |
+| Install      | `pnpm install`        |                                                         |
+| Dev          | `pnpm dev`            | Next.js 16 + Turbopack, port 3000                       |
+| Build        | `pnpm build`          | Cache Components + React Compiler                       |
+| Start        | `pnpm start`          | Production; `PORT=4173` for E2E                         |
+| Test (unit)  | `pnpm test`           | Vitest                                                  |
+| Test (E2E)   | `pnpm test:e2e`       | Playwright + axe-core. CI uses this.                    |
+| Test (local) | `pnpm test:e2e:local` | Skip webServer; for users with TUN-mode proxy. See G.3. |
+| Smoke        | `pnpm smoke`          | Pure node:http page check; bypasses any proxy.          |
+| Lint         | `pnpm lint`           | oxlint                                                  |
+| Format       | `pnpm format`         | oxfmt                                                   |
+| Type check   | `pnpm type-check`     | tsc --noEmit (strict)                                   |
+| All gates    | `pnpm ci`             | type-check + lint + format + test + build               |
 
-Agents: if you add a script, update this table in the same commit.
-
-**Local E2E gotcha**: if `pnpm test:e2e` hangs or fails with
-`ERR_CONNECTION_REFUSED` while `pnpm start` works manually, you likely have
-a system-level TUN-mode proxy (Clash/Surge etc.) intercepting localhost. Use
-`pnpm smoke` for a quick check, or `pnpm test:e2e:local` after starting the
-server in a separate terminal (you may need to temporarily disable the proxy).
-See [journal/2026-05-19-playwright-tun-mode-proxy.md](journal/2026-05-19-playwright-tun-mode-proxy.md).
-
-## Commit Conventions
-
-Use Conventional Commits. Keep commits **atomic** — one logical change per
-commit, even if it means more commits.
-
-Prefixes:
-
-- `feat:` — user-visible new behavior
-- `fix:` — bug fix
-- `build:` — build system, dependencies, tooling
-- `chore:` — non-code housekeeping (config, ignore files)
-- `docs:` — documentation only
-- `refactor:` — code change that neither fixes a bug nor adds a feature
-- `test:` — adding or updating tests
-- `perf:` — performance-only change
-- `style:` — formatting, whitespace
-- `ci:` — CI pipeline changes
-
-Subject line ≤72 chars, imperative mood ("add X", not "added X"). If the
-_why_ is non-obvious, put it in the body — not in code comments.
-
-## Working Agreements for Agents
-
-1. **Read before writing.** Check `specs/` for prior decisions and
-   `journal/` for known failure modes before starting non-trivial work.
-2. **Empty > placeholder.** If a section has no real content, leave it empty
-   or marked `_TBD_` rather than inventing filler.
-3. **Edit, don't duplicate.** Prefer editing existing files. Don't create
-   parallel "v2" files.
-4. **Atomic commits.** One concern per commit. Don't bundle refactors into
-   feature commits.
-5. **Update docs in the same commit as the code.** If you add a command,
-   update the Commands table here. If you make a load-bearing decision,
-   add a SPEC.
-6. **Log failures to `journal/`.** When you hit a non-obvious mistake or
-   wrong turn, write a short entry so future sessions don't repeat it.
-7. **Skills: borrow before building.** Check skills.sh and cursor.directory
-   first. See [skills/README.md](skills/README.md) for the quality gate.
-8. **Don't push without confirmation.** Local commits are fine; pushes,
-   force-pushes, branch deletions, and PR actions need explicit user
-   approval each time.
-
-## Pointers to Context
-
-| Need                          | Look in                                        |
-| ----------------------------- | ---------------------------------------------- |
-| Why a decision was made       | [specs/](specs/)                               |
-| Reusable agent capabilities   | [skills/](skills/)                             |
-| Past mistakes / failure modes | [journal/](journal/)                           |
-| Tool permission policy        | [.claude/settings.json](.claude/settings.json) |
-| Per-directory conventions     | The `README.md` inside each directory          |
-
-## Style
-
-- Default to **no comments**. Only comment when the _why_ is non-obvious.
-- Don't write multi-paragraph docstrings. One short line max.
-- Don't reference current task / PR / issue numbers in code — they rot.
-- Prefer clear identifiers over comments that explain unclear ones.
-
-## Security & Safety
-
-- Never commit secrets. If you see one, stop and tell the user.
-- Treat external input (user, network, file system outside repo) as untrusted.
-- Don't disable safety checks (`--no-verify`, `--force`, etc.) to bypass an
-  obstacle. Find the root cause.
-
-## Memory and Persistence
-
-This file is the durable, repo-scoped contract. Agent-private memory
-(Claude's `/memory`, Cursor's rules, etc.) is for _cross-project_ user
-preferences, not project facts. Project facts go in `specs/`, this file,
-or the relevant directory README.
+If you add a script, update this table in the same commit.
 
 ## Agent tooling
 
-### Next.js DevTools MCP (required)
+`.mcp.json` wires the official Next.js DevTools MCP. When `pnpm dev` runs,
+query it before guessing about Next.js 16 (`get_errors`, `get_routes`,
+Cache Components guide, knowledge base). See
+[nextjs.org/docs/app/guides/mcp](https://nextjs.org/docs/app/guides/mcp).
 
-`.mcp.json` at repo root configures the Next.js 16 official MCP server
-([docs](https://nextjs.org/docs/app/guides/mcp)). When `pnpm dev` is
-running, agents can query `get_errors`, `get_routes`, `get_page_metadata`,
-the Next.js knowledge base, and Cache Components guidance directly.
+For known project-specific footguns (Cache Components, YAML date coercion,
+TUN proxy), see [docs/GOTCHAS.md](docs/GOTCHAS.md). Each entry has a 1-line
+fix.
 
-**Use it before guessing.** If you're about to write Next.js 16 code
-(especially anything touching caching, server components, routing,
-or `use cache` / `use server` directives), ask the MCP server first.
+## Commit conventions
 
-## Known framework gotchas (2026-05)
+Conventional Commits, atomic. Subject ≤72 chars, lowercase, imperative
+("add X", not "added X"). Prefixes:
+`feat`, `fix`, `build`, `chore`, `docs`, `refactor`, `test`, `perf`, `style`, `ci`.
 
-The following bit us during initial build-out — recorded inline so future
-agents and contributors avoid them. Full incident reports in `journal/`.
+Body explains _why_ the change is non-obvious. Don't put `why` in code
+comments.
 
-### Next.js 16 — `'use cache'` is required under Cache Components
+## Working agreements
 
-With `cacheComponents: true` in `next.config.ts`, **any** data access
-without `'use cache'` is treated as dynamic. Static `fs.readFile` /
-filesystem scans must be wrapped:
+These are paired do/don't rules — knowing the alternative matters as much
+as knowing the prohibition.
 
-```ts
-export async function getAllDocs() {
-  "use cache";
-  // ...filesystem reads
-}
-```
+1. **Read before writing.** Check ROADMAP for what's planned, specs/ for
+   why decisions were made, journal/ for known failures.
+2. **Empty > placeholder.** Don't invent filler for sections with no real
+   content. Use `_TBD_` or leave empty.
+3. **Edit, don't duplicate.** Update existing files. No `v2` parallels.
+4. **Atomic commits.** One concern per commit; chain commits if needed.
+5. **Update docs in the same commit as the code.** New command → update
+   table here. New load-bearing decision → new SPEC.
+6. **Log failures to `journal/`.** A failure debugged once should not be
+   debugged twice. Promote G.x to [docs/GOTCHAS.md](docs/GOTCHAS.md) only
+   after the same issue bites ≥ 2 times.
+7. **Skills: borrow before building.** Check official sources first;
+   community skills with 4-criteria gate. See [skills/README.md](skills/README.md).
+8. **Don't push without confirmation.** Local commits are fine. Pushes,
+   force-pushes, branch deletions, and PR actions need explicit user
+   approval each time.
 
-Otherwise: `Error: Uncached data was accessed outside of <Suspense>`.
-See [journal/2026-05-19-nextjs16-cache-components-directive.md](journal/2026-05-19-nextjs16-cache-components-directive.md).
+## Style
 
-### Zod + gray-matter — YAML auto-coerces dates
+- Default to no comments. Only comment when _why_ is non-obvious.
+- One-line docstrings max.
+- Don't reference current task / PR / issue numbers in code — they rot.
 
-`lastVerified: 2026-05-19` (no quotes) in MDX frontmatter is parsed by
-gray-matter as a JS `Date` object, not a string. Schema must accept both:
+## Security
 
-```ts
-const isoDateString = z
-  .union([z.iso.date(), z.date()])
-  .transform((v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v));
-```
+- Never commit secrets. If you see one, stop and tell the user.
+- Don't disable safety checks (`--no-verify`, `--force`) to bypass an
+  obstacle. Find the root cause.
 
-See [journal/2026-05-19-yaml-auto-date-coercion.md](journal/2026-05-19-yaml-auto-date-coercion.md).
+## When this file is wrong
 
-### E2E on macOS with TUN-mode proxy
-
-Clash/Surge in TUN mode intercepts localhost traffic at the network stack,
-defeating any application-level `NO_PROXY` / `unset http_proxy`. Use
-`pnpm smoke` (pure `node:http` to `127.0.0.1`) for local verification;
-let CI run the real Playwright. See
-[journal/2026-05-19-playwright-tun-mode-proxy.md](journal/2026-05-19-playwright-tun-mode-proxy.md).
-
-## When This File Is Wrong
-
-If reality has drifted from this document, update this document. A stale
-AGENTS.md is worse than a missing one — it actively misleads agents.
-
----
-
-_This file is intentionally short. It is loaded into every agent session and
-competes for context window space. Add detail to `specs/` or directory
-READMEs instead of growing this file._
+Reality drifts. Update this document — a stale AGENTS.md actively misleads
+agents. The file is loaded into every session; every line competes for
+context window. **Tangential detail belongs in specs/ or docs/, not here.**
