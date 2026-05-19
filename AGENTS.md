@@ -20,6 +20,7 @@
 - [SPEC-0003 目录结构与章节归位规则](specs/0003-table-of-contents/spec.md)
 - [SPEC-0004 AI 可委托清单的判断依据](specs/0004-ai-delegation-criteria/spec.md)
 - [SPEC-0005 番外机制与测试策略](specs/0005-companion-tracks-and-test-strategy/spec.md)
+- [SPEC-0006 Agent harness skills 体系](specs/0006-agent-skills-system/spec.md)
 
 仓库本身同时是"agent-ready"实验：结构、specs、skills 都为 LLM 与人类双读者
 设计。
@@ -142,6 +143,61 @@ This file is the durable, repo-scoped contract. Agent-private memory
 (Claude's `/memory`, Cursor's rules, etc.) is for _cross-project_ user
 preferences, not project facts. Project facts go in `specs/`, this file,
 or the relevant directory README.
+
+## Agent tooling
+
+### Next.js DevTools MCP (required)
+
+`.mcp.json` at repo root configures the Next.js 16 official MCP server
+([docs](https://nextjs.org/docs/app/guides/mcp)). When `pnpm dev` is
+running, agents can query `get_errors`, `get_routes`, `get_page_metadata`,
+the Next.js knowledge base, and Cache Components guidance directly.
+
+**Use it before guessing.** If you're about to write Next.js 16 code
+(especially anything touching caching, server components, routing,
+or `use cache` / `use server` directives), ask the MCP server first.
+
+## Known framework gotchas (2026-05)
+
+The following bit us during initial build-out — recorded inline so future
+agents and contributors avoid them. Full incident reports in `journal/`.
+
+### Next.js 16 — `'use cache'` is required under Cache Components
+
+With `cacheComponents: true` in `next.config.ts`, **any** data access
+without `'use cache'` is treated as dynamic. Static `fs.readFile` /
+filesystem scans must be wrapped:
+
+```ts
+export async function getAllDocs() {
+  "use cache";
+  // ...filesystem reads
+}
+```
+
+Otherwise: `Error: Uncached data was accessed outside of <Suspense>`.
+See [journal/2026-05-19-nextjs16-cache-components-directive.md](journal/2026-05-19-nextjs16-cache-components-directive.md).
+
+### Zod + gray-matter — YAML auto-coerces dates
+
+`lastVerified: 2026-05-19` (no quotes) in MDX frontmatter is parsed by
+gray-matter as a JS `Date` object, not a string. Schema must accept both:
+
+```ts
+const isoDateString = z
+  .union([z.iso.date(), z.date()])
+  .transform((v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v));
+```
+
+See [journal/2026-05-19-yaml-auto-date-coercion.md](journal/2026-05-19-yaml-auto-date-coercion.md).
+
+### E2E on macOS with TUN-mode proxy
+
+Clash/Surge in TUN mode intercepts localhost traffic at the network stack,
+defeating any application-level `NO_PROXY` / `unset http_proxy`. Use
+`pnpm smoke` (pure `node:http` to `127.0.0.1`) for local verification;
+let CI run the real Playwright. See
+[journal/2026-05-19-playwright-tun-mode-proxy.md](journal/2026-05-19-playwright-tun-mode-proxy.md).
 
 ## When This File Is Wrong
 
