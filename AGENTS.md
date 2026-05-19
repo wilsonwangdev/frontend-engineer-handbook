@@ -18,6 +18,7 @@
 - [SPEC-0001 范围与读者](specs/0001-scope-and-audience/spec.md)
 - [SPEC-0002 内容来源准入标准](specs/0002-content-source-admission/spec.md)
 - [SPEC-0003 目录结构与章节归位规则](specs/0003-table-of-contents/spec.md)
+- [SPEC-0004 AI 可委托清单的判断依据](specs/0004-ai-delegation-criteria/spec.md)
 
 仓库本身同时是"agent-ready"实验：结构、specs、skills 都为 LLM 与人类双读者
 设计。
