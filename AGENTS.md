@@ -99,12 +99,16 @@ SPEC 里。
      `git revert -n` 暂存反向 diff，再 `git restore --staged` 挑出
      保留部分。**手写 Edit 做逆向修改是反模式**——丢失可审计性，
      reviewer 无法用 git 工具验证完整性。
+   - 更多触发条件见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3。
 5. **同一 commit 内更新文档**：加命令 → 更新本文件命令表；做载入性决策
    → 新增 SPEC。
 6. **失败写 journal/**：同一坑不应被 debug 两次。重复出现 ≥ 2 次的坑
    才升级到 [docs/GOTCHAS.md](docs/GOTCHAS.md)。
 7. **借用优先**：找官方实现；社区 skill 走 4 项门禁，见
    [skills/README.md](skills/README.md)。
+   - **写新工具 / 加新依赖前必过 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R1 四问**
+     （产品 vs 基建？通用 vs 特化？业界候选？能否成包？）。任意答不出
+     → 暂停写代码，先调研。
 8. **远端操作需授权**：本地 commit 自由，**push / force push / 删分支 /
    操作 PR / 推 Vercel** 等需用户当次明确同意。`gh` CLI 已配置好，授权
    后可代为执行。

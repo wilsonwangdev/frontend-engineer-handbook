@@ -29,7 +29,7 @@ spec-kit / OpenSpec；ADR 与 feature spec 可以并存。
 | 维度      | MADR 原版                  | 本项目                                    | 原因                               |
 | --------- | -------------------------- | ----------------------------------------- | ---------------------------------- |
 | 文件位置  | `docs/adr/nnnn-title.md`   | `specs/nnnn-title/spec.md`                | 用子目录支持 notes.md / assets/    |
-| 文件名    | `nnnn-title.md` kebab-case | 子目录名 kebab-case，主文件统一 `spec.md` | 校验脚本只需扫一种文件名           |
+| 文件名    | `nnnn-title.md` kebab-case | 子目录名 kebab-case，主文件统一 `spec.md` | review 时只需对一种文件名          |
 | 语言      | 英文                       | 中文为主（章节名保留英文以对齐）          | 与项目"中文为主"约定一致           |
 | 历史 SPEC | —                          | 0001–0007 用 minimal 变体免重写           | MADR v4 显式支持 minimal/bare 变体 |
 
@@ -44,6 +44,7 @@ spec-kit / OpenSpec；ADR 与 feature spec 可以并存。
 | [0005](0005-companion-tracks-and-test-strategy/spec.md) | 番外（附录 D）+ 测试策略  | accepted | 写 e2e 测试 / 把 journal 升级为附录条目时     |
 | [0006](0006-agent-skills-system/spec.md)                | Agent harness skills 体系 | accepted | 新增 skill / 选用社区 skill / 评估 MCP 集成时 |
 | [0007](0007-open-source-asset-boundary/spec.md)         | 开源资产边界              | accepted | **每段开源内容写入前必查**（元规则）          |
+| [0008](0008-pre-action-reflexive-checklist/spec.md)     | 动手前的反射性检查清单    | accepted | **写工具 / 改 git 历史前必查**（元规则）      |
 
 新增 spec 时**只动这张表**，不动 AGENTS.md。
 
@@ -74,7 +75,7 @@ spec-kit / OpenSpec；ADR 与 feature spec 可以并存。
 | `superseded` | 被其他 SPEC 取代；新决策在 More Information 段链接到取代它的 SPEC |
 
 > 历史本项目曾用过 `withdrawn` / `superseded-by: NNNN-...`——这些**不再
-> 允许新增使用**。校验脚本会拒绝。
+> 允许新增使用**。Review checklist 会拦下。
 
 ## 目录结构
 
@@ -91,7 +92,8 @@ specs/
 
 ## spec.md 模板（MADR full）
 
-新 SPEC 使用以下模板。**章节标题必须严格匹配**，校验脚本会检测。
+新 SPEC 使用以下模板。**章节标题必须严格匹配**，PR review 对照
+[Review 检查清单](#review-检查清单写新-spec-时人工对照)。
 
 ```markdown
 ---
