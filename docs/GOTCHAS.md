@@ -1,43 +1,42 @@
-# Known Gotchas
+# Known Gotchas（高频踩坑速查）
 
-Project-specific footguns discovered during build-out. Read this when:
+本项目特定的高频踩坑。什么时候来查这里：
 
-- You hit a confusing error in this codebase (search before debugging)
-- Before writing code touching the listed areas
-- Adding a new entry — only after the same issue bites twice (per
-  [SPEC-0006](../specs/0006-agent-skills-system/spec.md) Layer 3 promotion rule)
+- 在本仓库遇到一个让你困惑的报错（先搜再 debug）
+- 写涉及下列领域的代码之前
+- 想加新条目时——只在"同一坑被踩 ≥ 2 次"后才升级（[SPEC-0006](../specs/0006-agent-skills-system/spec.md) Layer 3 升级规则）
 
-Each entry: symptom → 1-line fix → link to full incident.
+每条结构：症状 → 一行修复 → 完整事故链接。
 
 ---
 
-## G.1 Next.js 16 — `'use cache'` required under Cache Components
+## G.1 Next.js 16 — Cache Components 下必须加 `'use cache'`
 
-**Symptom**: `Error: Uncached data was accessed outside of <Suspense>` during build.
+**症状**：`pnpm build` 报 `Error: Uncached data was accessed outside of <Suspense>`。
 
-**Fix**: Add `"use cache";` to the top of any async data-loading function.
+**修复**：给任何异步数据加载函数顶部加 `"use cache";`：
 
 ```ts
 export async function getAllDocs() {
   "use cache";
-  // ...filesystem / db / fetch reads
+  // ...文件系统 / 数据库 / fetch 读取
 }
 ```
 
-**Why**: `next.config.ts` has `cacheComponents: true`. Any data access without
-the directive is treated as dynamic, which conflicts with prerender.
+**原因**：`next.config.ts` 启用了 `cacheComponents: true`。未加 directive
+的数据访问被视为动态，与 prerender 冲突。
 
-Full incident: [journal/2026-05-19-nextjs16-cache-components-directive.md](../journal/2026-05-19-nextjs16-cache-components-directive.md)
-Skill: [skills/nextjs-16-guardrails](../skills/nextjs-16-guardrails/SKILL.md)
+完整事故：[journal/2026-05-19-nextjs16-cache-components-directive.md](../journal/2026-05-19-nextjs16-cache-components-directive.md)
+对应 skill：[skills/nextjs-16-guardrails](../skills/nextjs-16-guardrails/SKILL.md)
 
 ---
 
-## G.2 Zod + gray-matter — YAML auto-coerces bare dates
+## G.2 Zod + gray-matter — YAML 自动把日期转 Date
 
-**Symptom**: `ZodError: expected string, received Date` when validating
-frontmatter that has `lastVerified: 2026-05-19` (no quotes).
+**症状**：校验 frontmatter `lastVerified: 2026-05-19`（无引号）时报
+`ZodError: expected string, received Date`。
 
-**Fix**: Use defensive `union + transform` coerce:
+**修复**：用防御性的 `union + transform` coerce：
 
 ```ts
 const isoDateString = z
@@ -45,28 +44,27 @@ const isoDateString = z
   .transform((v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v));
 ```
 
-**Why**: gray-matter follows YAML 1.1, which auto-parses `YYYY-MM-DD` as
-a JS `Date`. Other auto-coercions: `yes/no/on/off → boolean`, `null/~ → null`.
+**原因**：gray-matter 遵循 YAML 1.1，会把裸 `YYYY-MM-DD` 自动解析为 JS
+`Date` 对象。同类自动转换还有：`yes/no/on/off → boolean`、`null/~ → null`、
+`1.5e10 → number`。
 
-Full incident: [journal/2026-05-19-yaml-auto-date-coercion.md](../journal/2026-05-19-yaml-auto-date-coercion.md)
-Skill: [skills/zod-frontmatter](../skills/zod-frontmatter/SKILL.md)
+完整事故：[journal/2026-05-19-yaml-auto-date-coercion.md](../journal/2026-05-19-yaml-auto-date-coercion.md)
+对应 skill：[skills/zod-frontmatter](../skills/zod-frontmatter/SKILL.md)
 
 ---
 
-## G.3 E2E on macOS — TUN-mode proxy intercepts localhost
+## G.3 E2E on macOS — TUN 模式代理拦截 localhost
 
-**Symptom**: `pnpm test:e2e` hangs or returns `ERR_CONNECTION_REFUSED` while
-`pnpm start` works fine standalone.
+**症状**：`pnpm test:e2e` 卡死或返回 `ERR_CONNECTION_REFUSED`，但
+`pnpm start` 手动启动后 curl 完全正常。
 
-**Fix**: Two options —
+**修复**：两种选择——
 
-- Quick check: `pnpm smoke` (pure `node:http` to `127.0.0.1`, bypasses
-  L7 proxy logic)
-- Full E2E: temporarily disable TUN mode in your proxy app, then run
-  `pnpm test:e2e:local`
+- 快速验证：`pnpm smoke`（纯 `node:http` 打 `127.0.0.1`，绕开 L7 代理逻辑）
+- 完整 E2E：暂时关掉代理 app 的 TUN 模式，再 `pnpm test:e2e:local`
 
-**Why**: TUN-mode proxies (Clash/Surge) intercept at L3/L4 of the network
-stack, bypassing every application-layer `NO_PROXY` / `unset http_proxy`.
-CI containers have no TUN, so the auto-started webServer works there.
+**原因**：TUN 模式代理（Clash / Surge 等）在网络栈 L3/L4 层拦截流量，
+绕开所有应用层 `NO_PROXY` / `unset http_proxy`。CI 容器没有 TUN，
+所以自动启 webServer 的 `pnpm test:e2e` 在 CI 能跑通。
 
-Full incident: [journal/2026-05-19-playwright-tun-mode-proxy.md](../journal/2026-05-19-playwright-tun-mode-proxy.md)
+完整事故：[journal/2026-05-19-playwright-tun-mode-proxy.md](../journal/2026-05-19-playwright-tun-mode-proxy.md)
