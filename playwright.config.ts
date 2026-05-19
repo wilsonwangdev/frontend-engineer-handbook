@@ -3,12 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
 
-// E2E in local dev can be blocked by system-level proxies (Clash/Surge TUN
-// mode intercepts even localhost traffic at the network stack, bypassing
-// any application-level NO_PROXY env). When that happens, run E2E in CI
-// (no system proxy) or set PLAYWRIGHT_SKIP_WEBSERVER=1 and start the
-// server manually after temporarily disabling the proxy.
-// See journal/2026-05-19-playwright-tun-mode-proxy.md
+// 本地若开了系统级 TUN 代理（Clash / Surge 等），localhost 流量会被
+// 内核层劫持，e2e 无法直连。两条规避路径：
+// - PLAYWRIGHT_SKIP_WEBSERVER=1 + 手动 `pnpm start` + 在代理 app 排除 localhost
+// - 用 `pnpm smoke` 做纯 node:http 烟雾测试
+// 不要在本配置里设 use.proxy；chromium 默认已是直连，显式设 "direct://"
+// 反而被当作代理服务器名解析失败（CI 上 ERR_PROXY_CONNECTION_FAILED）。
+// 详见 journal/2026-05-20-e2e-proxy-on-ci.md。
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1";
 
 export default defineConfig({
@@ -21,7 +22,6 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
-    proxy: { server: "direct://" },
   },
   projects: [
     {
@@ -35,14 +35,7 @@ export default defineConfig({
         webServer: {
           command: "pnpm start",
           url: BASE_URL,
-          env: {
-            PORT: String(PORT),
-            NO_PROXY: "localhost,127.0.0.1",
-            http_proxy: "",
-            https_proxy: "",
-            HTTP_PROXY: "",
-            HTTPS_PROXY: "",
-          },
+          env: { PORT: String(PORT) },
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,
         },
