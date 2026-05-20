@@ -46,6 +46,7 @@ spec-kit / OpenSpec；ADR 与 feature spec 可以并存。
 | [0007](0007-open-source-asset-boundary/spec.md)         | 开源资产边界               | accepted | **每段开源内容写入前必查**（元规则）                          |
 | [0008](0008-pre-action-reflexive-checklist/spec.md)     | 动手前的反射性检查清单     | accepted | **写工具 / 改 git 历史前必查**（元规则）                      |
 | [0009](0009-release-cadence-and-versioning/spec.md)     | 发布节奏、版本号、历史版本 | accepted | 打 release 前必查；临近 v1.0.0 时再开新 SPEC 锁定历史版本实现 |
+| [0010](0010-progressive-ssg-distillation/spec.md)       | 站点能力的渐进抽离         | accepted | 新增 / 大改组件时分类通用 / 产品层；评估自建 vs 引入成熟方案  |
 
 新增 spec 时**只动这张表**，不动 AGENTS.md。
 

@@ -84,6 +84,10 @@ M1 首次公网发布已完成；现状：
 - [ ] **Sitemap + robots.txt**：最基本的 SEO
 - [ ] **SPEC-0007 候选**：agent 知识层级的季度复核流程——哪些 gotchas
       还有效、哪些 skills 被触发过、Cursor / Claude 工具链有什么新变化
+- [ ] **SSG distillation track 沉淀**：按
+      [SPEC-0010](specs/0010-progressive-ssg-distillation/spec.md)
+      在打磨过程中持续记录 [docs/SSG-DISTILLATION.md](docs/SSG-DISTILLATION.md)；
+      2026-08 首次季度复核，评估是否触达升级抽包条件
 - [ ] **未来 feature 开发评估 spec-kit / OpenSpec**：当真正启动较大
       feature（如附录 D 完整实现、PWA 接入）时再评估是否引入。当前
       所有 SPEC 都是决策记录类型（ADR），已对标 MADR v4 标准；
