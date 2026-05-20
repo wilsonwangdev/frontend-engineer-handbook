@@ -37,16 +37,11 @@ date: 2026-05-20
 
 ## Decision Drivers
 
-- **跨会话防遗失**：意图必须能被新会话扫入口表捕获，不依赖单会话上下文
-- **解耦优先于发布**：当下目标是基础层 / 产品层独立演化，与是否对外
-  发布解绑
-- **不能拖累打磨节奏**：分类讨论的认知成本必须可控
-- **避免"为了通用而通用"**：抽象前需要被实际复用 ≥ 2 处
-- **与 SPEC-0008 R1 配合**：调研未完成前不抽包发布
-- **与 [SPEC-0007](../0007-open-source-asset-boundary/spec.md) fork 测试
-  配合**：通用层符合"其他人 fork 改自己手册"的可复用资产边界
-- **小而美原则**：通用层每加一个 API 必须能讲清"为什么不能塞回
-  产品层"
+- **跨会话防遗失**：意图必须被新会话扫入口表捕获
+- **解耦优先于发布**：当下目标是独立演化，与对外发布解绑
+- **不拖累打磨节奏**：分类只在新增 / 大改时触发，存量不主动迁
+- **避免空中楼阁**：通用层 API 进入前必须被产品层实际复用 ≥ 2 处
+- **与 SPEC-0007 fork 测试 / SPEC-0008 R1 调研配合**
 
 ## Considered Options
 
@@ -120,32 +115,12 @@ date: 2026-05-20
 
 ## Pros and Cons of the Options
 
-### 选项 A：立刻抽离为 monorepo + npm 发布
-
-- **好处**：意图最坚决；通用层和产品层从代码组织上彻底解耦
-- **代价**：违反 SPEC-0008 R1——业界候选未调研、独特价值答不出；
-  发布成本（文档 / 版本 / 社区）会严重拖累打磨节奏；只有 2 章内容
-  时抽象的"通用模式"还没经过验证，过早抽象大概率比 fumadocs 更糟
-
-### 选项 B：立 SPEC 渐进抽离（采纳）
-
-- **好处**：意图被 specs/ 捕获，跨会话不遗失；解耦从现在开始但
-  不绑定发布；为升级决策准备数据；与 SPEC-0007 / SPEC-0008 / 第 10 章
-  内容定位一致
-- **代价**：仍需作者自律执行分类；`docs/SSG-DISTILLATION.md` 数据
-  攒齐有周期
-
-### 选项 C：不立 SPEC，靠自然演进
-
-- **好处**：零结构开销
-- **代价**：用户已明确指出"新开会话后丢失这个重要的想法"风险——
-  实测会失忆；耦合在每次改动时凭直觉判断，没有统一标尺
-
-### 选项 D：直接放弃自建，迁移到 fumadocs
-
-- **好处**：借用优先，最省精力
-- **代价**：完全失去 dogfooding 教学价值；现有自建确实有"轻量级"
-  独特体验，没有评估前就替换会丢失差异化潜力
+| 选项                     | 好处                                       | 代价                                                  |
+| ------------------------ | ------------------------------------------ | ----------------------------------------------------- |
+| A. 立刻抽 monorepo + npm | 意图最坚决；代码组织彻底解耦               | 违反 R1（未调研）；发布成本拖累打磨；2 章内容验证不足 |
+| **B. 渐进抽离（采纳）**  | 跨会话不遗失；解耦不绑定发布；为升级攒数据 | 仍需自律分类；数据攒齐有周期                          |
+| C. 不立 SPEC，自然演进   | 零结构开销                                 | 新会话失忆；无统一标尺                                |
+| D. 迁移 fumadocs         | 借用优先，最省精力                         | 失去 dogfooding 教学价值；丢失差异化潜力              |
 
 ## Confirmation
 
@@ -177,13 +152,10 @@ date: 2026-05-20
 
 ### 业界对照
 
-- [fumadocs](https://fumadocs.dev/) — Next.js 上的现代文档框架，
-  本 SPEC 升级触发的主要对照对象
-- [Nextra](https://nextra.site/) — Vercel 系老牌 Next.js 文档方案
-- [Starlight](https://starlight.astro.build/) — Astro 阵营文档方案
-- [VitePress](https://vitepress.dev/) — Vite + Vue 阵营文档方案
-- [Rspress](https://rspress.dev/) — 字节系 Rspack 阵营文档方案
-- [Docusaurus](https://docusaurus.io/) — Meta 老牌方案
+主要竞品：[fumadocs](https://fumadocs.dev/) / [Nextra](https://nextra.site/) /
+[Starlight](https://starlight.astro.build/) / [VitePress](https://vitepress.dev/) /
+[Rspress](https://rspress.dev/) / [Docusaurus](https://docusaurus.io/)。
+详细差异化对照持续记录在 [docs/SSG-DISTILLATION.md](../../docs/SSG-DISTILLATION.md)。
 
 ### 触发本 SPEC 的会话
 
