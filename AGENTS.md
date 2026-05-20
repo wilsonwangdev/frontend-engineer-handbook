@@ -86,7 +86,9 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
 ## 协作准则
 
 1. **先读后写**：开工前查 ROADMAP 看是否已规划、specs/ 看是否有决策、
-   journal/ 看是否踩过类似坑。
+   journal/ 看是否踩过类似坑。**写章节正文前必过
+   [SPEC-0011 可读性标准](specs/0011-content-accessibility-standard/spec.md)**——
+   5 项准则 + 4 问清单 + 反例库。
 2. **宁缺毋滥**：内容不充分时留 `_TBD_` 或空白，不要编填充。
 3. **改而非加**：优先编辑现有文件，不要建 `v2` 平行文件。
 4. **原子提交**：一个 commit 只解决一件事。切换 concern 前先落地当前改动。
