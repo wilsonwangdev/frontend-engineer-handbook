@@ -73,10 +73,12 @@ export default async function HandbookPage({ params }: PageProps) {
         {prev ? (
           <Link
             href={prev.url}
-            className="rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]"
+            className="group rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]"
           >
-            <p className="text-xs text-fg-muted">上一节</p>
-            <p className="mt-1 font-medium">{prev.frontmatter.title}</p>
+            <p className="text-xs text-fg-muted">← 上一节</p>
+            <p className="mt-1 font-medium group-hover:text-[var(--color-accent)]">
+              {prev.frontmatter.title}
+            </p>
           </Link>
         ) : (
           <span />
@@ -84,10 +86,12 @@ export default async function HandbookPage({ params }: PageProps) {
         {next ? (
           <Link
             href={next.url}
-            className="rounded-lg border border-[var(--color-border)] p-4 text-right transition-colors hover:bg-[var(--color-bg-elevated)]"
+            className="group rounded-lg border border-[var(--color-border)] p-4 text-right transition-colors hover:bg-[var(--color-bg-elevated)]"
           >
-            <p className="text-xs text-fg-muted">下一节</p>
-            <p className="mt-1 font-medium">{next.frontmatter.title}</p>
+            <p className="text-xs text-fg-muted">下一节 →</p>
+            <p className="mt-1 font-medium group-hover:text-[var(--color-accent)]">
+              {next.frontmatter.title}
+            </p>
           </Link>
         ) : (
           <span />
