@@ -68,3 +68,23 @@ const isoDateString = z
 所以自动启 webServer 的 `pnpm test:e2e` 在 CI 能跑通。
 
 完整事故：[journal/2026-05-19-playwright-tun-mode-proxy.md](../journal/2026-05-19-playwright-tun-mode-proxy.md)
+
+---
+
+## G.4 UI 组件提交前必须移动端验收
+
+**症状**：组件在桌面端正常，移动端出现布局溢出、交互热区缺失、
+表格列过窄换行等问题。`pnpm build` 通过不等于体验合格。
+
+**修复**：提交 UI 组件前逐项确认：
+
+1. **375px 视口目视验证**（Chrome DevTools → iPhone SE）
+2. **交互组件三件套**：点击外部关闭、ESC 关闭、显式关闭按钮
+3. **表格**：在窄屏下横向滚动是否顺畅、列宽是否合理
+4. **文字**：标题字号是否渐进（移动端更小）、正文是否溢出
+
+**原因**：编译通过 ≠ 体验合格。agent 写完组件后只跑 build 验证，
+没有在真实窄屏上验证。这个坑在 agent-master-handbook 和本项目
+各踩一次，属于 agent 行为模式缺陷而非技术栈问题。
+
+完整事故：[journal/2026-05-20-mobile-layout-verification-gap.md](../journal/2026-05-20-mobile-layout-verification-gap.md)
