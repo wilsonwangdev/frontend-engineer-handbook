@@ -119,7 +119,8 @@ SPEC 里。
      工作区不 clean 则先把上一 concern 落地（提交或 stash），再开工。
    - 更多触发条件见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
 5. **同一 commit 内更新文档**：加命令 → 更新本文件命令表；做载入性决策
-   → 新增 SPEC。
+   → 新增 SPEC。**扩文档前过 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R5**——
+   harness 文档膨胀会拖慢 agent，行数阈值见 [docs/HARNESS-HEALTH.md](docs/HARNESS-HEALTH.md)。
 6. **失败写 journal/**：同一坑不应被 debug 两次。重复出现 ≥ 2 次的坑
    才升级到 [docs/GOTCHAS.md](docs/GOTCHAS.md)。
 7. **借用优先**：找官方实现；社区 skill 走 4 项门禁，见
