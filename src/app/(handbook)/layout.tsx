@@ -9,13 +9,16 @@ export default async function HandbookLayout({ children }: { children: React.Rea
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-bg)]/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-          <Link
-            href="/"
-            className="font-semibold tracking-tight transition-opacity hover:opacity-75"
-          >
-            前端工程师手册
-          </Link>
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <MobileNav tree={tree} />
+            <Link
+              href="/"
+              className="font-semibold tracking-tight transition-opacity hover:opacity-75"
+            >
+              前端工程师手册
+            </Link>
+          </div>
           <nav className="text-sm text-fg-muted">
             <a
               href="https://github.com/wilsonwangdev/frontend-engineer-handbook"
@@ -29,16 +32,13 @@ export default async function HandbookLayout({ children }: { children: React.Rea
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        <MobileNav tree={tree} />
-        <div className="mt-4 grid grid-cols-[16rem_minmax(0,1fr)] gap-8 max-md:mt-0 max-md:grid-cols-1">
-          <aside className="max-md:hidden">
-            <div className="sticky top-20">
-              <Sidebar tree={tree} />
-            </div>
-          </aside>
-          <main className="min-w-0">{children}</main>
-        </div>
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-6 sm:px-6 sm:py-10 md:grid-cols-[16rem_minmax(0,1fr)]">
+        <aside className="hidden md:block">
+          <div className="sticky top-20">
+            <Sidebar tree={tree} />
+          </div>
+        </aside>
+        <main className="min-w-0">{children}</main>
       </div>
     </div>
   );

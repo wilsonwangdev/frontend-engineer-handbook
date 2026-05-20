@@ -37,15 +37,17 @@ export default async function HandbookPage({ params }: PageProps) {
 
   return (
     <article className="prose-cn">
-      <header className="not-prose mb-10 border-b border-[var(--color-border)] pb-6">
+      <header className="not-prose mb-8 border-b border-[var(--color-border)] pb-6 sm:mb-10">
         <p className="font-mono text-xs tabular-nums text-fg-muted uppercase tracking-widest">
           第 {doc.frontmatter.chapter} 章
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
           {doc.frontmatter.title}
         </h1>
-        <p className="mt-3 leading-relaxed text-fg-muted">{doc.frontmatter.description}</p>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-fg-muted">
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted sm:mt-3 sm:text-base">
+          {doc.frontmatter.description}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-fg-muted sm:mt-4">
           <TierBadge tier={doc.frontmatter.tier} />
           <span>约 {doc.readingMinutes} 分钟</span>
           <span>核对于 {doc.frontmatter.lastVerified}</span>
@@ -68,7 +70,7 @@ export default async function HandbookPage({ params }: PageProps) {
 
       <nav
         aria-label="章节导航"
-        className="not-prose mt-16 grid grid-cols-2 gap-4 border-t border-[var(--color-border)] pt-6"
+        className="not-prose mt-16 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 sm:grid sm:grid-cols-2 sm:gap-4"
       >
         {prev ? (
           <Link
@@ -81,12 +83,12 @@ export default async function HandbookPage({ params }: PageProps) {
             </p>
           </Link>
         ) : (
-          <span />
+          <span className="hidden sm:block" />
         )}
         {next ? (
           <Link
             href={next.url}
-            className="group rounded-lg border border-[var(--color-border)] p-4 text-right transition-colors hover:bg-[var(--color-bg-elevated)]"
+            className="group rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)] sm:text-right"
           >
             <p className="text-xs text-fg-muted">下一节 →</p>
             <p className="mt-1 font-medium group-hover:text-[var(--color-accent)]">
@@ -94,7 +96,7 @@ export default async function HandbookPage({ params }: PageProps) {
             </p>
           </Link>
         ) : (
-          <span />
+          <span className="hidden sm:block" />
         )}
       </nav>
     </article>
