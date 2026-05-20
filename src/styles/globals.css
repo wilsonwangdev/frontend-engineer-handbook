@@ -139,6 +139,44 @@
       font-weight: 600;
     }
 
+    & blockquote {
+      margin-block: 1.25em;
+      padding: 0.75em 1em;
+      border-left: 3px solid var(--color-accent);
+      background: var(--color-bg-elevated);
+      border-radius: 0 6px 6px 0;
+      color: var(--color-fg);
+
+      & p {
+        margin: 0;
+      }
+    }
+
+    & ul {
+      padding-left: 1.5em;
+      list-style-type: disc;
+    }
+
+    & ol {
+      padding-left: 1.5em;
+      list-style-type: decimal;
+    }
+
+    & li {
+      margin-block: 0.3em;
+    }
+
+    & li > ul,
+    & li > ol {
+      margin-block: 0.25em;
+    }
+
+    & hr {
+      border: none;
+      border-top: 1px solid var(--color-border);
+      margin-block: 2.5em;
+    }
+
     & code:not(pre code) {
       padding: 0.125em 0.375em;
       background: var(--color-bg-elevated);
