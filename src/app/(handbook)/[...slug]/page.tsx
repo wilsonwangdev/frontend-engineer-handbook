@@ -50,7 +50,7 @@ export default async function HandbookPage({ params }: PageProps) {
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-fg-muted sm:mt-4">
           <TierBadge tier={doc.frontmatter.tier} />
           <span>约 {doc.readingMinutes} 分钟</span>
-          <span>核对于 {doc.frontmatter.lastVerified}</span>
+          {doc.lastModified && <span>上次更新于 {doc.lastModified}</span>}
         </div>
       </header>
 

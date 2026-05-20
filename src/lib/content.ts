@@ -1,10 +1,14 @@
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { join, relative, resolve } from "node:path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
 import { type Frontmatter, frontmatterSchema } from "./content-schema";
 
 const CONTENT_DIR = resolve(process.cwd(), "content");
+const REPO_ROOT = process.cwd();
+const execFileAsync = promisify(execFile);
 
 export interface ContentDoc {
   slug: string[];
@@ -13,6 +17,8 @@ export interface ContentDoc {
   source: string;
   frontmatter: Frontmatter;
   readingMinutes: number;
+  /** 文件最后一次 git commit 的 ISO 日期字符串（YYYY-MM-DD）。无 git 历史时为 null。 */
+  lastModified: string | null;
 }
 
 export interface ChapterMeta {
@@ -38,11 +44,26 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
+async function getGitLastModified(filePath: string): Promise<string | null> {
+  try {
+    const rel = relative(REPO_ROOT, filePath);
+    const { stdout } = await execFileAsync("git", ["log", "-1", "--format=%cI", "--", rel], {
+      cwd: REPO_ROOT,
+    });
+    const iso = stdout.trim();
+    if (!iso) return null;
+    return iso.slice(0, 10);
+  } catch {
+    return null;
+  }
+}
+
 async function readDoc(filePath: string, slug: string[]): Promise<ContentDoc> {
   const raw = await readFile(filePath, "utf-8");
   const parsed = matter(raw);
   const frontmatter = frontmatterSchema.parse(parsed.data);
   const stats = readingTime(parsed.content, { wordsPerMinute: 350 });
+  const lastModified = await getGitLastModified(filePath);
 
   return {
     slug,
@@ -51,6 +72,7 @@ async function readDoc(filePath: string, slug: string[]): Promise<ContentDoc> {
     source: parsed.content,
     frontmatter,
     readingMinutes: Math.max(1, Math.round(stats.minutes)),
+    lastModified,
   };
 }
 

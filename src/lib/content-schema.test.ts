@@ -19,7 +19,6 @@ describe("frontmatterSchema", () => {
     chapter: 2,
     description: "从 HTML 到像素",
     tier: "essential",
-    lastVerified: "2026-05-14",
   } as const;
 
   it("accepts a minimal valid frontmatter", () => {
@@ -35,10 +34,6 @@ describe("frontmatterSchema", () => {
     expect(() => frontmatterSchema.parse({ ...valid, chapter: -1 })).toThrow();
   });
 
-  it("rejects malformed lastVerified date", () => {
-    expect(() => frontmatterSchema.parse({ ...valid, lastVerified: "May 14, 2026" })).toThrow();
-  });
-
   it("accepts paths and prerequisites", () => {
     const result = frontmatterSchema.parse({
       ...valid,
@@ -52,11 +47,11 @@ describe("frontmatterSchema", () => {
     expect(result.paths?.practice?.[0]?.project).toBe("mini-framework");
   });
 
-  it("coerces a Date object (from YAML parsing) to ISO date string", () => {
+  it("strips unknown legacy fields like lastVerified", () => {
     const result = frontmatterSchema.parse({
       ...valid,
-      lastVerified: new Date("2026-05-19T00:00:00.000Z"),
+      lastVerified: "2026-05-19",
     });
-    expect(result.lastVerified).toBe("2026-05-19");
+    expect(result).not.toHaveProperty("lastVerified");
   });
 });

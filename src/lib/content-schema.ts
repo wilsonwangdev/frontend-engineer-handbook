@@ -3,10 +3,6 @@ import { z } from "zod";
 export const tierSchema = z.enum(["essential", "understand", "delegatable"]);
 export type Tier = z.infer<typeof tierSchema>;
 
-const isoDateString = z
-  .union([z.iso.date(), z.date()])
-  .transform((v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v));
-
 export const frontmatterSchema = z.object({
   title: z.string().min(1),
   chapter: z.number().int().min(0).max(10),
@@ -14,7 +10,6 @@ export const frontmatterSchema = z.object({
   description: z.string().min(1),
   tier: tierSchema,
   readingTime: z.number().int().positive().optional(),
-  lastVerified: isoDateString,
   prerequisites: z.array(z.string()).optional(),
   paths: z
     .object({
