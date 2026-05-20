@@ -65,76 +65,44 @@ guide、knowledge base），不要凭印象。文档：
 
 ## 语言约定
 
-**全项目以简体中文为主**——内容、文档、提交信息正文、SPEC、journal、skill 都
-用中文。例外的英文使用范围：
-
-- 专有名词：`Next.js` / `React` / `Tailwind` / `Vercel` / `TypeScript` 等
-- 框架 API：`'use cache'` / `proxy.ts` / `useEffectEvent` 等
-- 命令与文件路径：`pnpm build` / `src/lib/content.ts` 等
-- Conventional Commits 前缀：`feat` / `fix` / `build` 等
-- 错误信息原文（保留以便搜索匹配）
+**全项目以简体中文为主**。英文仅限：专有名词（`Next.js` / `React` 等）、
+框架 API、命令与路径、Conventional Commits 前缀、错误信息原文。
 
 **Commit subject 用英文小写**（Conventional Commits 惯例），body 用中文。
 
 ## 项目描述（SSOT）
 
-项目内长描述以 `package.json.description` 为**单一数据源**。改描述时
-同步三处人类可读源（脚本读取的源自动跟随 `package.json`）：
-
-1. `package.json.description` —— 程序读取源（layout 元数据、Open Graph 等）
-2. `README.md` 副标题 —— 人类入口
-3. `AGENTS.md` 项目目标段首句 —— agent 入口
-
-**GitHub repo description 独立维护**——这是"展位牌"，与项目内长描述
-不必一致。当前定为「面向 AI 时代的前端工程师手册」。改动时同步
-[docs/DEPLOY.md](docs/DEPLOY.md) 里的 `gh repo create --description`。
-
-**少数场景例外**：landing page hero（`src/app/page.tsx`）属于产品营造
-而非元数据，允许保留独立文案（如「小而美，不是大而全」等立场表达）。
+长描述以 `package.json.description` 为单一数据源。改描述时同步
+`README.md` 副标题 + 本文件项目目标段首句。GitHub repo description
+独立维护（见 [docs/DEPLOY.md](docs/DEPLOY.md)）。Landing page hero
+允许保留独立文案。
 
 ## 提交规范
 
-Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
-（"add X" 而非 "added X"）。前缀：
-`feat`、`fix`、`build`、`chore`、`docs`、`refactor`、`test`、`perf`、`style`、`ci`。
-
-Body 用中文解释**为什么**这么改。代码注释不写 why——写到 commit body 或
-SPEC 里。
+Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态。
+前缀：`feat` / `fix` / `build` / `chore` / `docs` / `refactor` / `test` /
+`perf` / `style` / `ci`。Body 用中文解释 why。
 
 ## 协作准则
-
-每条都是配对的 do/don't——知道"应该怎么做"和"不该怎么做"同样重要。
 
 1. **先读后写**：开工前查 ROADMAP 看是否已规划、specs/ 看是否有决策、
    journal/ 看是否踩过类似坑。
 2. **宁缺毋滥**：内容不充分时留 `_TBD_` 或空白，不要编填充。
 3. **改而非加**：优先编辑现有文件，不要建 `v2` 平行文件。
-4. **原子提交**：一个 commit 只解决一件事；需要时拆成多个 commit。
-   - 写 subject 时如果要用顿号 / 分号 / "顺便" / "同时" 等连词——拆。
-   - **回退已提交内容时优先 `git revert <hash>`**；commit 不原子时用
-     `git revert -n` 暂存反向 diff，再 `git restore --staged` 挑出
-     保留部分。**手写 Edit 做逆向修改是反模式**——丢失可审计性，
-     reviewer 无法用 git 工具验证完整性。
-   - **开始新任务 / 切换 concern / 回应用户新话题前**——先 `git status`，
-     工作区不 clean 则先把上一 concern 落地（提交或 stash），再开工。
-   - 更多触发条件见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
+4. **原子提交**：一个 commit 只解决一件事。切换 concern 前先落地当前改动。
+   详见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
 5. **同一 commit 内更新文档**：加命令 → 更新本文件命令表；做载入性决策
    → 新增 SPEC。**扩文档前过 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R5**——
    harness 文档膨胀会拖慢 agent，行数阈值见 [docs/HARNESS-HEALTH.md](docs/HARNESS-HEALTH.md)。
 6. **失败写 journal/**：同一坑不应被 debug 两次。重复出现 ≥ 2 次的坑
    才升级到 [docs/GOTCHAS.md](docs/GOTCHAS.md)。
-7. **借用优先**：找官方实现；社区 skill 走 4 项门禁，见
-   [skills/README.md](skills/README.md)。
-   - **写新工具 / 加新依赖前必过 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R1 四问**
-     （产品 vs 基建？通用 vs 特化？业界候选？能否成包？）。任意答不出
-     → 暂停写代码，先调研。
+7. **借用优先**：找官方实现；写新工具 / 加新依赖前必过
+   [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R1 四问。
 8. **远端操作需授权**：本地 commit 自由，**push / force push / 删分支 /
    操作 PR / 推 Vercel** 等需用户当次明确同意。`gh` CLI 已配置好，授权
    后可代为执行。
-9. **守住开源资产边界**：写入仓库前过两道测试（fork 测试 / 客观性
-   测试）。个人推广策略、时间承诺、社交账号、主观呼吁不进项目——
-   去用户级笔记。详见
-   [SPEC-0007](specs/0007-open-source-asset-boundary/spec.md)。
+9. **守住开源资产边界**：写入仓库前过 fork 测试 + 客观性测试。
+   详见 [SPEC-0007](specs/0007-open-source-asset-boundary/spec.md)。
 
 ## 代码风格
 
