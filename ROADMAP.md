@@ -34,6 +34,8 @@ M1 首次公网发布已完成；现状：
   - 启动建议：先写 `index.mdx` + `sections/http.mdx` 作为风格样板，
     用户过目后再继续
 - [ ] **第 3 章 HTML / CSS / 现代布局**
+  - 素材：CSS Text Module Level 4 在中文场景的反常案例
+    （[journal 2026-05-21](journal/2026-05-21-css-text-wrap-pretty-cjk-anomaly.md)）
 - [ ] **第 4 章 JavaScript 与 TypeScript**
 - [ ] **第 5 章 React 与 Next.js**
 - [ ] **第 6 章 工程化与构建**
