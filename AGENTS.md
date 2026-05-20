@@ -115,7 +115,9 @@ SPEC 里。
      `git revert -n` 暂存反向 diff，再 `git restore --staged` 挑出
      保留部分。**手写 Edit 做逆向修改是反模式**——丢失可审计性，
      reviewer 无法用 git 工具验证完整性。
-   - 更多触发条件见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3。
+   - **开始新任务 / 切换 concern / 回应用户新话题前**——先 `git status`，
+     工作区不 clean 则先把上一 concern 落地（提交或 stash），再开工。
+   - 更多触发条件见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
 5. **同一 commit 内更新文档**：加命令 → 更新本文件命令表；做载入性决策
    → 新增 SPEC。
 6. **失败写 journal/**：同一坑不应被 debug 两次。重复出现 ≥ 2 次的坑

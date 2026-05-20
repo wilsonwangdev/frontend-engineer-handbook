@@ -53,8 +53,8 @@ date: 2026-05-20
 
 选 **B + D 组合**：
 
-1. 本 SPEC 详述完整反射性清单（4 项动手前问句 + 2 项 git 工作流
-   守则），不进 AGENTS.md 全文
+1. 本 SPEC 详述完整反射性清单（R1-R4 共 4 段反射问句，覆盖工具
+   / 回退 / 提交信息 / 提交时机），不进 AGENTS.md 全文
 2. AGENTS.md 在 §4「原子提交」和 §7「借用优先」分别加一行指针引用
    本 SPEC——保持 AGENTS.md 紧凑
 3. Karpathy 4 原则与社区 [karpathy-guidelines](https://explainx.ai/skills/unknown/karpathy-guidelines/karpathy-guidelines)
@@ -103,14 +103,38 @@ date: 2026-05-20
    动手前就该想清楚）
 3. **body 用中文，解释 why 而非 what？**
 
+#### R4. 开始任务 / 切换 concern 之前
+
+口头回答（或心里过一遍）：
+
+1. **当前工作区 clean 吗？**（`git status --short` 为空？）
+   - 不 clean → 判定残留改动归属：
+     - 属"上一个 concern" → **立即提交或 stash**，再开工
+     - 属"即将开始的 concern" → 纳入新任务范围一起推进
+   - 永远不要在不 clean 的状态下开始无关的新任务
+2. **手上这条 diff 是否仍在同一 concern？**
+   - 不是 → 立即提交当前 diff 再切换
+   - **用户切换话题 / 引入新需求是高频触发点**——回应新话题前先扫一眼
+     工作区，把上一话题的产物落地
+3. **diff 规模是否超出"单一可逆撤回"的颗粒？**
+   - 多文件 × 多 concern → 拆
+   - 多文件 × 单 concern（如改命令同步更新命令表）→ 同一 commit
+4. **能用一句中文 subject 描述这次改动且不出现连词吗？**（参见 R3）
+   - 能 → 提交时机到了
+   - 不能 → 要么继续做完一个 concern，要么停下来拆
+
+R4 与 R3 配对——**R3 管"写时拆"，R4 管"何时停下来写"**。R4 与 R2
+也配对——R4 让每个 commit 都保持原子，R2 才能用一条 `git revert`
+干净撤回。
+
 ### Karpathy 4 原则映射（动手时持续对照）
 
-| 原则                                       | 本项目对应触发点                                               |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| **Think before coding** — 不假设、不藏疑虑 | R1 第 1-2 问；写不确定的代码前要先说"我假设了什么"             |
-| **Simplicity first** — 最少代码            | R1 第 4 问；50 行能解决就别写 200                              |
-| **Surgical changes** — 只动该动的          | R2 全部；R3 拆分判据；不改"看起来需要清理"但与本任务无关的代码 |
-| **Goal-driven execution** — 给标准非指令   | 用户给的是目标时，先回放成功标准让用户确认；不要直接跳到实现   |
+| 原则                                       | 本项目对应触发点                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| **Think before coding** — 不假设、不藏疑虑 | R1 第 1-2 问；R4 第 1-2 问；写不确定的代码前要先说"我假设了什么"        |
+| **Simplicity first** — 最少代码            | R1 第 4 问；50 行能解决就别写 200                                       |
+| **Surgical changes** — 只动该动的          | R2 全部；R3 拆分判据；R4 全部；不改"看起来需要清理"但与本任务无关的代码 |
+| **Goal-driven execution** — 给标准非指令   | 用户给的是目标时，先回放成功标准让用户确认；不要直接跳到实现            |
 
 ## Consequences
 
@@ -154,11 +178,11 @@ date: 2026-05-20
 
 如何确认本 SPEC 被遵守：
 
-1. **journal 监控**：未来若再次违反 R1-R3，按
+1. **journal 监控**：未来若再次违反 R1-R4，按
    [SPEC-0007](../0007-open-source-asset-boundary/spec.md) 节奏写
    journal。tag 用 `karpathy` 或 `reflexive-check-violated` 便于扫描
 2. **季度复核（2026-08 首次）**：
-   - 统计 journal 中违反 R1-R3 的次数
+   - 统计 journal 中违反 R1-R4 的次数
    - 与本 SPEC 落地前对比（基线：本会话 2 次同源违规）
    - 若违规率未明显下降 → 评估升级为自动化（届时再考虑选项 A）
 3. **不引入自动化校验脚本** —— 本 SPEC 的有效性测试本身就是"声明式
@@ -184,3 +208,13 @@ date: 2026-05-20
 
 - [journal/2026-05-20-premature-tool-self-implementation.md](../../journal/2026-05-20-premature-tool-self-implementation.md)
 - [journal/2026-05-20-non-atomic-commit-and-manual-revert.md](../../journal/2026-05-20-non-atomic-commit-and-manual-revert.md)
+
+## Changelog
+
+- 2026-05-20：初次落地。R1（工具）/ R2（回退）/ R3（commit 信息）
+  三段反射清单 + Karpathy 4 原则映射。
+- 2026-05-20：新增 R4（开始任务 / 切换 concern 之前）。动因：用户
+  指出 R3 只管"commit 信息怎么写"，不管"commit 何时该发生"——
+  原子化提交还缺一道"提交时机"反射。R4 与 R3 配对（R3 写时拆 /
+  R4 何时停下来写），与 R2 配对（R4 保原子 / R2 才能干净撤回）。
+  AGENTS.md §4 同步加触发指针。
