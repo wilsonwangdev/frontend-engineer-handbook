@@ -71,9 +71,7 @@
   /* Chinese-aware text wrapping */
   p,
   li {
-    text-wrap: pretty;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   h1,
