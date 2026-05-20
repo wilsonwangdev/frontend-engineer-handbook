@@ -17,7 +17,15 @@
 代码块、sidebar、内容加载器、frontmatter 通用字段等。具体清单
 在打磨过程中逐步填充。
 
-_TBD_
+**已确认引入的通用层方案**：
+
+- **图标系统**：[lucide-react](https://lucide.dev/)（2026-05-20 引入）
+  - 选型理由：shadcn/ui 默认方案、1400+ 图标、tree-shaking 友好、
+    与 Tailwind 生态对齐、API 极简（`<Menu size={20} />`）
+  - 替代方案对比：@heroicons/react（图标少 30%）、react-icons（包重）、
+    iconify/react（学习成本高）、本地 SVG（维护成本高）
+  - 触发场景：MobileNav 出现内联 SVG，违背"图标与组件解耦"的设计
+    工程化最佳实践
 
 ### 产品层（手册特定，不抽离）
 

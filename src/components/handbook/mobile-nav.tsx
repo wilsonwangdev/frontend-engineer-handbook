@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import type { ChapterMeta } from "@/lib/content";
 
@@ -37,14 +38,7 @@ export function MobileNav({ tree }: { tree: ChapterMeta[] }) {
         aria-expanded={open}
         aria-label="打开目录"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path
-            d="M3 5h14M3 10h14M3 15h14"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <Menu size={20} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {open && (
         <>
@@ -61,14 +55,7 @@ export function MobileNav({ tree }: { tree: ChapterMeta[] }) {
                 className="rounded-md p-1 transition-colors hover:bg-[var(--color-bg-elevated)]"
                 aria-label="关闭目录"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M4 4l8 8M12 4l-8 8"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                <X size={16} strokeWidth={1.75} aria-hidden="true" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
