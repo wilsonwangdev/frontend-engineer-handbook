@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Sidebar } from "@/components/handbook/sidebar";
 import { MobileNav } from "@/components/handbook/mobile-nav";
 import { getChapterTree } from "@/lib/content";
@@ -19,16 +20,15 @@ export default async function HandbookLayout({ children }: { children: React.Rea
               前端工程师手册
             </Link>
           </div>
-          <nav className="text-sm text-fg-muted">
-            <a
-              href="https://github.com/wilsonwangdev/frontend-engineer-handbook"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="transition-colors hover:text-[var(--color-fg)]"
-            >
-              GitHub
-            </a>
-          </nav>
+          <a
+            href="https://github.com/wilsonwangdev/frontend-engineer-handbook"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
+          >
+            <span>GitHub</span>
+            <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" />
+          </a>
         </div>
       </header>
 
