@@ -201,7 +201,7 @@
     & table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9em;
+      font-size: 0.875em;
       line-height: 1.5;
     }
 
@@ -210,20 +210,11 @@
       padding: 0.5em 0.75em;
       border-bottom: 1px solid var(--color-border);
       text-align: left;
-      white-space: nowrap;
     }
 
     & th {
       font-weight: 600;
       background: var(--color-bg-elevated);
-    }
-
-    & td {
-      white-space: normal;
-    }
-
-    & th:first-child,
-    & td:first-child {
       white-space: nowrap;
     }
 
