@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { ChapterPlan } from "@/components/landing/chapter-plan";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-24">
+    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-24">
       <div className="space-y-6">
         <p className="text-sm font-medium tracking-widest text-fg-muted uppercase">
           AI 时代 · 中文精编手册
         </p>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">前端工程师手册</h1>
-        <p className="text-lg leading-relaxed text-fg-muted">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">前端工程师手册</h1>
+        <p className="text-base leading-relaxed text-fg-muted sm:text-lg">
           围绕 agent 协作的精编学习路线。
           <br />
           小而美，不是大而全。导航 + 判断 + 快速复习 + 实践。
@@ -35,7 +36,7 @@ export default function HomePage() {
           <PathCard tag="C" title="实践驱动" desc="边做边学，从项目入手" tone="delegatable" />
         </div>
 
-        <p className="pt-12 text-sm text-fg-muted">施工中。手册正在按 specs/ 中的设计逐章构建。</p>
+        <ChapterPlan />
       </div>
     </main>
   );
