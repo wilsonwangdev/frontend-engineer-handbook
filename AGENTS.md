@@ -86,6 +86,11 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
 
 ## 协作准则
 
+> **任务起步元反射**：用户给出新目标前，先过
+> [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R7
+> ——当前 model + thinking 档与任务难度类型（创作 / 判断 / 执行）
+> 是否匹配？明显错配才出声建议，匹配则沉默继续。
+
 1. **先读后写**：开工前查 ROADMAP / specs/ / journal/。**新写或改写
    章节正文前过 4 问**：
    - 第一段读完，新人知道这章讲什么吗？
