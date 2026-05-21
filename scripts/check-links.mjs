@@ -20,13 +20,7 @@ if (which.status !== 0) {
   process.exit(127);
 }
 
-const args = [
-  "--config",
-  "lychee.toml",
-  ...process.argv.slice(2),
-  "./**/*.md",
-  "./**/*.mdx",
-];
+const args = ["--config", "lychee.toml", ...process.argv.slice(2), "./**/*.md", "./**/*.mdx"];
 
 const result = spawnSync("lychee", args, { stdio: "inherit" });
 process.exit(result.status ?? 1);

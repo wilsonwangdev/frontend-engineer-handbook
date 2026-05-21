@@ -38,14 +38,7 @@ exclude = [
 ]
 
 # 跳过依赖 / 构建产物
-exclude_path = [
-  "node_modules",
-  ".next",
-  "playwright-report",
-  "test-results",
-  "dist",
-  "build",
-]
+exclude_path = ["node_modules", ".next", "playwright-report", "test-results", "dist", "build"]
 
 # 私有 / 回环 IP 一律不查（CI runner 上访问不到）
 exclude_all_private = true
