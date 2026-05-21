@@ -90,7 +90,10 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
    [SPEC-0011 可读性标准](specs/0011-content-accessibility-standard/spec.md)**——
    5 项准则 + 4 问清单 + 反例库。
 2. **宁缺毋滥**：内容不充分时留 `_TBD_` 或空白，不要编填充。
-3. **改而非加**：优先编辑现有文件，不要建 `v2` 平行文件。
+3. **改而非加 / 不留半成品**：优先编辑现有文件，不要建 `v2` 平行文件。
+   实现新功能 / 加新交互元素前必过
+   [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R6——
+   有视觉提示就必须有完整功能闭环，否则改纯展示或完全不做。
 4. **原子提交**：一个 commit 只解决一件事。切换 concern 前先落地当前改动。
    详见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
 5. **同一 commit 内更新文档**：加命令 → 更新本文件命令表；做载入性决策

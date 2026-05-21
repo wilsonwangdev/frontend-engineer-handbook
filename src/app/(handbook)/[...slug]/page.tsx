@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import { getAllDocs, getDocBySlug, getAdjacentDocs } from "@/lib/content";
 import { mdxComponents } from "@/components/mdx/components";
 import { TierBadge } from "@/components/handbook/tier-badge";
@@ -60,10 +59,7 @@ export default async function HandbookPage({ params }: PageProps) {
         options={{
           mdxOptions: {
             remarkPlugins: [remarkGfm],
-            rehypePlugins: [
-              rehypeSlug,
-              [rehypeAutolinkHeadings, { behavior: "wrap", properties: { className: "anchor" } }],
-            ],
+            rehypePlugins: [rehypeSlug],
           },
         }}
       />
