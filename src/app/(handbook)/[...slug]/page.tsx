@@ -4,9 +4,40 @@ import type { Metadata } from "next";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
+import rehypePrettyCode from "rehype-pretty-code";
 import { getAllDocs, getDocBySlug, getAdjacentDocs } from "@/lib/content";
 import { mdxComponents } from "@/components/mdx/components";
 import { TierBadge } from "@/components/handbook/tier-badge";
+
+const prettyCodeOptions = {
+  // 双主题——CSS 通过 [data-theme] 切换；与本站现有 :root[data-theme="dark"] 暗色变量一致
+  theme: { light: "github-light", dark: "github-dark" },
+  // 关掉默认背景，由 globals.css 的 pre 样式统一控制（保持深浅模式 token 一致）
+  keepBackground: false,
+  // 行内 `code` 不走 Shiki 装饰——保持原 <code> 节点 + globals.css 的行内样式
+  bypassInlineCode: true,
+  defaultLang: "plaintext",
+} as const;
+
+// rehype-pretty-code / shiki 内部用了 Date.now()，在 Cache Components 严格
+// 模式下会被拦截。包进 "use cache" 让它作为静态产物缓存——slug 是稳定 key，
+// 命中后省去重复高亮开销。
+async function MdxBody({ slug, source }: { slug: string[]; source: string }) {
+  "use cache";
+  void slug;
+  return (
+    <MDXRemote
+      source={source}
+      components={mdxComponents}
+      options={{
+        mdxOptions: {
+          remarkPlugins: [remarkGfm],
+          rehypePlugins: [rehypeSlug, [rehypePrettyCode, prettyCodeOptions]],
+        },
+      }}
+    />
+  );
+}
 
 interface PageProps {
   params: Promise<{ slug: string[] }>;
@@ -53,16 +84,7 @@ export default async function HandbookPage({ params }: PageProps) {
         </div>
       </header>
 
-      <MDXRemote
-        source={doc.source}
-        components={mdxComponents}
-        options={{
-          mdxOptions: {
-            remarkPlugins: [remarkGfm],
-            rehypePlugins: [rehypeSlug],
-          },
-        }}
-      />
+      <MdxBody slug={slug} source={doc.source} />
 
       <nav
         aria-label="章节导航"

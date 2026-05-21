@@ -26,14 +26,15 @@ JavaScript 是单线程的——同一时刻只跑一段代码。但我们每天
 
 伪代码：
 
-```
+```js
 while (true) {
-  const task = taskQueue.shift();   // 取一个 task
-  run(task);                        // 跑完它
-  while (microtaskQueue.length) {   // 清空所有 microtask
+  const task = taskQueue.shift(); // 取一个 task
+  run(task); // 跑完它
+  while (microtaskQueue.length) {
+    // 清空所有 microtask
     run(microtaskQueue.shift());
   }
-  if (renderNeeded) renderFrame();  // 浏览器决定要不要画一帧
+  if (renderNeeded) renderFrame(); // 浏览器决定要不要画一帧
 }
 ```
 
@@ -77,7 +78,7 @@ console.log("D");
 `requestAnimationFrame`（rAF）的回调在**渲染前**执行，是"我想在画下一帧
 之前最后改一下 DOM"的入口。
 
-```
+```text
 task → microtask → rAF 回调 → 样式 → 布局 → 绘制 → 合成 → 下一个 task
 ```
 

@@ -136,7 +136,7 @@ React 的 `{value}` 默认转义，**不会有 XSS**。但 `dangerouslySetInnerH
 CSP 通过 HTTP response header 告诉浏览器"哪些来源的脚本 / 样式 / 图片
 等才允许加载和执行"。即便 XSS 漏洞被利用，CSP 也能让攻击代码加载不到 / 跑不起来。
 
-```
+```http
 Content-Security-Policy:
   default-src 'self';
   script-src 'self' https://cdn.example.com 'nonce-r4nd0m';
@@ -170,7 +170,7 @@ Next.js 这类框架已内置 nonce 注入；自己写 SSR 时要小心配置。
 
 ### 4.2 Report-Only 模式：上线前先观察
 
-```
+```http
 Content-Security-Policy-Report-Only: ...; report-uri /csp-report
 ```
 

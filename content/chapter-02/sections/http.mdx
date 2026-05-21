@@ -25,7 +25,7 @@ paths:
 
 最朴素的 HTTP/1.1 请求（你永远不会手写它，但要看得懂）：
 
-```
+```http
 GET /docs/Web/HTTP HTTP/1.1
 Host: developer.mozilla.org
 User-Agent: Mozilla/5.0 ...
@@ -36,7 +36,7 @@ Cookie: session=abc123
 
 响应：
 
-```
+```http
 HTTP/1.1 200 OK
 Content-Type: text/html; charset=utf-8
 Content-Length: 12345
@@ -147,7 +147,7 @@ CORS 完整故事单独成节会过长，看 [MDN CORS](https://developer.mozill
 
 这是面试和上线后"为什么页面不更新"的高频区。
 
-```
+```text
 浏览器 → CDN → 反向代理 → 源站
 ```
 
@@ -159,7 +159,7 @@ CORS 完整故事单独成节会过长，看 [MDN CORS](https://developer.mozill
 不发请求**——直接从本地拿。DevTools Network 面板会显示 `(disk cache)`
 或 `(memory cache)`。
 
-```
+```http
 Cache-Control: public, max-age=31536000, immutable
 ```
 
