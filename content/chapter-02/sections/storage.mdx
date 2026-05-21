@@ -1,0 +1,213 @@
+---
+title: 浏览器存储
+chapter: 2
+section: 5
+description: Cookie、localStorage、sessionStorage、IndexedDB、Cache API 各自的边界
+tier: essential
+prerequisites:
+  - /chapter-02
+paths:
+  sequential: 8
+---
+
+> 选错存储是上线后才发现的高频坑。这一节给你一张选型地图。
+
+浏览器给前端提供了 5 种主流的"存数据"方式，各自有完全不同的容量、
+生命周期、访问方式和安全特性。**新人最常见的错是把所有数据都丢进
+localStorage**——能跑，但隐患多。
+
+---
+
+## 1. 一张表：全部对比
+
+| 存储           | 容量量级          | 是否随请求自动发送  | 生命周期             | 同步还是异步 | 同源/跨域规则                    |
+| -------------- | ----------------- | ------------------- | -------------------- | ------------ | -------------------------------- |
+| Cookie         | ~4 KB / 条        | ✅ 每个匹配请求都带 | 可设过期 / 会话      | 同步         | 受 domain / path / SameSite 控制 |
+| localStorage   | ~5–10 MB / 源     | ❌                  | 永久（除非主动清）   | **同步**     | 严格同源                         |
+| sessionStorage | ~5 MB / 源 / 标签 | ❌                  | 标签关闭就消失       | 同步         | 严格同源 + 同标签                |
+| IndexedDB      | ~ 几百 MB+        | ❌                  | 永久（除非主动清）   | **异步**     | 严格同源                         |
+| Cache API      | 取决于平台        | ❌                  | 由 Service Worker 管 | **异步**     | 严格同源                         |
+
+---
+
+## 2. Cookie：唯一会"自动跟随请求"的存储
+
+### 2.1 Cookie 的设置规则
+
+服务端通过 `Set-Cookie` 响应头种 cookie：
+
+```
+Set-Cookie: sid=abc123; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400
+```
+
+每个属性的含义：
+
+| 属性       | 作用                                                          |
+| ---------- | ------------------------------------------------------------- |
+| `Path`     | 只在指定 path 下发送                                          |
+| `Domain`   | 控制是否带到子域；不写默认只当前域                            |
+| `HttpOnly` | **JS 读不到**（防 XSS 偷 cookie）；这是会话 cookie 的默认要求 |
+| `Secure`   | 只在 HTTPS 下发送                                             |
+| `SameSite` | 跨站请求是否携带（`Strict` / `Lax` / `None`），防 CSRF 主力   |
+| `Max-Age`  | 秒数；不写就是会话 cookie（关浏览器消失）                     |
+| `Expires`  | 具体过期时间（与 `Max-Age` 二选一）                           |
+
+### 2.2 SameSite 必须懂
+
+| 取值     | 行为                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| `Strict` | 跨站请求**绝不**携带——最严格，但用户从外站点链接进来可能登录态丢失           |
+| `Lax`    | 跨站 GET 顶级导航（`<a>` 点击）会带，POST / iframe / Ajax 不带——浏览器默认值 |
+| `None`   | 任何跨站都带；**必须配 `Secure`**——常用于第三方嵌入场景                      |
+
+写认证 cookie 的标准姿势是 `HttpOnly; Secure; SameSite=Lax`。这是
+[§2.6 安全](/chapter-02/security)节的反复回链。
+
+### 2.3 客户端读 cookie 的现状
+
+浏览器原生 `document.cookie` API 又难用又同步——只能拿到非 `HttpOnly`
+的 cookie，且字符串需要手动 parse。**业务里直接用就是踩坑**。
+
+现代写法：
+
+- 客户端不读认证态——后端给一个 `/api/me` 接口返回当前用户
+- 真要读，用包装库（`js-cookie`）或直接走 [Cookie Store API](https://developer.mozilla.org/zh-CN/docs/Web/API/CookieStore)（异步、有兼容性顾虑）
+
+---
+
+## 3. localStorage / sessionStorage：简单但坑多
+
+```js
+localStorage.setItem("theme", "dark");
+localStorage.getItem("theme"); // "dark"
+localStorage.removeItem("theme");
+localStorage.clear();
+```
+
+接口简单。**踩坑全在它"看似简单"的地方**：
+
+| 坑                                 | 后果                                                            |
+| ---------------------------------- | --------------------------------------------------------------- |
+| **同步 API**                       | 大量读写阻塞主线程；超过 5MB 量级就明显                         |
+| **只能存字符串**                   | 必须 `JSON.stringify` / `JSON.parse`，对象引用、Date / Map 都丢 |
+| **任何 JS 都能读**                 | XSS 可以一把偷走——**绝对不要存 token / 密钥**                   |
+| **跨标签同步靠 storage 事件**      | 同一标签内修改不触发；只有"另一标签"修改才触发 `storage` 事件   |
+| **隐私模式下可能被禁用或额度极低** | 调用就抛 `QuotaExceededError`，要做 try / catch                 |
+| **跨子域不通**                     | `app.example.com` 和 `www.example.com` 的 localStorage 互不可见 |
+
+`sessionStorage` 区别只有"标签关了就消失"——临时表单草稿、单次会话状态
+适合用它。
+
+### 该用 localStorage 的场景
+
+- 用户偏好（主题、语言、布局）——少量、可丢、非敏感
+- UI 状态记忆（侧栏展开、最近选择）
+- 离线表单草稿（搭配 `beforeunload`）
+
+### 不该用的场景
+
+- 认证 token（用 `HttpOnly` Cookie）
+- 大量数据（用 IndexedDB）
+- 跨标签实时通信（用 `BroadcastChannel`）
+
+> **设计判断（内聚边界）**：选存储不是按"哪个 API 顺手"，是按"数据的
+> 生命周期 + 访问模式"。会话级 → sessionStorage；跨会话偏好 → localStorage；
+> 大量结构化 → IndexedDB；要随请求发 → Cookie。这就是 SPEC-0013 §1
+> 模块化里的"内聚（cohesion）"——按职责切，不按熟悉度切。
+
+---
+
+## 4. IndexedDB：浏览器里的"数据库"
+
+异步 + 事务 + 索引 + 大容量。能力强，原生 API 难用——业务里推荐用
+[idb](https://github.com/jakearchibald/idb) 或 [Dexie](https://dexie.org/) 包装。
+
+```js
+import { openDB } from "idb";
+
+const db = await openDB("notes", 1, {
+  upgrade(db) {
+    db.createObjectStore("items", { keyPath: "id" });
+  },
+});
+
+await db.put("items", { id: 1, title: "hello" });
+await db.get("items", 1);
+```
+
+何时用：
+
+- 离线优先应用（PWA 笔记应用、聊天应用）——本地存几千条记录
+- 大型文件 / Blob 缓存（图片、PDF 草稿）
+- 复杂查询（有 index 的快速 lookup）
+
+何时**不**用：
+
+- 简单键值对（用 localStorage）
+- 临时数据（用内存或 sessionStorage）
+- 需要随请求发送的数据（用 Cookie）
+
+### IndexedDB 的"version migration"
+
+升级 schema 必须改 `version` 数字 + 在 `upgrade` 回调里手写迁移——
+这是数据库设计判断（D2 + D3 都不过），上线前必须有完整方案。AI 能写
+单个迁移 step，但**整体迁移策略**要你定。
+
+---
+
+## 5. Cache API：与 Service Worker 配套
+
+`caches` 是给 Service Worker 用的"请求-响应缓存"。手动用得不多，多
+作为 PWA 离线策略的底层。
+
+```js
+const cache = await caches.open("v1");
+await cache.put(request, response);
+const cached = await cache.match(request);
+```
+
+Service Worker 完整故事在第 8 章前沿话题展开。
+
+---
+
+## 6. 选型决策表
+
+来了一段需求"我要在浏览器存 X"，照下面问：
+
+| 问题                               | 是 → 选                    | 否 → 下一问  |
+| ---------------------------------- | -------------------------- | ------------ |
+| 要随请求自动发到服务端？           | Cookie                     | 下一问       |
+| 标签关了就该消失？                 | sessionStorage             | 下一问       |
+| 单条数据 < 5KB 且总量 < 5MB？      | localStorage（注意安全！） | 下一问       |
+| 结构化数据 + 大量条目 + 复杂查询？ | IndexedDB（用 idb 包装）   | 下一问       |
+| 是 Service Worker 拦的请求响应？   | Cache API                  | 重新评估需求 |
+
+---
+
+## 7. AI 在存储这层能帮你做什么
+
+| 任务                                        | Tier          | 备注                                       |
+| ------------------------------------------- | ------------- | ------------------------------------------ |
+| 写 localStorage / sessionStorage 包装       | Tier 1        | 包成"对象 → JSON"helper 是入门项目         |
+| 写 IndexedDB schema + 迁移                  | Tier 3 review | schema 是 API，发布即难改；迁移更要慎      |
+| 决定 token 放哪里                           | 永不委托      | 安全决策；错了泄漏不可逆（D3 + D5 双红线） |
+| 决定哪个数据用哪种存储                      | Tier 4 辅助   | 业务上下文 AI 拿不到，让它列方案、你拍板   |
+| 设置 Cookie 的 SameSite / Secure / HttpOnly | Tier 3 review | 配置上线前必须自己读一遍 + 跨域场景实测    |
+
+---
+
+## 延伸阅读
+
+- [MDN: 客户端存储](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Extensions/Client-side_APIs/Client-side_storage)
+  — 中文一手综合介绍
+- [MDN: Set-Cookie](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Set-Cookie)
+  — Cookie 各属性的权威解释
+- [web.dev: Storage for the web](https://web.dev/articles/storage-for-the-web?hl=zh-cn)
+  — 各存储的容量、配额、何时被清理的现代综述
+- [idb（GitHub）](https://github.com/jakearchibald/idb)
+  — Jake Archibald 写的 IndexedDB Promise 包装；前端社区事实标准
+- [Dexie.js](https://dexie.org/) — 更高层的 IndexedDB ORM 风格库
+
+---
+
+下一节：[§2.6 Web 安全](/chapter-02/security) —— 同源策略、XSS、CSRF、CSP。

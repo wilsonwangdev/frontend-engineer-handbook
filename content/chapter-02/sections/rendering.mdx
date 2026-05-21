@@ -1,0 +1,233 @@
+---
+title: 浏览器渲染
+chapter: 2
+section: 3
+description: HTML 字符串到屏幕像素之间发生了什么——解析、布局、绘制、合成
+tier: essential
+prerequisites:
+  - /chapter-02
+paths:
+  sequential: 6
+---
+
+> 看到页面卡顿，知道往哪查——这是你打开 Performance 面板的底气。
+
+浏览器收到一份 HTML 字节流之后，要把它变成屏幕上的像素。这个过程
+被切成几个阶段，**每个阶段都可能成为性能瓶颈**。这一节给你一张
+"地图 + 排查方向"——不展开每个阶段的实现细节（那是浏览器引擎工程师
+的事，看 WebKit 技术内幕）。
+
+---
+
+## 1. 一张图：渲染管线
+
+```
+HTML 字节流
+   │
+   ▼
+[1] 解析（Parse）        → DOM 树
+   │                     ┐
+   ▼                     │
+[2] 样式计算（Style）    → CSSOM + Computed Style
+   │                     │
+   ▼                     │
+[3] 布局（Layout）       → 每个盒子的位置和大小
+   │                     │      （reflow / 重排）
+   ▼                     │
+[4] 绘制（Paint）        → 每层的位图
+   │                     │      （repaint / 重绘）
+   ▼                     │
+[5] 合成（Composite）    → 把多层位图合成屏幕画面
+   │                     ┘      （GPU 上做）
+   ▼
+屏幕像素
+```
+
+> **设计判断（流水线 pipeline）**：把渲染切成 5 个阶段，每个阶段产出
+> 一份**可缓存中间产物**——是经典 pipeline 模式。改 `color` 不需要重做
+> 布局（只走 4-5），改 `transform` / `opacity` 甚至不需要重绘（只走
+> 5）。AI 能写出语法正确的 CSS，但**哪些属性会触发哪些阶段**是性能
+> 判断的根基——看 [csstriggers.com](https://csstriggers.com/) 一手清单。
+
+---
+
+## 2. 阶段拆解（按"会触发什么 + 怎么排查"）
+
+### 2.1 解析 → DOM 树
+
+浏览器边下边解析 HTML，构造 DOM 树。**两件事会打断这个过程**：
+
+- `<script>`（不带 `defer` / `async` / `type="module"`）：解析器停下来，
+  下载并执行 JS。这是"为什么 JS 默认放在 `</body>` 之前"的原因——
+  避免阻塞首屏 DOM 构造
+- `<link rel="stylesheet">`：CSS 不阻塞 HTML 解析，但**阻塞渲染**——
+  因为没有 CSSOM 就没法做样式计算
+
+实战建议：
+
+| 资源类型       | 推荐写法                                     | 为什么                              |
+| -------------- | -------------------------------------------- | ----------------------------------- |
+| 关键 CSS       | `<link rel="stylesheet">` 放在 `<head>`      | 越早拿到 CSSOM，越早开始渲染        |
+| 第三方脚本     | 加 `defer` 或 `async`                        | 不阻塞 DOM 构造                     |
+| ES module 脚本 | 默认就是 `defer` 行为                        | 现代框架默认走这条                  |
+| 字体           | `<link rel="preload" as="font" crossorigin>` | 字体晚于 CSS 才被发现，预载提早开始 |
+
+### 2.2 样式计算 → CSSOM + Computed Style
+
+CSS 选择器从右往左匹配（这条是社区共识的"为什么避免深嵌套选择器"
+背景，但现代浏览器优化已经让大多数选择器开销可以忽略，**别把这条
+当性能优化重点**）。
+
+真正影响样式计算开销的是：
+
+- **selector 命中样本量**：`* {}` 比 `.btn-primary {}` 慢
+- **属性数量**：CSS 变量、`calc()`、`color-mix()` 都要算
+- **样式失效（invalidation）**：DOM 改变会触发部分子树重算
+
+DevTools Performance 面板里的 **Recalculate Style** 行就是这个阶段。
+
+### 2.3 布局（Layout）→ Reflow
+
+每个元素的位置和大小被算出来。**触发布局重算的常见场景**：
+
+- 改尺寸相关属性（`width` / `height` / `padding` / `margin` / `top` 等）
+- 添加 / 移除 DOM 节点
+- 字体加载完毕（每行高度变了）
+- 读取**强制布局**的属性（`offsetTop` / `offsetWidth` / `getBoundingClientRect()`
+  等）——这些 API 必须等当前布局算完才能给出准确值
+
+最后一条是"布局抖动（layout thrashing）"的根源：
+
+```js
+// ❌ 反复触发同步布局
+for (const el of items) {
+  el.style.width = el.offsetWidth + 10 + "px";
+}
+
+// ✅ 读和写分批
+const widths = items.map((el) => el.offsetWidth);
+items.forEach((el, i) => (el.style.width = widths[i] + 10 + "px"));
+```
+
+> **AI 协作要点**：让 AI 写性能敏感的 DOM 操作时，明说"避免读写交替"。
+> AI 默认行为偏向"看起来直觉"的循环写法，对热点路径会暗藏布局抖动。
+
+### 2.4 绘制（Paint）→ Repaint
+
+按层（layer）填颜色、画边框、画文字。**不触发布局但触发绘制的属性**
+是改 `color` / `background` / `box-shadow` 这类——便宜，但仍要做。
+
+### 2.5 合成（Composite）→ 最便宜
+
+GPU 把多层位图按 z 叠到一起。**`transform` 和 `opacity` 只走这一阶段**——
+这就是为什么动画推荐用 `transform: translateX(...)` 而不是 `left: ...`：
+后者要重新布局 + 重绘，前者只要重新合成。
+
+```css
+/* ✅ 60fps 友好 */
+.card {
+  transition: transform 0.3s;
+}
+.card:hover {
+  transform: translateY(-4px);
+}
+
+/* ❌ 触发布局，容易掉帧 */
+.card {
+  transition: top 0.3s;
+  position: relative;
+}
+.card:hover {
+  top: -4px;
+}
+```
+
+`will-change: transform` 可以**提前**告诉浏览器把这个元素提升为合成层。
+但**别滥用**——每个合成层都占内存，乱标 `will-change` 反而更慢。
+
+---
+
+## 3. Core Web Vitals（必背三个指标）
+
+Google 把"用户感知性能"压到三个指标，每个都对应渲染管线的某段：
+
+| 指标 | 全称                      | 衡量什么             | 阈值    |
+| ---- | ------------------------- | -------------------- | ------- |
+| LCP  | Largest Contentful Paint  | 最大内容元素何时出现 | < 2.5s  |
+| INP  | Interaction to Next Paint | 任何交互到下一帧画完 | < 200ms |
+| CLS  | Cumulative Layout Shift   | 视觉抖动总和         | < 0.1   |
+
+**LCP 慢**：通常是图片 / 字体 / 关键 CSS 加载慢——查 Network 面板和
+[web.dev/lcp](https://web.dev/articles/lcp?hl=zh-cn)。
+
+**INP 慢**（2024 年取代了 FID）：长任务（>50ms 的 JS）阻塞了主线程——
+查 Performance 面板红色长条。常见元凶是大型 React 渲染、第三方脚本、
+未拆分的状态管理 selector。
+
+**CLS 高**：图片 / 广告 / 字体加载完后页面元素位置跳——查 Performance
+面板的 Layout Shift 标记。常见修复是图片加 `width` `height`、字体加
+`font-display: optional` 或 `size-adjust` fallback。
+
+---
+
+## 4. DevTools 三个面板（这章必练）
+
+| 面板        | 看什么                                         | 何时打开                 |
+| ----------- | ---------------------------------------------- | ------------------------ |
+| Performance | 完整时间线（解析 / 样式 / 布局 / 绘制 / 合成） | 页面卡顿、动画掉帧       |
+| Rendering   | 实时高亮重绘 / 重排 / 合成层                   | 排查"哪个动作触发了什么" |
+| Layers      | 当前页面有哪些合成层                           | 怀疑 `will-change` 滥用  |
+
+第一次打开 Performance 录一段操作的火焰图——你会看到每一帧（理想 16.6ms）
+内的工作分布。**主线程一帧超过 50ms = INP 红线**。
+
+---
+
+## 5. 何时该优化、何时别动
+
+新人最容易陷入的坑是"过早优化"。以"测过 + 看到了瓶颈"为前提：
+
+| 现象            | 第一步                         | 第二步                                 |
+| --------------- | ------------------------------ | -------------------------------------- |
+| 首屏白屏 > 2s   | Network 面板找最慢资源         | 关键资源 preload / 改 CDN              |
+| 滚动 / 动画掉帧 | Performance 面板找长任务       | `transform` 替 `left/top` / 拆 JS 任务 |
+| 输入响应慢      | Performance + INP 标注         | 拆任务、用 `useDeferredValue`          |
+| 滚动时图片跳位  | Rendering → 高亮 Layout Shifts | 给图片 `width` / `height` 占位         |
+
+---
+
+## 6. AI 在渲染这层能帮你做什么
+
+| 任务                            | Tier          | 备注                                        |
+| ------------------------------- | ------------- | ------------------------------------------- |
+| 解释一个 CSS 属性会触发哪些阶段 | Tier 1        | 但 csstriggers.com 一手更准                 |
+| 写 `transform` / `opacity` 动画 | Tier 1        | 现代 CSS 动画 AI 写得熟                     |
+| 优化 React 组件减少重渲染       | Tier 2 review | 必须自己跑 Performance 验证有没有真的省下来 |
+| 排查具体页面"为什么卡"          | Tier 4 辅助   | 你录 trace、AI 帮你解读火焰图               |
+| 决定要不要把某元素提升为合成层  | Tier 3 慎重   | `will-change` 滥用 → 内存爆炸；要测过再用   |
+
+性能优化是本章 D5 警示最强的领域之一——**不亲手测过的优化都是猜**。
+AI 能告诉你"理论上这样更快"，但实测下来可能差异在误差内甚至变慢
+（缓存命中、CPU 调度、用户网络环境都影响结果）。
+
+---
+
+## 延伸阅读
+
+- [web.dev: Inside look at modern web browser](https://developer.chrome.com/blog/inside-browser-part1)
+  **（英文）** — Chrome 团队的一手系列文章；本节图示的更深版本
+- [MDN: 在浏览器中渲染网页](https://developer.mozilla.org/zh-CN/docs/Web/Performance/How_browsers_work)
+  — MDN 中文综合介绍
+- [csstriggers.com](https://csstriggers.com/)
+  **（英文）** — 每个 CSS 属性触发哪些阶段，社区维护的速查表
+- [web.dev: Core Web Vitals](https://web.dev/explore/learn-core-web-vitals?hl=zh-cn)
+  — Google 一手；阈值和 lab tools / field data 区分
+- [WebKit 技术内幕](https://book.douban.com/subject/25910556/)（朱永盛）
+  — 中文唯一系统讲渲染引擎的技术书；想做浏览器引擎方向的人值得读
+
+> 访问性说明：渲染管线相关一手资料英文为主；MDN 中文版概念介绍足够
+> 应付 90% 场景。
+
+---
+
+下一节：[§2.4 事件循环](/chapter-02/event-loop) —— 异步代码的"为什么这个先跑"。

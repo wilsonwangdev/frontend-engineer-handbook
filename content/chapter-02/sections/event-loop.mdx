@@ -1,0 +1,209 @@
+---
+title: 事件循环
+chapter: 2
+section: 4
+description: 异步在 JavaScript 里到底是怎么排队的——task、microtask、render
+tier: essential
+prerequisites:
+  - /chapter-02
+paths:
+  sequential: 7
+---
+
+> 调试 race condition 的时候，事件循环是你唯一的参照系。
+
+JavaScript 是单线程的——同一时刻只跑一段代码。但我们每天都在写异步：
+`fetch`、`setTimeout`、`Promise`、事件监听。这些"看起来同时在跑"的事
+其实都被排在一个队列里，主线程按规则一件一件做完。这一节讲那个规则。
+
+---
+
+## 1. 一句话模型
+
+> 主线程从一个**任务（task）队列**里取一项执行，执行完后清空所有
+> **微任务（microtask）**，然后浏览器**有机会**走渲染管线，再回来取
+> 下一个任务。
+
+伪代码：
+
+```
+while (true) {
+  const task = taskQueue.shift();   // 取一个 task
+  run(task);                        // 跑完它
+  while (microtaskQueue.length) {   // 清空所有 microtask
+    run(microtaskQueue.shift());
+  }
+  if (renderNeeded) renderFrame();  // 浏览器决定要不要画一帧
+}
+```
+
+记住三层节奏：**task → 全部 microtask → （可选）渲染 → 下一个 task**。
+
+---
+
+## 2. 谁是 task、谁是 microtask
+
+| 类型      | 谁产生                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------- |
+| task      | `setTimeout` / `setInterval` / I/O 回调 / `<script>` 顶层执行 / 用户事件回调（click 等） |
+| microtask | `Promise.then` / `queueMicrotask` / `MutationObserver`                                   |
+
+**关键差异**：
+
+- task 跑完会把所有 microtask **一口气清空**。
+- 一个 microtask 中产生的新 microtask 也会在**同一轮**里被处理——
+  写出 `Promise.then` 嵌套 1000 层会饿死浏览器渲染（常见 bug）。
+- task 之间会有渲染机会，microtask 之间没有。
+
+经典输出题：
+
+```js
+console.log("A");
+setTimeout(() => console.log("B"), 0);
+Promise.resolve().then(() => console.log("C"));
+console.log("D");
+```
+
+输出：`A D C B`。
+
+- `A` `D`：当前 task（脚本本身）顺序执行
+- `C`：`script` 这个 task 跑完后清空 microtask
+- `B`：下一个 task
+
+---
+
+## 3. 渲染什么时候发生
+
+`requestAnimationFrame`（rAF）的回调在**渲染前**执行，是"我想在画下一帧
+之前最后改一下 DOM"的入口。
+
+```
+task → microtask → rAF 回调 → 样式 → 布局 → 绘制 → 合成 → 下一个 task
+```
+
+实战意义：
+
+- **rAF**：DOM 动画的写法（手写动画时用，绝大多数场景用 CSS 动画就够）
+- **`requestIdleCallback`**：浏览器空闲时跑非紧急任务（埋点、预加载）；
+  Safari 至今支持有限，跨浏览器场景用 React 的 `startTransition` /
+  调度器更稳
+
+> **AI 协作要点**：让 AI 写"等 DOM 更新后再读尺寸"代码时，它常给
+> `setTimeout(..., 0)`。**这是错的**——`setTimeout` 是下一个 task，会
+> 错过这一帧的渲染。正确做法是双层 rAF：
+>
+> ```js
+> requestAnimationFrame(() =>
+>   requestAnimationFrame(() => {
+>     // 此时 DOM 已经渲染过一次
+>     const h = el.offsetHeight;
+>   }),
+> );
+> ```
+
+---
+
+## 4. 实战陷阱
+
+### 4.1 Promise 链里 `await` 的"陷阱"
+
+```js
+async function f() {
+  console.log("1");
+  await null; // 等价于 await Promise.resolve(null)
+  console.log("2");
+}
+f();
+console.log("3");
+// 输出：1 3 2
+```
+
+`await` 之后的代码进入 microtask 队列。**绝大多数 race 是因为某段代码
+误以为 `await` 之后是同步继续**。
+
+### 4.2 `Promise.then` 饿死渲染
+
+```js
+function loop() {
+  Promise.resolve().then(loop); // ❌ 永远在 microtask 里递归
+}
+```
+
+主线程被 microtask 占满，渲染永远轮不到。如果非要持续触发，用
+`setTimeout` 或 `requestAnimationFrame` 把它**降级到 task / 渲染节奏**。
+
+### 4.3 `queueMicrotask` 的合理使用
+
+需要"在当前任务结束后立刻执行，但比 `setTimeout(..., 0)` 早"——用
+`queueMicrotask`。典型用例：状态变更后延后通知订阅者，但不希望延后到
+下一帧。
+
+### 4.4 `MutationObserver` 是 microtask
+
+变更 DOM 后再修改 DOM 用 `MutationObserver`——它的回调在 microtask
+执行，**比 `setTimeout` 早**，但不会陷入同步循环。
+
+---
+
+## 5. Node.js 的事件循环（一句话差异）
+
+Node 的事件循环阶段比浏览器多（timers / pending callbacks / poll /
+check 等），并多出 `process.nextTick`（比 microtask 还更早）和 `setImmediate`
+（在 poll 阶段后）。
+
+**前端工程师只要记**：
+
+- 浏览器和 Node 都遵守 "task → microtask" 大节奏
+- Node 端排查异步顺序时翻 [Node.js: The Node.js Event Loop](https://nodejs.org/zh-cn/learn/asynchronous-work/event-loop-timers-and-nexttick)
+  一手文档
+- 不要在前端代码用 Node 特有 API（`process.nextTick` 等）——会破坏跨端
+  代码的可移植性
+
+---
+
+## 6. Web Worker：把单线程拆开的唯一办法
+
+JavaScript 的单线程是浏览器主线程。**Web Worker** 可以开一条独立线程
+跑 JS，主线程通过 `postMessage` 和它通信。
+
+何时用：
+
+- CPU 密集计算（图片处理、加密、大数据 parse）→ 别堵主线程
+- Service Worker（PWA 离线缓存的核心）：独立线程拦截网络
+
+不能用：
+
+- 直接操作 DOM（Worker 里没有 `window` / `document`）
+- 共享对象（必须 `postMessage` 序列化，或用 `SharedArrayBuffer`）
+
+第 8 章前沿话题会再回来讲 Service Worker。
+
+---
+
+## 7. AI 在事件循环这层能帮你做什么
+
+| 任务                          | Tier          | 备注                                         |
+| ----------------------------- | ------------- | -------------------------------------------- |
+| 解释一段异步代码的输出顺序    | Tier 1        | 但**自己也得能讲**——这是判断 race 的基本盘   |
+| 写 debounce / throttle        | Tier 1        | lodash 已有；自己写也是入门必练              |
+| 调试 race condition           | Tier 4 辅助   | AI 能列假设，最终要你打 log + 走 Performance |
+| 决定 microtask vs task vs rAF | Tier 3 慎重   | 错了会出难复现的渲染抖动；选错改起来代价大   |
+| 写 Web Worker 通信协议        | Tier 3 review | 序列化边界、错误处理需要人定                 |
+
+---
+
+## 延伸阅读
+
+- [HTML 标准：Event loops](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops)
+  **（英文）** — 浏览器事件循环的根规范；写不出输出题时翻这里
+- [MDN: 事件循环](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/EventLoop)
+  — 中文一手，简短版本
+- [Jake Archibald: In The Loop（演讲）](https://www.youtube.com/watch?v=cCOL7MC4Pl0)
+  **（需代理）** — 30 分钟把 task / microtask / rAF / rIC 全讲完，社区公认
+  最好的入门视频
+- [Node.js: The Node.js Event Loop](https://nodejs.org/zh-cn/learn/asynchronous-work/event-loop-timers-and-nexttick)
+  — Node 端事件循环官方解释（中文版本可能落后；英文为准）
+
+---
+
+下一节：[§2.5 浏览器存储](/chapter-02/storage) —— Cookie、localStorage、IndexedDB 的边界。

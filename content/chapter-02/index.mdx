@@ -1,0 +1,148 @@
+---
+title: Web 平台基石
+chapter: 2
+description: 不依赖框架的那一层——HTTP、URL、浏览器渲染、事件循环、存储、安全
+tier: essential
+prerequisites:
+  - /chapter-01
+paths:
+  sequential: 3
+---
+
+> 这一章讲**框架换了也不会变的部分**。React、Vue、Next.js 都建立在它之上。
+
+第 1 章讲了"为什么 AI 时代仍需要工程师"——核心是判断、上下文、验证、品味。
+这一章给出**最重要的判断参照系**：当 AI 写出一段 fetch、一段重定向、一段
+`localStorage`、一段安全相关的代码时，你拿什么去判断它对不对？
+
+答案就在这 6 节里。框架是会过期的——React 16 的写法到了 19 已大半改写，
+Next.js 14 → 16 重构了缓存模型。但 HTTP 状态码 200/304/302 的语义、浏览器
+渲染管线的"解析 → 布局 → 绘制"、`localStorage` 的同源限制、CSP 的核心
+原则——这些**自 2010 年代以来基本没变**。学一次，吃十年。
+
+> **写给新入行的读者**：这章是手册里"传统味"最浓的一章。看起来都是"老知识"，
+> 没什么 AI、没什么炫酷。但**正因为它稳定**，它才是你长期资产里最值钱的一块。
+> 后面所有章节都会回链回来。
+
+---
+
+## 2.1 本章六节速览
+
+按从"网络层"到"渲染层"再到"安全层"的顺序铺开。每节都能单独读，但顺序读
+更顺。
+
+| #   | 节                                  | 一句话定位                                   | 谁最该读         |
+| --- | ----------------------------------- | -------------------------------------------- | ---------------- |
+| 2.1 | [HTTP](/chapter-02/http)            | 你点开"网络面板"看到的那些请求是什么意思     | 所有人           |
+| 2.2 | [URL](/chapter-02/url)              | URL 不是"地址"——是一份带语义的结构化字符串   | 所有人           |
+| 2.3 | [浏览器渲染](/chapter-02/rendering) | HTML 字符串到屏幕像素之间发生了什么          | 所有人           |
+| 2.4 | [事件循环](/chapter-02/event-loop)  | "异步"在 JavaScript 里到底是怎么排队的       | 所有人           |
+| 2.5 | [浏览器存储](/chapter-02/storage)   | Cookie、localStorage、IndexedDB 各自的边界   | 所有人           |
+| 2.6 | [Web 安全](/chapter-02/security)    | 同源策略、XSS、CSRF、CSP——前端能挡住的那一半 | 所有人，新人尤其 |
+
+> 这 6 节都标 **必学**。本章没有"可委托"档——基石必须自己扎。
+
+---
+
+## 2.2 本章三档归位
+
+| 知识点                                           | 归位         | 理由                                                               |
+| ------------------------------------------------ | ------------ | ------------------------------------------------------------------ |
+| HTTP 方法 / 状态码 / 关键 header                 | **必学**     | AI 写出一段 fetch 你得能在 Network 面板里读懂结果                  |
+| 缓存模型（强缓存 / 协商缓存）                    | **必学**     | 上线后页面"为什么不更新"、CDN 配置错在哪里——靠这套术语沟通         |
+| CORS / 预检请求                                  | **必学**     | 跨域报错每周都会遇到；不懂就只会复制粘贴 Stack Overflow            |
+| HTTP/1.1 vs 2 vs 3 协议机制                      | **仍需理解** | 知道差异 + 何时升级即可；很少需要手写帧解析                        |
+| URL 编码细节                                     | **仍需理解** | 看得懂为什么中文 / 空格被转成 `%E4%B8%AD`；写代码用 `URL` 对象就好 |
+| 浏览器渲染管线（reflow / repaint / 合成层）      | **必学**     | 看到页面卡顿时知道往哪查                                           |
+| 事件循环（task / microtask）                     | **必学**     | 调试 race condition 时这是唯一参照                                 |
+| `requestAnimationFrame` / `IntersectionObserver` | **仍需理解** | 知道存在 + 何时用；具体调用语法可委托 AI                           |
+| Cookie / Storage / IndexedDB 用途与边界          | **必学**     | 选错存储是上线后才发现的高频坑                                     |
+| 同源策略 / XSS / CSRF / CSP                      | **必学**     | 前端要扛的安全责任就这些；不懂等于裸奔                             |
+| TLS / 证书链 / HSTS                              | **仍需理解** | 知道 HTTPS 在保护什么 + 出错时去哪查；不需要手写 TLS 握手          |
+| HTTP 报文逐字节解析                              | **可委托**   | 你不会手写 HTTP 服务器，AI 写 mock server 解析得很熟               |
+
+---
+
+## 2.3 怎么读这一章
+
+### 别脱离 DevTools 读
+
+这章 90% 的概念可以**当场在浏览器里看到**：
+
+- 打开 [developer.mozilla.org](https://developer.mozilla.org/zh-CN/) 或任何
+  网站
+- 按 `F12` / `Cmd+Opt+I` 打开 DevTools
+- 切换到 **Network**、**Application**、**Performance**、**Security** 面板
+- 看到本节讲的概念，立刻去对应面板找一遍
+
+读完一节没去 DevTools 看一眼——基本等于没读。这是本章和"看博客学知识"
+最大的区别。
+
+### AI 的位置
+
+| 你想做                                   | AI 帮得上吗                                        |
+| ---------------------------------------- | -------------------------------------------------- |
+| 解释一个状态码 / header 的含义           | ✅ 帮得上，但 MDN 一手更可靠                       |
+| 写一段 fetch / axios 调用                | ✅ Tier 2 委托后 review                            |
+| 配置 CORS / 缓存策略                     | ✅ 但你必须看得懂它生成的配置                      |
+| 排查"页面为什么不刷新"                   | ⚠️ AI 能列可能性，定位仍需你打开 DevTools          |
+| 排查 CSP 报错                            | ❌ Tier 4：你必须自己读懂违规报告，AI 只能辅助解释 |
+| 决定用 Cookie 还是 localStorage 存 token | ❌ 永不委托——这是安全决策，错了 D3 不可逆          |
+
+回顾第 1 章 [§1.4](/chapter-01#14-ai-可委托清单完整版)的 D1–D5 维度。
+本章涉及的"安全决策"基本都卡在 D3（错了不可逆）+ D5（长期委托会失去
+自保能力）。
+
+### 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本章会在以下位置点破设计判断：
+
+- **§2.1 HTTP 缓存**：分层缓存（layered caching）——浏览器缓存、CDN、
+  反向代理、源站，每一层各有职责，越靠前越快但越易过期
+- **§2.3 渲染管线**：流水线（pipeline）——为什么把"解析 → 布局 → 绘制 →
+  合成"切成阶段、各阶段缓存什么
+- **§2.5 存储选型**：内聚边界（cohesion boundary）——按"数据生命周期 +
+  访问模式"切，不是按"哪个 API 顺手"切
+- **§2.6 安全分层**：纵深防御（defense in depth）——HTTPS、同源策略、CSP、
+  HttpOnly Cookie 不是替代关系，是叠加关系
+
+读完每一节回头看上面这条暗线——你会发现这些"软件工程经验"在 Web 平台
+内部反复出现。
+
+---
+
+## 2.4 读完本章你应该能
+
+按这个清单自我验证。如果有项答不上来——回到对应小节再读一遍，**不要
+跳过**。
+
+- [ ] 看到一个 URL，能口头讲出 scheme、host、port、path、query、fragment 各是哪段
+- [ ] 看到状态码 301 / 302 / 304 / 401 / 403 / 502，能说出语义差异
+- [ ] 知道 `Cache-Control: max-age=3600` 和 `Cache-Control: no-cache` 的区别
+- [ ] 听到"CORS 预检失败"能描述大致排查思路
+- [ ] 能在 DevTools Performance 面板里识别一次重排（layout）和一次重绘（paint）
+- [ ] 写出一段 `Promise.resolve().then(...)` + `setTimeout(..., 0)` 的输出顺序并解释为什么
+- [ ] 能说出 `localStorage`、`sessionStorage`、Cookie、IndexedDB 各自的容量量级和适用场景
+- [ ] 看到 `<script src="...">` 没加 SRI 能识别这是个潜在风险
+- [ ] 大致讲出 XSS、CSRF 各自怎么发生、各自由哪一层防御
+
+打完勾再去第 3 章。
+
+---
+
+## 延伸阅读
+
+- [MDN: Web technology for developers](https://developer.mozilla.org/zh-CN/docs/Web)
+  — 中文版完备；本章每节延伸阅读会进一步指到具体页面
+- [web.dev: Learn](https://web.dev/learn) — Google 主导的现代 Web 教程，
+  按主题组织（Performance / Accessibility / Privacy and Security）
+- [High Performance Browser Networking](https://hpbn.co/) **（需代理）** —
+  Ilya Grigorik，O'Reilly 免费在线版；HTTP/2/3、TLS、性能相关章节是手册
+  反复回链的一手资料
+
+> 访问性说明：本章「需代理」标记延续第 0 章惯例。绝大部分 MDN /
+> web.dev / 框架文档可直接访问。
+
+---
+
+下一节：[§2.1 HTTP](/chapter-02/http) —— 从 Network 面板那条 Waterfall 开始。

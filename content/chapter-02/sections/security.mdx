@@ -1,0 +1,291 @@
+---
+title: Web 安全
+chapter: 2
+section: 6
+description: 同源策略、XSS、CSRF、CSP——前端能挡住的那一半攻击
+tier: essential
+prerequisites:
+  - /chapter-02/storage
+paths:
+  sequential: 9
+---
+
+> 前端不是安全的全部，但是**用户与攻击者之间的第一道墙**。这章不读，等于裸奔。
+
+Web 安全是个庞大领域，但前端日常需要的"基本盘"很有限——同源策略、
+XSS、CSRF、CSP 这四个概念加起来扛下 80% 场景。这一节讲它们的原理、
+怎么发生、由哪一层防御。**学一次，受用十年**。
+
+> **写给新人**：本节标了 D3（错了不可逆）+ D5（长期委托会失去自保
+> 能力）。和前几节不同，这里**没有"AI 委托"档**——所有相关代码都
+> 必须自己读懂、自己拍板。
+
+---
+
+## 1. 同源策略：浏览器的根防线
+
+> 同源 = scheme + host + port 三者完全相同（[§2.2 URL §4](/chapter-02/url) 已定义过）
+
+浏览器对**不同源**的资源做一系列限制：
+
+| 跨源行为                        | 默认结果                                       |
+| ------------------------------- | ---------------------------------------------- |
+| 跨源读 cookie / localStorage    | ❌ 完全隔离                                    |
+| 跨源访问 iframe 的 DOM          | ❌ 抛 `SecurityError`                          |
+| 跨源 fetch 普通请求             | ✅ 能发送，但**响应 body 默认读不到**          |
+| 跨源 fetch 简单请求 + CORS 通过 | ✅ 能读响应                                    |
+| 跨源 fetch 复杂请求             | 先发 OPTIONS 预检；服务器同意才真发            |
+| 跨源加载 `<script>` / `<img>`   | ✅ 能加载（这是个**口子**，XSS / CSRF 利用它） |
+| 跨源 `<form>` POST              | ✅ 能提交（CSRF 主要利用面）                   |
+
+**关键直觉**：同源策略**不阻止跨源请求发出**，只阻止 JavaScript 读取
+跨源响应。这个区别正是 CSRF 攻击得以成立的原因（攻击者不需要读响应，
+只需要请求被发送 + 用户 cookie 被带上）。
+
+### CORS 是给同源策略开口子
+
+[§2.1 HTTP §4](/chapter-02/http) 已经介绍过 CORS header。这里只补一句
+立场：
+
+> CORS 不是"反跨域机制"——它是**让浏览器允许 JS 读跨源响应**的协议。
+> 服务端通过 `Access-Control-Allow-*` header 显式声明"我同意被这些
+> 来源访问"。
+
+新人最易混的点：CORS 错误是浏览器报的（response 已经回来了，body
+读不到），**curl 永远不会报 CORS 错**。
+
+---
+
+## 2. XSS（Cross-Site Scripting）：让攻击者代码跑在你的页面里
+
+### 2.1 怎么发生
+
+攻击者把恶意代码塞进页面，浏览器当成你站点的合法 JS 执行——结果就是
+**攻击者代码以你站点的权限**操作 DOM、读 cookie（除非 `HttpOnly`）、
+发请求、偷数据。
+
+三种典型场景：
+
+- **Stored XSS（存储型）**：评论 / 个人简介里写 `<script>alert(1)</script>`，
+  被存进数据库，每个查看者都中招
+- **Reflected XSS（反射型）**：URL 参数 `?q=<script>...</script>` 被
+  搜索结果页直出到 HTML
+- **DOM XSS**：`document.body.innerHTML = location.hash.slice(1)` 把
+  URL 里的内容直插 DOM——纯前端漏洞
+
+### 2.2 防御
+
+按"边界"分清职责：
+
+| 防御位置            | 怎么做                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| **输出时编码**      | 任何用户内容渲染到 HTML 前都要转义（React 的 `{}` 默认转义；模板引擎一般默认开启）      |
+| **避免危险 API**    | 不用 `innerHTML` / `document.write` / `dangerouslySetInnerHTML`，万不得已配合 sanitizer |
+| **CSP（见下文）**   | 即便有漏洞，限制脚本来源 → 攻击者塞进去的 inline `<script>` 也跑不起来                  |
+| **HttpOnly Cookie** | 即便 XSS 成功，攻击者读不到认证 cookie                                                  |
+
+> **AI 协作要点**：让 AI 写"渲染富文本"功能时，明说"用 DOMPurify 做白名单
+> 过滤，不要直接 innerHTML"。AI 默认实现倾向于"先快后安全"——D5 警示。
+> 这就是 SPEC-0013 §1 模块化里讲的"信息隐藏"——把"哪些标签 / 属性安全"
+> 封装在 sanitizer 里，调用方不要自己拍。
+
+### 2.3 React / 现代框架默认安全吗
+
+React 的 `{value}` 默认转义，**不会有 XSS**。但 `dangerouslySetInnerHTML`
+顾名思义——一旦用，自己 sanitize。`href={userInput}` 也是漏洞面（`javascript:`
+伪协议），新版 React 会警告但不会阻止。
+
+---
+
+## 3. CSRF（Cross-Site Request Forgery）：借用户的"在场"做事
+
+### 3.1 怎么发生
+
+用户在 `bank.com` 已登录（cookie 还在）。攻击者诱导用户访问 `evil.com`，
+`evil.com` 的页面里有：
+
+```html
+<form action="https://bank.com/transfer" method="POST">
+  <input name="to" value="attacker" />
+  <input name="amount" value="1000000" />
+</form>
+<script>
+  document.forms[0].submit();
+</script>
+```
+
+浏览器**会带上 bank.com 的 cookie**——服务器看到一个合法登录用户的
+转账请求。
+
+### 3.2 防御
+
+| 手段                      | 原理                                                                |
+| ------------------------- | ------------------------------------------------------------------- |
+| **`SameSite` Cookie**     | 跨站请求不带 cookie——主力防线，浏览器默认值已经是 `Lax`             |
+| **CSRF Token**            | 表单 / 接口要求带一个攻击者拿不到的 token（写在页面里 / 走 header） |
+| **检查 Origin / Referer** | 服务端校验请求来源是否同源；老但有效                                |
+| **关键操作要二次确认**    | 转账 / 改密码等触发 OTP / 重输密码——这是产品层面的最后保险          |
+
+新人最易踩的坑：**以为 CORS 能挡 CSRF**。不能——CSRF 利用的是 `<form>`
+原生 POST，根本不走 fetch / XHR，CORS 管不到。
+
+---
+
+## 4. CSP（Content Security Policy）：纵深防御的关键一层
+
+CSP 通过 HTTP response header 告诉浏览器"哪些来源的脚本 / 样式 / 图片
+等才允许加载和执行"。即便 XSS 漏洞被利用，CSP 也能让攻击代码加载不到 / 跑不起来。
+
+```
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' https://cdn.example.com 'nonce-r4nd0m';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+  connect-src 'self' https://api.example.com;
+  frame-ancestors 'none';
+```
+
+读的时候按指令逐条理解：
+
+| 指令              | 控制                                 |
+| ----------------- | ------------------------------------ |
+| `default-src`     | 没单独配置时的兜底来源               |
+| `script-src`      | 哪些 JS 能执行（最关键）             |
+| `style-src`       | 哪些 CSS 能加载                      |
+| `img-src`         | 哪些图片能加载                       |
+| `connect-src`     | 哪些目标能 fetch / XHR / WebSocket   |
+| `frame-ancestors` | 谁能用 iframe 包含本页（防点击劫持） |
+
+### 4.1 nonce 与 hash
+
+inline `<script>` 默认被 CSP 禁掉。如果你必须用 inline——
+
+- **nonce**：服务端每次请求生成随机串，写在 CSP header + 每个允许的
+  inline `<script nonce="r4nd0m">` 上
+- **hash**：CSP 里写脚本内容的 SHA-256 摘要——浏览器只允许内容匹配的
+  脚本
+
+Next.js 这类框架已内置 nonce 注入；自己写 SSR 时要小心配置。
+
+### 4.2 Report-Only 模式：上线前先观察
+
+```
+Content-Security-Policy-Report-Only: ...; report-uri /csp-report
+```
+
+只报告违规、不真拦截。**新站上 CSP 必经的一步**——先收集真实数据，
+再切到强制模式。
+
+> **设计判断（纵深防御）**：HTTPS（防中间人）、SameSite（防 CSRF）、
+> HttpOnly（防 XSS 偷 cookie）、CSP（防 XSS 加载脚本）、二次确认（防
+> 误操作）——这些不是"选一个就够"，是**叠加**关系。任何一层被突破，
+> 还有下一层兜底。这是 SPEC-0013 §1 架构分层里的 defense in depth——
+> 安全场景下分层不是为了组织代码，是为了在被攻破时**仍有保险**。
+
+---
+
+## 5. 其他必须知道的几条
+
+按"识别即可，配置交给框架/平台"颗粒度。
+
+### 5.1 SRI（Subresource Integrity）
+
+引第三方 CDN 的 JS / CSS 时加 hash 校验，防 CDN 被篡改：
+
+```html
+<script
+  src="https://cdn.example.com/jquery.js"
+  integrity="sha384-..."
+  crossorigin="anonymous"
+></script>
+```
+
+CDN 内容只要被改，浏览器就拒绝执行。
+
+### 5.2 点击劫持（Clickjacking）
+
+攻击者把你的页面套进透明 iframe，诱导用户"以为在点 evil.com 的按钮，
+其实在点 bank.com 的转账确认"。
+
+防御：`X-Frame-Options: DENY`（老）或 CSP 的 `frame-ancestors 'none'`（新）。
+
+### 5.3 Referrer Policy
+
+控制点链接 / 发请求时浏览器带的 `Referer` header 信息量。常用 `strict-origin-when-cross-origin`
+（同源带完整路径，跨源只带 origin）。
+
+### 5.4 Permissions Policy
+
+控制页面能用哪些强权 API（camera / microphone / geolocation 等）。
+默认收紧，需要时显式开。
+
+### 5.5 HSTS
+
+[§2.1 HTTP §7](/chapter-02/http) 已介绍过——浏览器记住"这域名只用 HTTPS"，
+防御 SSL strip 攻击。
+
+---
+
+## 6. 一份"看到就要警觉"的代码清单
+
+新人最常见的几条，看到就要停下来想三秒：
+
+```js
+// ❌ 直接拼 HTML
+el.innerHTML = "Hello, " + userName;
+
+// ❌ 把 token 存 localStorage
+localStorage.setItem("token", res.token);
+
+// ❌ 用 javascript: 协议作为链接
+<a href={userProvidedUrl}>...</a>;
+
+// ❌ 关闭 SameSite 又不加 CSRF token
+res.cookie("sid", id, { sameSite: "none" });
+
+// ❌ eval / new Function 用户输入
+eval(userInput);
+
+// ❌ JSON.parse 后直接信任
+const config = JSON.parse(localStorage.getItem("config"));
+applyConfig(config); // config 可能被 XSS 污染过
+```
+
+每条都对应上面某节讲过的攻击面。看到就反射性想"如果 userInput 是
+恶意的会怎样"。
+
+---
+
+## 7. AI 在 Web 安全这层能帮你做什么
+
+| 任务                                   | Tier          | 备注                                           |
+| -------------------------------------- | ------------- | ---------------------------------------------- |
+| 解释 XSS / CSRF / CSP 的原理           | Tier 1        | 但**不能代替你自己理解**——D5 强警示            |
+| 写一段输入校验 / 输出转义代码          | Tier 2 review | 必须自己读懂；用 DOMPurify 等成熟库别造轮子    |
+| 写 CSP 配置                            | Tier 3 review | 上线前先 Report-Only 观察；改 CSP 是 D3 高风险 |
+| 决定认证方案 / token 存哪里            | 永不委托      | D3 + D5 双红线；安全架构是工程师核心判断       |
+| 安全审计                               | Tier 4 辅助   | AI 能帮列已知 CVE / 检查模板，最终由人拍板     |
+| 处理涉法 / 合规相关代码（GDPR / 个保） | 永不委托      | 法律 + 安全双重 D3                             |
+
+---
+
+## 延伸阅读
+
+- [MDN: 网站安全](https://developer.mozilla.org/zh-CN/docs/Web/Security)
+  — 中文一手综合页；本节每个概念在 MDN 都有更详尽展开
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+  **（英文）** — Web 安全的"十大风险"清单，业界公认的入门必读
+- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
+  **（英文）** — 各场景的安全速查表（XSS / CSRF / CSP / Clickjacking 都有）
+- [web.dev: Secure your site](https://web.dev/explore/secure?hl=zh-cn)
+  — Google 一手；按场景组织（CSP / Permissions Policy / SRI 等）
+- [HTTP Observatory（MDN）](https://developer.mozilla.org/en-US/observatory)
+  **（英文）** — 在线扫站点安全 header，给评分 + 改进建议；上线前必跑
+
+---
+
+第 2 章到此结束。回到 [章首速览](/chapter-02#24-读完本章你应该能) 对照
+那 9 项自检——能讲清楚再去第 3 章。
+
+下一章：第 3 章 HTML / CSS / 现代布局（即将推出）—— 把"看得见"的部分讲清楚。

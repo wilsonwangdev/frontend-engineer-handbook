@@ -12,9 +12,9 @@
 
 ## 当前焦点（active milestone）
 
-**第 2 章 Web 平台基石**——见下方"下一步"。
+**第 3 章 HTML / CSS / 现代布局**——见下方"下一步"。
 
-M1 首次公网发布已完成；现状：
+M1 首次公网发布已完成；第 2 章 Web 平台基石（6 节）已上线。现状：
 
 - GitHub: https://github.com/wilsonwangdev/frontend-engineer-handbook
 - Live: https://frontend-engineer-handbook.vercel.app/
@@ -27,15 +27,12 @@ M1 首次公网发布已完成；现状：
 
 按 [SPEC-0003](specs/0003-table-of-contents/spec.md)。推荐顺序：
 
-- [ ] **第 2 章 Web 平台基石**
-  - 拆 6 个 section：`http` / `url` / `browser-rendering` / `event-loop`
-    / `storage` / `security`
-  - 每节 200–300 行，比第 1 章轻
-  - 启动建议：先写 `index.mdx` + `sections/http.mdx` 作为风格样板，
-    用户过目后再继续
 - [ ] **第 3 章 HTML / CSS / 现代布局**
   - 素材：CSS Text Module Level 4 在中文场景的反常案例
     （[journal 2026-05-21](journal/2026-05-21-css-text-wrap-pretty-cjk-anomaly.md)）
+  - 启动建议：先写 `index.mdx` + 一节样板（建议从「现代布局：Flex /
+    Grid / 容器查询」入手——写代码场景密集，最贴第 2 章风格），过目
+    后再继续
 - [ ] **第 4 章 JavaScript 与 TypeScript**
 - [ ] **第 5 章 React 与 Next.js**
 - [ ] **第 6 章 工程化与构建**
@@ -137,9 +134,12 @@ GitHub Release 标题的事件。commit 粒度详情查 `git log`。
   GitHub 仓库 + Vercel 部署 + Analytics 接入；
   live: https://frontend-engineer-handbook.vercel.app/ ；
   SPEC-0009 落地发布规则（M1 完成）
+- **2026-05-21 第 2 章 Web 平台基石上线** · 6 节齐全（HTTP / URL /
+  渲染 / 事件循环 / 存储 / 安全），首次落地 SPEC-0013 设计判断暗线
+  （分层缓存 / pipeline / 信息隐藏 / 内聚边界 / 纵深防御）
 
-未来里程碑示例：第 2 章上线、第一次依赖大升级、首个外部贡献者、
-PWA 上线、附录 D 首条升级等。
+未来里程碑示例：第一次依赖大升级、首个外部贡献者、PWA 上线、附录 D
+首条升级等。
 
 ---
 

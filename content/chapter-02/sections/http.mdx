@@ -1,0 +1,271 @@
+---
+title: HTTP
+chapter: 2
+section: 1
+description: 你点开"网络面板"看到的那些请求是什么意思——方法、状态码、header、缓存
+tier: essential
+prerequisites:
+  - /chapter-02
+paths:
+  sequential: 4
+---
+
+> HTTP 是 Web 的"通用语"。不懂它，前端只能在 DevTools 里看天书。
+
+打开任意一个网站，按 `F12` 打开 DevTools，切到 **Network** 面板，刷新一次。
+你看到的每一行都是一次 HTTP 请求 / 响应。这一节就讲这些行里的字段是什么、
+为什么是这些字段、看到异常时怎么读。
+
+按学习成本，HTTP 比一门编程语言简单得多——它**就是一份文本协议**。难的不是
+语法，是"为什么协议长这样"以及"出错时往哪查"。
+
+---
+
+## 1. 一次请求长什么样
+
+最朴素的 HTTP/1.1 请求（你永远不会手写它，但要看得懂）：
+
+```
+GET /docs/Web/HTTP HTTP/1.1
+Host: developer.mozilla.org
+User-Agent: Mozilla/5.0 ...
+Accept: text/html,application/xhtml+xml
+Cookie: session=abc123
+
+```
+
+响应：
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Length: 12345
+Cache-Control: max-age=3600
+ETag: "9b7a1c"
+
+<!doctype html>...
+```
+
+四个部分要记住：
+
+1. **起始行**：请求是"方法 + 路径 + 协议版本"，响应是"协议版本 + 状态码 + 原因短语"
+2. **header（首部字段）**：键值对，每行一个，键不区分大小写
+3. **空行**：分隔 header 和 body 的边界
+4. **body（消息体）**：可有可无，长度由 `Content-Length` 或 `Transfer-Encoding: chunked` 决定
+
+> **新人提示**：你不需要记住协议格式细节。**你需要记住的是"DevTools Network
+> 面板里那 4 列对应这里哪几个字段"**。Method = 起始行第一段，Status =
+> 响应起始行的状态码，Headers 标签页 = 全部 header，Response 标签页 = body。
+
+---
+
+## 2. 方法（HTTP method）
+
+| 方法    | 语义                     | 是否安全 | 是否幂等 | 常见使用                       |
+| ------- | ------------------------ | -------- | -------- | ------------------------------ |
+| GET     | 取一份资源               | ✅       | ✅       | 拉数据、加载页面               |
+| HEAD    | 取响应 header，不要 body | ✅       | ✅       | 探活、查文件大小               |
+| POST    | 提交一份新数据           | ❌       | ❌       | 创建资源、提交表单             |
+| PUT     | 用整个 body 替换目标资源 | ❌       | ✅       | 全量更新                       |
+| PATCH   | 局部修改目标资源         | ❌       | ❌       | 部分更新（语义上幂等性看实现） |
+| DELETE  | 删除目标资源             | ❌       | ✅       | 删数据                         |
+| OPTIONS | 询问目标资源支持哪些操作 | ✅       | ✅       | CORS 预检请求会用              |
+
+**安全（safe）** = 服务器状态不该被改变。**幂等（idempotent）** = 同一请求执行
+多次和执行一次效果一样。这两个概念在重试场景里非常关键——浏览器和代理可以
+对 GET 自动重试，但绝不会对 POST 自动重试。
+
+> **AI 协作要点**：让 AI 写一段"重试逻辑"时，先告诉它请求是不是幂等。AI
+> 默认会写指数退避重试，但**对 POST 这样做就可能创建重复订单**。这就是
+> 第 1 章 D5 警示的"错误处理逻辑"——错误处理反映对失败模式的理解。
+
+---
+
+## 3. 状态码
+
+按首位数字分类：
+
+| 区间 | 含义         | 常见状态码                                           |
+| ---- | ------------ | ---------------------------------------------------- |
+| 1xx  | 信息（罕见） | 101 Switching Protocols（升级到 WebSocket）          |
+| 2xx  | 成功         | 200 OK / 201 Created / 204 No Content                |
+| 3xx  | 重定向       | 301 永久 / 302 临时 / 304 Not Modified（缓存命中）   |
+| 4xx  | 客户端错误   | 400 / 401 未认证 / 403 已认证但无权 / 404 / 429 限流 |
+| 5xx  | 服务端错误   | 500 / 502 网关失败 / 503 服务不可用 / 504 网关超时   |
+
+新人最容易混淆的几对：
+
+- **301 vs 302**：301 是"这资源永久搬到新地址"——浏览器和 SEO 都会缓存这个
+  判断；302 是"这次先去那边，下次再问我"。**做迁移用 301，做临时跳转用 302**。
+- **401 vs 403**：401 = "我不知道你是谁"（请去登录）；403 = "我知道你是谁，
+  但你没权限"。
+- **502 vs 504**：502 = 我（网关）从上游收到了无效响应；504 = 我等上游等
+  超时了。两者都指向"上游有问题"，但排查方向不同。
+- **304 不是错误**：是"你缓存的版本还有效"，DevTools 会标灰但其实是成功
+  的协商缓存命中。
+
+---
+
+## 4. 关键 header
+
+记住"按用途分类"，不要试图背全部清单（[MDN HTTP headers](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers)
+有完整列表，需要时查就行）。
+
+### 内容协商类
+
+- `Content-Type`：body 的 MIME 类型（`application/json`、`text/html` 等）
+- `Accept`：客户端能接受的类型；服务端按此选择返回格式
+- `Content-Encoding`：body 的压缩方式（`gzip` / `br`）
+- `Accept-Encoding`：客户端支持的压缩方式
+
+### 身份与会话类
+
+- `Cookie` / `Set-Cookie`：会话状态。Cookie 详细规则见 [§2.5 浏览器存储](/chapter-02/storage)
+- `Authorization`：携带凭证（`Bearer <token>` / `Basic <base64>`）
+- `X-CSRF-Token`：自定义防 CSRF（详见 [§2.6 安全](/chapter-02/security)）
+
+### 缓存类（重点）
+
+- `Cache-Control`：缓存指令的总闸门
+- `ETag` / `If-None-Match`：协商缓存的标识
+- `Last-Modified` / `If-Modified-Since`：协商缓存的备用标识
+- `Vary`：告诉缓存层"这个响应按哪些 header 区分"
+
+### 跨域类（CORS）
+
+- `Origin`：请求来源
+- `Access-Control-Allow-Origin`：服务端允许的来源
+- `Access-Control-Allow-Methods` / `-Headers` / `-Credentials`：CORS 细则
+
+CORS 完整故事单独成节会过长，看 [MDN CORS](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS)。
+**记住一个判断**：CORS 是浏览器对 JavaScript 发起的跨域请求加的限制——
+**curl 永远不报 CORS 错**，因为 curl 不是浏览器。
+
+---
+
+## 5. 缓存模型（必学）
+
+这是面试和上线后"为什么页面不更新"的高频区。
+
+```
+浏览器 → CDN → 反向代理 → 源站
+```
+
+每一层都可能缓存。前端能直接控制的是**浏览器**和**配合 CDN**的部分。
+
+### 强缓存（fresh）
+
+服务端响应里带 `Cache-Control: max-age=3600`，浏览器**这 3600 秒内根本
+不发请求**——直接从本地拿。DevTools Network 面板会显示 `(disk cache)`
+或 `(memory cache)`。
+
+```
+Cache-Control: public, max-age=31536000, immutable
+```
+
+`immutable` 是一个明确信号："这文件永远不会变"——浏览器连刷新都不再校验。
+**只对内容寻址的文件用**（带 hash 的 JS/CSS/图片）。
+
+### 协商缓存（stale-while-revalidate 之前的传统模式）
+
+强缓存过期后，浏览器问服务端："我这版还能用吗？" 服务端回 `304 Not Modified`
+表示能用，回 `200` 加新 body 表示要换。问的方式两种：
+
+- 服务端给过 `ETag: "9b7a1c"`，浏览器下次带 `If-None-Match: "9b7a1c"`
+- 服务端给过 `Last-Modified: Wed, 21 May 2026 ...`，浏览器下次带
+  `If-Modified-Since: Wed, 21 May 2026 ...`
+
+**ETag 优先**，因为它是内容指纹；`Last-Modified` 精度只到秒，且分布式
+系统下时钟不一定同步。
+
+### `no-cache` ≠ 不缓存
+
+这是新人最易踩的坑：
+
+- `Cache-Control: no-cache` = "可以存，但每次用前必须问服务端"——还是会
+  发 304 协商
+- `Cache-Control: no-store` = "什么都别存"——这才是真"不缓存"
+
+> **设计判断（分层缓存）**：浏览器、CDN、反向代理、源站构成 layered
+> caching——越靠前越快但越易过期，越靠后越权威但越慢。Cache-Control 的
+> `max-age` 控所有层，`s-maxage` 只控共享缓存（CDN / 代理）。AI 能写出
+> 配置语法，但**每一层缓存多久** 是产品判断（内容更新频率 vs 用户感知
+> 新鲜度）。
+
+---
+
+## 6. HTTP/1.1 vs 2 vs 3
+
+按"知道差异 + 何时升级"的颗粒度记。
+
+| 版本     | 关键变化                                              | 典型场景                        |
+| -------- | ----------------------------------------------------- | ------------------------------- |
+| HTTP/1.1 | 文本协议；每个请求按顺序                              | 仍是兜底；很多内网仍只支持      |
+| HTTP/2   | 二进制；多路复用（一个连接同时跑多请求）；header 压缩 | 默认走 HTTPS；公网生产标准      |
+| HTTP/3   | 基于 QUIC（UDP）；解决 HTTP/2 队头阻塞；连接迁移      | 移动端 / 弱网体验更稳；CDN 主推 |
+
+**HTTP/2 的"多路复用"**：HTTP/1.1 时代，浏览器对同一个域名最多并行
+6 个 TCP 连接（所以才有"域名分片"这种古早优化）；HTTP/2 一个连接里可以
+同时跑几十个请求，这条优化彻底淘汰了"雪碧图 / domain sharding"等老技巧。
+
+**HTTP/3 的"队头阻塞"**：HTTP/2 用一个 TCP 连接，TCP 丢一包整条连接全卡。
+HTTP/3 在 QUIC（UDP 之上）实现独立流，单流丢包不影响其他流。这对移动
+弱网场景尤其有用。
+
+> **AI 协作要点**：AI 写代码时基本不需要你指定协议版本——这是基础设施
+> 层（CDN / Vercel / Cloudflare）的事。但当你看到"性能优化"建议提"合并
+> 请求 / 雪碧图"时，**这是 HTTP/1.1 时代的老经验**，对今天的生产环境
+> 多半反而有害（破坏缓存粒度）。
+
+---
+
+## 7. HTTPS / TLS 一句话
+
+HTTPS = HTTP 跑在 TLS 加密通道里。TLS 给你三件事：**机密性**（中间人偷不到
+内容）、**完整性**（中间人改了能被发现）、**身份认证**（证书证明对面真是
+那个域名）。
+
+实践层面只要记住：
+
+- **生产永远用 HTTPS**——浏览器对 HTTP 站点降级处理（Service Worker、
+  geolocation、camera 等都拒绝工作）
+- **HSTS（HTTP Strict Transport Security）** header 能让浏览器永远只用
+  HTTPS 访问该域名
+- **混合内容（mixed content）**：HTTPS 页面里引 HTTP 资源会被浏览器拦
+  下来——上线前必查
+
+证书链、握手细节、密码套件这些——**Tier 4：知道存在即可**，配置大多数时候
+是平台（Cloudflare / Vercel / 反向代理）一键搞定。
+
+---
+
+## 8. AI 在 HTTP 这层能帮你做什么
+
+| 任务                                          | Tier               | 备注                                      |
+| --------------------------------------------- | ------------------ | ----------------------------------------- |
+| 解释一个状态码 / header 的含义                | Tier 1 完全委托    | 但 MDN 一手更可靠，AI 偶尔会过期          |
+| 写 fetch / axios 调用                         | Tier 2 diff review | 检查错误处理、超时、重试是否符合幂等性    |
+| 配置 CORS / 缓存策略                          | Tier 2-3           | 配置上线前必须自己读一遍——D3 错了不易回滚 |
+| 排查 "为什么 304 不命中" / "为什么页面不更新" | Tier 4 辅助        | AI 列假设，你打开 DevTools 验证           |
+| 写 mock server 实现 HTTP/1.1 解析             | Tier 1-2           | 学习用项目，AI 写得很熟                   |
+
+---
+
+## 延伸阅读
+
+- [MDN: HTTP overview](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview)
+  — 中文一手；本节大部分概念在 MDN 都有更详尽展开
+- [MDN: HTTP caching](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Caching)
+  — 缓存模型完整版；强烈建议跟 DevTools Network 面板对照读
+- [web.dev: HTTP cache best practices](https://web.dev/articles/http-cache?hl=zh-cn)
+  — Google 一手；每条建议背后都有性能数据支撑
+- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110)
+  **（英文）** — 现代 HTTP 语义的统一规范；写 server / 设计 API 时回查
+- [High Performance Browser Networking](https://hpbn.co/) **（需代理）** —
+  Ilya Grigorik 的 HTTP/2 / HTTP/3 / TLS 章节是公认最系统的免费英文教材
+
+> 访问性说明：「需代理」标记延续第 0 章惯例。
+
+---
+
+下一节：[§2.2 URL](/chapter-02/url) —— URL 不是字符串拼接，是结构化数据。

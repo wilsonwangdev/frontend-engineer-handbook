@@ -1,0 +1,234 @@
+---
+title: URL
+chapter: 2
+section: 2
+description: URL 不是字符串拼接——是一份带语义的结构化数据
+tier: essential
+prerequisites:
+  - /chapter-02/http
+paths:
+  sequential: 5
+---
+
+> URL 看着是一串字符，本质是结构化数据。把它当字符串拼，迟早出 bug。
+
+新人最常见的错误是用 `+` 把 URL 拼起来：
+
+```js
+const url = "https://api.example.com/search?q=" + keyword + "&page=" + page;
+```
+
+`keyword` 里如果有空格、中文、`&` 字符——全炸。这一节讲为什么、以及
+正确的做法。
+
+---
+
+## 1. 一个完整的 URL 长什么样
+
+```
+https://user:pass@api.example.com:8443/v2/search?q=hello&page=2#results
+└─┬─┘   └───┬───┘ └──────┬──────┘ └─┬─┘└──┬───┘ └──────┬──────┘ └──┬──┘
+scheme  userinfo     host          port  path        query       fragment
+```
+
+每段都有规范定义（[RFC 3986](https://www.rfc-editor.org/rfc/rfc3986)）：
+
+| 段       | 含义                                   | 例子                               |
+| -------- | -------------------------------------- | ---------------------------------- |
+| scheme   | 协议（怎么访问）                       | `https` / `http` / `ws` / `mailto` |
+| userinfo | 用户名密码（**已不推荐写在 URL 里**）  | `user:pass`                        |
+| host     | 主机名或 IP                            | `api.example.com` / `127.0.0.1`    |
+| port     | 端口（缺省时按 scheme 取默认值）       | `8443`（HTTPS 默认 443）           |
+| path     | 资源路径                               | `/v2/search`                       |
+| query    | 查询参数（键值对集合，顺序无强约束）   | `q=hello&page=2`                   |
+| fragment | 锚点（**只在浏览器端，不发到服务器**） | `results`                          |
+
+**fragment 不发到服务器**这条很关键——SPA 早期路由（hash router）就是
+利用这一点把路由信息存在 URL 里，刷新不会触发完整请求。今天 SPA 多数
+改用 History API（`/path` 而非 `#path`），但 hash 仍是"客户端独占信息"
+的好载体（OAuth 隐式流的 token 就走 fragment）。
+
+---
+
+## 2. URL 编码（百分号编码）
+
+URL 里只能出现一小部分 ASCII 字符。其他字符必须编码。规则简单粗暴：
+**每个字节用 `%XX`（两位十六进制）表示**。
+
+```
+"中" → UTF-8 字节 E4 B8 AD → "%E4%B8%AD"
+" "（空格）→ "%20"
+"&" 出现在 query 值里 → "%26"（否则会被当成参数分隔符）
+```
+
+JavaScript 里**不要手写这个映射**，用内置 API：
+
+```js
+encodeURIComponent("中文 & 空格");
+// → "%E4%B8%AD%E6%96%87%20%26%20%E7%A9%BA%E6%A0%BC"
+```
+
+新人最容易混的两个 API：
+
+| API                       | 用途                  | 不编码的字符                    |
+| ------------------------- | --------------------- | ------------------------------- |
+| `encodeURI(...)`          | 编码**整个 URL**      | 保留 `:` `/` `?` `#` `&` `=` 等 |
+| `encodeURIComponent(...)` | 编码**单个 query 值** | 仅保留字母数字和 `-_.!~*'()`    |
+
+**经验法则**：
+
+- 编**整段 URL**（已包含 `?`、`/` 等）→ `encodeURI`
+- 编**塞进 query 参数的值**（用户输入的关键字、token） → `encodeURIComponent`
+
+绝大多数业务场景你只需要 `encodeURIComponent`——而且更好的方案是下面
+要讲的 `URL` / `URLSearchParams` 对象，连这一步都不用想。
+
+---
+
+## 3. 永远用 `URL` 对象，不要拼字符串
+
+浏览器和 Node.js 都内置了 `URL` 类，按结构化方式操作：
+
+```js
+const url = new URL("https://api.example.com/v2/search");
+url.searchParams.set("q", "中文 & 空格");
+url.searchParams.set("page", 2);
+
+url.toString();
+// → "https://api.example.com/v2/search?q=%E4%B8%AD%E6%96%87+%26+%E7%A9%BA%E6%A0%BC&page=2"
+```
+
+好处：
+
+- 编码是自动的——不用想 `encodeURIComponent`
+- 改一个参数不用整段重写
+- 拼接不会因为漏 `&` / `?` / `/` 出错
+
+读取也一样：
+
+```js
+const u = new URL(window.location.href);
+u.searchParams.get("page"); // "2"
+u.searchParams.getAll("tag"); // ["a", "b"]（多值）
+u.searchParams.has("q"); // true
+```
+
+> **AI 协作要点**：让 AI 写 URL 处理代码时，明说"用 `URL` / `URLSearchParams`，
+> 不要手拼字符串"。AI 默认行为偏向"看起来直观"的字符串模板，对中文 /
+> 特殊字符场景会暗藏 bug。这就是 SPEC-0013 §模块化讲的"信息隐藏"——
+> 把"如何拼一个合法 URL"封装在 `URL` 类里，调用方不再关心编码细节。
+
+---
+
+## 4. 同源（origin）的精确定义
+
+第 0 章和后面的安全节会反复提"同源"。这里给一个精准定义：
+
+> **同源 = scheme + host + port 三者完全相同**
+
+| URL                             | 与 `https://example.com` 同源吗 | 原因                      |
+| ------------------------------- | ------------------------------- | ------------------------- |
+| `https://example.com/about`     | ✅                              | path 不影响同源           |
+| `https://example.com:443/about` | ✅                              | 443 是 HTTPS 默认端口     |
+| `http://example.com`            | ❌                              | scheme 不同               |
+| `https://www.example.com`       | ❌                              | host 不同（子域算不同源） |
+| `https://example.com:8080`      | ❌                              | port 不同                 |
+
+`URL` 对象的 `origin` 属性直接给出这三段的拼接：
+
+```js
+new URL("https://example.com:443/about?x=1").origin;
+// → "https://example.com"
+```
+
+**子域之间不同源**这条是新人最容易踩的坑。`a.example.com` 和
+`b.example.com` 浏览器视角是两个不同的应用——Cookie、localStorage、
+fetch 默认都隔离。如果你想让它们共享会话，要么用 `document.domain`
+（已废弃），要么走"统一登录中心"模式（OAuth / SSO）。
+
+---
+
+## 5. URL vs URI vs URN（一段话讲完）
+
+学术上：
+
+- **URI**（Identifier）= 任何标识符，最大概念
+- **URL**（Locator）= URI 的子集，能定位到资源
+- **URN**（Name）= URI 的另一子集，只命名不定位（如 `urn:isbn:...`）
+
+实践上，**Web 圈说 URL 即可**。规范里出现 URI 时，理解为"包括 URL 在
+内的统一概念"就行。这是行业惯例，不是技术约束。
+
+---
+
+## 6. 实战场景里的 URL 判断
+
+### 重定向时小心 query / fragment 丢失
+
+301 / 302 跳转默认会带上原 query。但**fragment 是浏览器添加的**——
+如果服务端 redirect 的目标已经带 fragment，浏览器原 URL 上的 fragment
+有可能被覆盖（[RFC 7231 §7.1.2](https://www.rfc-editor.org/rfc/rfc7231#section-7.1.2)）。
+登录回跳常踩这个坑。
+
+### SPA 路由：path 还是 hash
+
+| 模式        | URL 长相      | 优点               | 缺点                |
+| ----------- | ------------- | ------------------ | ------------------- |
+| History API | `/users/42`   | 干净、SEO 友好     | 服务端要配 fallback |
+| Hash router | `/#/users/42` | 任何静态托管都能跑 | SEO 弱、看起来"老"  |
+
+Next.js / React Router 现在默认 History 模式。Hash 模式只在"必须能放在
+任意静态托管 + 不在乎 SEO"的场景里用（比如内部工具、Electron 里的页面）。
+
+### 深链接（deep link）与 universal link
+
+App 拉起原生页面有两种方案：
+
+- **自定义 scheme**（`myapp://path`）：简单，但被同行业其他 app 抢占
+  也无防护
+- **Universal Link / App Link**（用 `https://` URL）：iOS / Android 平台
+  级保证只有验证过的 app 能拦截
+
+前端涉及移动端推广 / 拉新流程时会撞到。两条一手文档：
+[Apple Universal Links](https://developer.apple.com/ios/universal-links/)
+**（需代理）** /
+[Android App Links](https://developer.android.com/training/app-links)
+**（需代理）**。
+
+---
+
+## 7. AI 在 URL 这层能帮你做什么
+
+| 任务                                  | Tier               | 备注                                           |
+| ------------------------------------- | ------------------ | ---------------------------------------------- |
+| 解析 / 拼接 URL                       | Tier 1 完全委托    | 但要求用 `URL` 对象，不要字符串模板            |
+| 写 URL pattern matching（路由表）     | Tier 2 diff review | Next.js / React Router 都有现成 API，AI 写得熟 |
+| 设计 query 参数命名规范               | Tier 3 慎重        | 一旦上线就难改——这是接口设计问题，要人来定     |
+| 决定 path 还是 query 还是 header      | Tier 4 辅助        | 涉及 RESTful 风格判断，业务语义 AI 拿不到      |
+| 设计 OAuth / SSO 的 redirect_uri 约束 | 永不委托           | 安全决策，错了 D3 不可逆                       |
+
+> **设计判断（信息隐藏）**：query 参数命名是一种 API 设计——
+> `?status=active&sort=-created_at` 暴露了内部字段名。一旦客户端开始依赖，
+> 数据库重命名字段就成了破坏性变更。这是 SPEC-0013 §4 触点案例库里的
+> "接口设计"——API 边界一旦发布就难改。
+
+---
+
+## 延伸阅读
+
+- [MDN: URL](https://developer.mozilla.org/zh-CN/docs/Web/API/URL)
+  — `URL` 类的完整 API；中文齐全
+- [MDN: URLSearchParams](https://developer.mozilla.org/zh-CN/docs/Web/API/URLSearchParams)
+  — query 参数操作的标准接口
+- [MDN: 什么是同源](https://developer.mozilla.org/zh-CN/docs/Web/Security/Same-origin_policy)
+  — 同源策略权威解释；§2.6 安全节会反复回链
+- [RFC 3986: URI Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986)
+  **（英文）** — URL 结构的根规范；写 URL 解析器或定义自定义 scheme 时回查
+- [WHATWG URL Living Standard](https://url.spec.whatwg.org/)
+  **（英文）** — 浏览器实现遵循的现代规范，比 RFC 3986 更贴近实际行为
+
+> 访问性说明：本节延伸阅读除规范站点外均可直接访问。
+
+---
+
+下一节：[§2.3 浏览器渲染](/chapter-02/rendering) —— 从 HTML 字符串到屏幕像素。
