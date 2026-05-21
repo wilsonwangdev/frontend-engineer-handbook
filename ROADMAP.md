@@ -82,7 +82,9 @@ M1 首次公网发布已完成；现状：
 - [ ] **链接活性检查**：CI 跑 `lychee` 巡检所有外链，按
       [SPEC-0002](specs/0002-content-source-admission/spec.md) 来源策略
 - [ ] **Renovate / Dependabot**：依赖更新机器人（Next 16 还在快速迭代）
-- [ ] **Lighthouse CI**：把方案中的质量门禁固化到 CI（Perf 95+ / A11y 100 等）
+- [ ] **Lighthouse CI**：按
+      [SPEC-0012](specs/0012-performance-baseline-and-ci-gate/spec.md)
+      分阶段实施——阶段 1（建立基准）/ 阶段 2（设阈值）/ 阶段 3（首屏优化）
 - [ ] **Sitemap + robots.txt**：最基本的 SEO
 - [ ] **SPEC-0007 候选**：agent 知识层级的季度复核流程——哪些 gotchas
       还有效、哪些 skills 被触发过、Cursor / Claude 工具链有什么新变化
