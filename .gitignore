@@ -49,5 +49,9 @@ yarn-error.log*
 # turbopack
 .turbo
 
+# lychee 死链检查
+.lycheecache
+lychee-report.md
+
 # Claude Code local settings (per-developer state)
 .claude/settings.local.json

@@ -36,20 +36,21 @@ specs/     skills/     journal/    docs/
 
 ## 常用命令
 
-| 任务         | 命令                  | 备注                                               |
-| ------------ | --------------------- | -------------------------------------------------- |
-| 安装         | `pnpm install`        |                                                    |
-| 开发服务     | `pnpm dev`            | Next.js 16 + Turbopack，3000 端口                  |
-| 生产构建     | `pnpm build`          | Cache Components + React Compiler                  |
-| 启动生产服务 | `pnpm start`          | E2E 用 `PORT=4173`                                 |
-| 单元测试     | `pnpm test`           | Vitest                                             |
-| E2E          | `pnpm test:e2e`       | Playwright + axe-core；CI 用这个                   |
-| E2E（本地）  | `pnpm test:e2e:local` | 跳过 webServer；TUN 模式代理用户用，见 GOTCHAS G.3 |
-| 烟雾测试     | `pnpm smoke`          | 纯 node:http 检查页面；绕过任何代理                |
-| Lint         | `pnpm lint`           | oxlint                                             |
-| 格式化       | `pnpm format`         | oxfmt                                              |
-| 类型检查     | `pnpm type-check`     | tsc --noEmit（strict）                             |
-| 全部门禁     | `pnpm ci`             | type-check + lint + format + test + build          |
+| 任务         | 命令                  | 备注                                                   |
+| ------------ | --------------------- | ------------------------------------------------------ |
+| 安装         | `pnpm install`        |                                                        |
+| 开发服务     | `pnpm dev`            | Next.js 16 + Turbopack，3000 端口                      |
+| 生产构建     | `pnpm build`          | Cache Components + React Compiler                      |
+| 启动生产服务 | `pnpm start`          | E2E 用 `PORT=4173`                                     |
+| 单元测试     | `pnpm test`           | Vitest                                                 |
+| E2E          | `pnpm test:e2e`       | Playwright + axe-core；CI 用这个                       |
+| E2E（本地）  | `pnpm test:e2e:local` | 跳过 webServer；TUN 模式代理用户用，见 GOTCHAS G.3     |
+| 烟雾测试     | `pnpm smoke`          | 纯 node:http 检查页面；绕过任何代理                    |
+| 死链检查     | `pnpm links`          | lychee 扫所有 .md / .mdx；本地需 `brew install lychee` |
+| Lint         | `pnpm lint`           | oxlint                                                 |
+| 格式化       | `pnpm format`         | oxfmt                                                  |
+| 类型检查     | `pnpm type-check`     | tsc --noEmit（strict）                                 |
+| 全部门禁     | `pnpm ci`             | type-check + lint + format + test + build              |
 
 新增脚本时**同一 commit 内**更新本表。
 

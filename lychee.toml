@@ -1,0 +1,54 @@
+# lychee 死链检查配置
+# 文档：https://lychee.cli.rs/
+
+#############################  Display  #############################
+
+verbose = "info"
+no_progress = true
+
+#############################  Cache  ###############################
+
+cache = true
+max_cache_age = "7d"
+# 5xx 不进缓存——服务端临时挂了不该被记成死链
+cache_exclude_status = "500.."
+
+#############################  Requests  ############################
+
+# 适当放宽超时，给 MDN / web.dev 跨境访问留余地
+timeout = 30
+retry_wait_time = 5
+max_retries = 2
+# 429（限流）按通过处理，避免 GitHub / SO 等高流量站点假阳性
+accept = ["200..=204", "206", "429"]
+
+#############################  Exclusions  ##########################
+
+# 跳过示例域名 / 占位 URL（正文 fenced code block 里的演示）
+exclude = [
+  '^https?://(api\.)?example\.(com|org|net)(:\d+)?(/|$)',
+  '^https?://cdn\.example\.com',
+  '^https?://bank\.example\.com',
+  '^https?://evil\.example\.com',
+  '^https?://localhost(:\d+)?(/|$)',
+  '^https?://127\.0\.0\.1',
+  # mailto / urn / 自定义协议示例
+  '^mailto:',
+  '^urn:',
+]
+
+# 跳过依赖 / 构建产物
+exclude_path = [
+  "node_modules",
+  ".next",
+  "playwright-report",
+  "test-results",
+  "dist",
+  "build",
+]
+
+# 私有 / 回环 IP 一律不查（CI runner 上访问不到）
+exclude_all_private = true
+
+# 不验证邮件地址（CI 没 SMTP 客户端）
+include_mail = false
