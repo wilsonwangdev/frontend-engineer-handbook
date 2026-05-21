@@ -47,6 +47,9 @@ M1 首次公网发布已完成；现状：
 - [ ] **第 8 章 现代前沿话题**（Wasm / WebGL / WebGPU / Edge / 微前端）
 - [ ] **第 9 章 AI 原生工作流**
 - [ ] **第 10 章 动手实践**（mini bundler / framework / agent-app）
+  - 末尾「整站设计判断速查」索引表按
+    [SPEC-0013](specs/0013-design-principles-as-undercurrent/spec.md)
+    持续追加；前期会很短，不要为填满而填
 
 ### 内容附录
 
