@@ -362,6 +362,34 @@
       }
     }
   }
+
+  /* Skeleton shimmer — used by demo SkeletonCard and any future loading state.
+     Tokens follow the elevated/border variables so dark mode comes for free. */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-bg-elevated) 0%,
+      var(--color-border) 50%,
+      var(--color-bg-elevated) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer {
+      animation: none;
+    }
+  }
 }
 
 /* Print stylesheet */

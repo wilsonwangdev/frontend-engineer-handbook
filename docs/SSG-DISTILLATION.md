@@ -108,6 +108,38 @@
     放 `<figure className="not-prose">` 跳出 prose 排版约束；底部带
     `<figcaption>` 解释含义
 
+- **DemoBlock 实时预览组件**：[src/components/mdx/demo-block.tsx](../src/components/mdx/demo-block.tsx)
+  （2026-05-23 引入）
+  - 选型理由：手册讲布局 / 样式必须有"可看的案例"——文字描述 + 静态
+    截图 vs 真实运行的 demo，后者记忆深 10 倍。MDN / web.dev 都用同
+    模式
+  - 替代方案对比：
+    - **Sandpack**（CodeSandbox 出品）：运行时 bundle 几百 KB，对静
+      态文档站太重
+    - **React Live**：仍需运行时 babel；且 demo 不能直接 import 项
+      目内组件
+    - **iframe + CodePen embed**：依赖外部服务、暗色 / 主题不能跟
+      随、首屏空白
+    - **自建 DemoBlock（采纳）**：零运行时、SSR / Cache Components
+      原生兼容、demo 是真实编译过的 React 组件，源码字符串作为 prop
+      单独传——和站点其余部分完全统一
+  - API：`<DemoBlock title="..." description="..." code="..." language="..." defaultOpen={false}>{真实 demo}</DemoBlock>`
+  - 体验细节：
+    - 上方预览区 `grid place-items-center` 自动居中各种尺寸 demo
+    - 下方源码用 `<details>` 默认折叠，节省视觉噪音；展开后右上角
+      复制按钮
+    - 头部带 title / description / 语言标签，单看头部就知道这个
+      demo 演示什么
+    - 跨设备：预览区 padding 在 sm 断点收紧；源码 pre 自然
+      `overflow-x: auto`
+  - 已落地的 demo（产品层，src/components/mdx/demos/layout-classics.tsx）：
+    - AvatarStackDemo + AVATAR_STACK_CODE：协同头像叠放
+    - NotificationBadgeDemo + NOTIFICATION_BADGE_CODE：通知徽章
+    - SkeletonCardDemo + SKELETON_CARD_CODE：骨架屏
+  - **代价**：渲染节点和源码字符串两边维护——一旦 demo 改了源码字
+    符串没跟，会"看到的 ≠ 代码"。第一版接受这个代价；未来若 demo
+    数 ≥ 10，考虑用 babel-plugin 自动从组件源码生成 code 字符串
+
 ### 产品层（手册特定，不抽离）
 
 候选范围：TierBadge、三档路径卡片、D1-D5 评估清单、手册特定
@@ -230,3 +262,34 @@ ASCII 图对齐失败、内容固定宽度不适合 4-5 列表格。这一轮把
 - 灵感触发：否（本轮是上一轮的修补）
 
 下次评估：2026-08 季度复核，或差异化第 2-3 条触达时。
+
+### 2026-05-23 实时预览（DemoBlock）+ 经典案例库
+
+动因：第 3 章讲布局必须有"可看的案例"——文字描述 + 静态截图远不
+如真实运行的 demo 直观。同时反馈也指出"很多代码示例提到的效果，
+能否像 MDN 一样提供预览"。这一轮把通用预览能力 + 三个经典案例
+demo 落地：
+
+- DemoBlock 通用层组件（自建零运行时方案，对比 Sandpack / React
+  Live / iframe embed 的取舍写在条目里）
+- 三个 demo 落地（产品层）：AvatarStack / NotificationBadge /
+  SkeletonCard
+- §3.1 modern-layout.mdx 加 §13 经典布局案例节，原 §13 练习清单
+  顺延为 §14
+
+跨设备验证（按 R10 第 4 问）：
+
+- phone（< 768px）：预览区 padding 收紧、源码 pre 自然横滚
+- tablet：DemoBlock 默认 max-width 跟随 prose-cn 自适应
+- desktop：与 prose 同宽
+
+升级触发数据更新：
+
+- 数据触发 a：维持
+- 数据触发 b（差异化 ≥ 3 条）：**+1，当前 2 条**——DemoBlock 自建
+  零运行时方案是相对 rspress / Nextra（都依赖 Sandpack 或 iframe
+  embed）的明确差异化点。第 1 条仍是 reading-width 三档
+- 调研触发：否
+- 灵感触发：是——同上一轮，内容需求驱动站点能力升级
+
+下次评估：2026-08 季度复核，或差异化第 3 条触达时。
