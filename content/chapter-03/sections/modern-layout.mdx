@@ -113,6 +113,31 @@ flex-direction: row（默认）
 记住这张图，Flex 的 90% 困惑就消失了。`flex-direction: column`
 时主轴变成纵向，但**属性名不变**——这是新人最容易卡的点。
 
+> **词源解读：为什么是 `justify` 和 `align`，不是 `horizontal` /
+> `vertical`？** 这是 CSS 多年被反复问的问题——其实英语本义就藏着
+> 答案：
+>
+> - **justify**（动词）= "对齐 / 调整使齐整"——印刷排版里的术语，
+>   指**把一行文字两端撑齐**（你在 Word 里看到的"两端对齐"按钮就
+>   叫 _Justify_）。所以 `justify-content` 处理的是**主轴方向**上"内容
+>   怎么沿这条线撑开 / 收紧"——`flex-start` / `center` /
+>   `space-between` / `space-around` 都是在描述"沿主轴这条线"的分布
+> - **align**（动词）= "排成一列 / 对齐"——日常英语里"align with"
+>   就是"和某物对齐"。`align-items` 处理的是**交叉轴方向**上"item
+>   们要不要对齐到同一条线"——`flex-start` / `center` / `stretch`
+>   / `baseline` 都是在描述"对齐到哪条线"
+>
+> 所以**这套命名跟方向（横纵）无关**，跟动作（撑开 vs 对齐）有关。
+> 当 `flex-direction: column` 时，主轴变纵向，但"撑开主轴"还是
+> `justify-content` 的活——属性名不需要变，因为它本来就不是说
+> "横"或"纵"。
+>
+> CSS Grid 也用同一套术语。一手参考：
+> [CSS Box Alignment Module Level 3](https://www.w3.org/TR/css-align-3/)
+> 是这套属性的规范源头——`justify-*` 管"沿主/inline 轴的分布"，
+> `align-*` 管"沿交叉/block 轴的对齐"，这套语义在 Flex / Grid /
+> 多列布局里**完全统一**。理解一次，全都通了。
+
 ### 2.2 最常用 5 种姿势
 
 ```css
@@ -158,17 +183,27 @@ flex-direction: row（默认）
 会写这 5 种，业务里 80% 的 Flex 场景就够用了。
 
 > **以前怎么做**：第 1 种"水平 + 垂直居中"在 Flex 普及之前是著名
-> 难题。常见解法是 `position: absolute; top: 50%; left: 50%;
-transform: translate(-50%, -50%)`——本质是"先把元素左上角放到中
-> 心，再用 transform 往回挪自身一半"。能跑，但脱离文档流、影响父
-> 容器尺寸计算、嵌套时易冲突。Flex 把这件事压到 3 行声明，是 2017
-> 年之后整个行业的"幸福感升级"之一。
+> 难题。常见解法是
+> `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)`
+> ——本质是"先把元素左上角放到中心，再用 transform 往回挪自身一半"。
+> 能跑，但脱离文档流、影响父容器尺寸计算、嵌套时易冲突。Flex 把这件
+> 事压到 3 行声明，是 2017 年之后整个行业的"幸福感升级"之一。
 
 ### 2.3 `gap` 是现代写法
 
 旧代码用 `margin-right` + `:last-child { margin-right: 0 }` 制造间距——
 这是 IE / 旧版 Safari 时代留下的肌肉记忆。现代浏览器在 Flex / Grid
 都支持 `gap`，**统一用 `gap`**，再也不用算 `:last-child`。
+
+> **词源 + 设计意图**：`gap` 英语就是"缝隙 / 间隙"，比 `margin`
+> （= 页边距，本来描述的是"元素相对周围的留白"）更精确。`margin`
+> 解决"我和邻居距离多远"是间接的——两个元素之间的实际距离取决于
+> 各自的 margin 怎么算（还可能折叠！）。`gap` 由**容器**直接定义
+> "子元素之间的缝隙宽度"，**只在子元素之间生效，不影响容器边缘**。
+> 这是责任的迁移：从"每个孩子负责自己周围的距离"变成"父母统一规
+> 定孩子之间隔多远"——这也是为什么现代项目里很少再写
+> `margin-right`。
+> 一手参考：[MDN: gap](https://developer.mozilla.org/zh-CN/docs/Web/CSS/gap)。
 
 ```css
 /* ❌ 旧 */
@@ -209,6 +244,31 @@ Grid 的核心就两件事：
 
 `fr` 是"剩余空间的份数"——3 个 `1fr` = 平均分。这是 Grid 独有的单位，
 Flex 里没有。
+
+> **词源 + 本质原理：`fr` 到底是什么？** `fr` 是 **fraction** 的
+> 缩写，英语意思就是"分数 / 一份"。它**不是固定长度单位**（不像
+> `px` / `rem` / `%`），而是"剩余可分配空间的一份"。
+>
+> 关键在于"剩余"两个字。Grid 计算列宽时分两步：
+>
+> 1. **先扣固定尺寸**：所有 `px` / `rem` / `%` / `auto` / `min-content`
+>    等"非 fr"轨道，按它们的需求先占据空间
+> 2. **再分剩余空间**：把容器剩下的宽度，按 `fr` 的数值比例分给
+>    所有 `fr` 轨道
+>
+> 所以 `grid-template-columns: 200px 1fr 2fr` 在 1000px 容器里：
+> 先扣掉 200px，剩 800px；`1fr : 2fr = 1 : 2`，于是分得 ≈ 267px
+> 和 ≈ 533px。
+>
+> 这也是为什么 `repeat(3, 1fr)` 不等于 `repeat(3, 33.33%)`——百分比
+> 是"占容器总宽的 1/3"，遇上 `gap` 就会**溢出**（3 × 33.33% +
+> 2 × gap > 100%）；而 `1fr` 是"占容器减去 gap 后剩余空间的 1/3"，
+> 永远不会溢出。**这就是 `fr` 真正解决的问题**。
+>
+> 一手参考：
+> [CSS Grid Layout Level 1 §7.2.3 Flexible Lengths: the fr unit](https://www.w3.org/TR/css-grid-1/#fr-unit)
+>
+> - [MDN: \<flex\>](https://developer.mozilla.org/zh-CN/docs/Web/CSS/flex_value)。
 
 ### 3.2 自适应卡片网格（必会姿势）
 
@@ -266,6 +326,21 @@ Flex 里没有。
 
 只有少数 item 时差别明显——多数场景两者表现一样，记不清就用
 `auto-fill`。
+
+> **词源解读：`fill` 和 `fit` 字面差什么？** 英语本义就是这两个
+> 关键字差异的最佳记忆法：
+>
+> - **fill**（动词）= "填满"——像把果汁倒进杯子，**有多少容量就
+>   倒多少**。`auto-fill` 就是这个意思：浏览器尽可能"填满"轨道
+>   位置，没东西占的就是空轨道（empty track），格子留着
+> - **fit**（动词）= "贴合 / 适配"——像把衣服改尺寸到正好合身。
+>   `auto-fit` 就是"让现有 item 适配可用空间"，多余的轨道**折叠
+>   消失**，剩下的 item 撑满整行
+>
+> 一句话：**fill 是"留位置"，fit 是"撑空间"**。一手参考：
+> [CSS Grid Level 1 §7.2.2 The repeat() notation](https://www.w3.org/TR/css-grid-1/#auto-repeat)
+>
+> - [MDN: repeat()](https://developer.mozilla.org/zh-CN/docs/Web/CSS/repeat)。
 
 ### 3.3 整页布局：`grid-template-areas`
 
@@ -634,9 +709,9 @@ CSS 特性 / §3.6 动画与层级。
 `filter`、`isolation: isolate`、`will-change` 等都会创建），里面
 的 z-index 就**被关进了那个上下文**，再大也跨不出去。
 
-**修复**：先用 DevTools 找出"被困住"的堆叠上下文边界，再决定是
-把它打通（去掉触发条件）还是把目标元素提升到顶层（用
-`isolation: isolate` 显式控制）。
+**修复**：先用 DevTools 找出"被困住"的堆叠上下文边界（具体怎么用
+看 §11.5 的 Layers 面板），再决定是把它打通（去掉触发条件）还是
+把目标元素提升到顶层（用 `isolation: isolate` 显式控制）。
 
 ### 10.5 盒模型（box-sizing）
 
@@ -662,7 +737,134 @@ padding / border 都加在外面。
 
 ---
 
-## 11. 最小练习清单
+## 11. 用 DevTools 看穿布局：现代调试技巧
+
+CSS 真正的学习曲线不在"读懂 MDN"，而在"页面长得不对的时候你知道
+往哪看"。这一节是这章里**密度最高**的实践片段——很多概念光读文字
+怎么读都迷糊，但你在 DevTools 里**亲手切一下、调一下**就立刻明白了。
+
+> 下面以 Chrome DevTools 为例，截图风格 / 名称都按 Chrome 134+ 的
+> 现代界面。Firefox / Safari 等价功能都有，叫法略不同——参考
+> [MDN: Firefox 开发者工具](https://firefox-source-docs.mozilla.org/devtools-user/)
+>
+> - [Safari Web Inspector](https://webkit.org/web-inspector/)。
+>   原理类似，迁移成本很低。
+
+### 11.1 必装：高亮 Grid / Flex / 容器查询
+
+打开任意页面 → `F12` / `Cmd+Opt+I` → **Elements** 面板：
+
+- 选中一个 `display: grid` 元素，旁边会出现一个 **`grid` 徽章**——
+  点它，**整个 Grid 的轨道线、行号、间隙、命名区域**都覆盖在页面
+  上显示。改 `grid-template-columns` 时实时跟着变
+- `display: flex` 元素同理，徽章是 **`flex`**——开启后能看到主轴
+  方向、`justify-content` 的分布点、`align-items` 的对齐线
+- `container-type: inline-size` 元素有 **`container`** 徽章——开启
+  后能看到查询源边界
+
+**这些 overlay 是免费的"心智模型可视化"**——你在表格里读 10 遍
+"主轴交叉轴"，不如开 `flex` overlay 自己改一行 `flex-direction:
+column` 看着主轴翻转。一手参考：
+[Chrome DevTools: Inspect CSS grid](https://developer.chrome.com/docs/devtools/css/grid)
+
+- [Inspect Flexbox](https://developer.chrome.com/docs/devtools/css/flexbox)。
+
+### 11.2 实时改 CSS：右侧 Styles 面板
+
+选中元素后 **Styles** 面板从上到下是它命中的所有规则：
+
+- **直接点击属性值就能改**——回车看效果，`Esc` 撤销
+- **数字属性可以按 `↑` / `↓` 调**：`1px` 一档；`Shift+↑/↓` 是
+  10px / `Alt+↑/↓` 是 0.1px——调间距 / 阴影偏移时极顺手
+- **取消勾选某条规则**测试"去掉它会怎样"——比注释代码快 10 倍
+- 右上角 `+` 加新规则，下方 `:hov` 可以**强制元素处于
+  `:hover` / `:focus` / `:active` 状态**——调 hover 样式不用真的
+  把鼠标按住
+
+**新人最容易忽视的功能：在 Styles 上方搜索框输入属性名**（如
+`flex-direction`）能快速过滤——大型设计系统层层覆盖时找元凶必备。
+
+### 11.3 看真正生效的值：Computed 面板
+
+Styles 显示"声明了什么"，**Computed** 面板显示"浏览器最终算出
+了什么"——单位都换成 px、百分比都解析出实际值、继承的属性都列
+出来。
+
+**最有用的两个场景**：
+
+- "我设了 `width: 100%` 但元素只有 240px"——Computed 看实际是多少；
+  再看下面的"由谁继承 / 哪条规则赢了"，沿链回溯
+- 排查继承——把 Computed 切到 `Show all`，**所有从父元素继承下来
+  的字体 / 颜色 / 行高都列出来**，每条都能点开看"是从哪个祖先来的"
+
+### 11.4 调试样式没生效：cascade / specificity 实战
+
+最高频问题：**"我加了样式但没生效"**。Styles 面板会用三种方式
+告诉你原因：
+
+- **属性被划线（strike-through）**：被另一条规则覆盖了；点过去就
+  跳到赢家规则
+- **规则上方显示 `Inherited from <selector>`**：当前生效是从父元
+  素继承下来的；要在子元素上覆盖，给子元素直接设
+- **小三角警告图标**：值无效（拼写错 / 单位错 / 不兼容当前 display）
+
+DevTools 里**右键属性 → Copy specificity**（Chrome 实验功能，
+Settings → Experiments 里开启）能直接拿到当前规则的优先级数值
+——和"赢家规则"对比就知道差几票。
+
+### 11.5 翻车排查神器：Issues / Recorder / Layers
+
+- **Issues** 面板（`Cmd+Shift+P` 搜 `Issues`）：浏览器主动报告的
+  CSS / a11y / 安全问题，包括"这条规则被忽略了"+ 原因——出 bug
+  时必看
+- **Layers** 面板（同样从 Command Menu 打开）：当前页面的所有合成
+  层；调"为什么 z-index 9999 还是被盖"时打开看是不是被祖先
+  `transform` / `filter` 切成了独立堆叠上下文（§10.4）
+- **Rendering** 面板：勾选 _Layout shift regions_ 实时高亮 CLS、
+  _Paint flashing_ 实时高亮重绘——回到第 2 章 §2.3 的渲染管线
+  在 DevTools 里"看见"
+
+### 11.6 设计稿还原 / 视觉验收
+
+- **Cmd+Shift+P → Capture full size screenshot**（整页截图）——
+  和设计稿对比时不用滚动拼图
+- **Device Toolbar**（`Cmd+Shift+M`）：切换到任意手机尺寸；可以
+  自定义"Custom" 加进自家设计标准断点（如 `360 / 768 / 1024 /
+1440`）
+- 选中元素时**按住 `Shift`**——能看到该元素到旁边元素的距离
+  （Figma-like ruler）；调间距时极快
+- **Color Picker**：点 Styles 里的色块小方块直接吸取页面其他位置
+  的颜色——做"和设计稿对比"必备
+
+### 11.7 进阶工具（按需了解）
+
+- **[Polypane](https://polypane.app/)**（付费，免费试用）：同时在
+  多个尺寸 + 暗色 + 截图模式里开发；做响应式时一屏覆盖全场景
+- **[Pesticide](https://chromewebstore.google.com/detail/pesticide-for-chrome/bblbgcheenepgnnajgfpiicnbbdmmooh)**
+  / **[CSS Peeper](https://cssp.app/)**：浏览器扩展，给所有元素加
+  outline 一眼看穿层次结构
+- **[Stylify Me](https://stylifyme.com/)**：抓取一个网站的色板 /
+  字体 / 间距，看别人家的设计令牌怎么组织
+- **[CSSTriggers](https://csstriggers.com/)**：每个 CSS 属性会触发
+  渲染管线的哪些阶段（layout / paint / composite）——查"这个属性
+  改了会不会很贵"必备
+
+### 11.8 推荐的"实践式学习"流程
+
+读完这一节，**不要直接进下面的练习清单**——先做这件事：
+
+1. 打开你最熟的一个网站（GitHub / Twitter / 自家产品）
+2. 选 1-2 个有意思的布局元素，开 grid / flex overlay 看它怎么搭
+3. 在 Styles 里**改一两个值**看效果（`gap` / `flex-direction` /
+   `grid-template-columns`）
+4. 关 DevTools 后**自己在空白文档里重写**一遍
+
+这个"看 → 改 → 重写"循环跑 5 个不同布局，比读 5 篇教程效果好得多——
+**单纯阅读文字始终很难理解 CSS，必须围绕具体问题动手**。
+
+---
+
+## 12. 最小练习清单
 
 读完这一节，照下面练一遍——能写出来才算掌握：
 
@@ -683,7 +885,7 @@ padding / border 都加在外面。
 - [ ] 写一个绝对定位弹窗，故意忘记给父元素 `position: relative`，
       看它跑到哪里——再加上看它回归
 - [ ] 在 `box-sizing: content-box` 默认下设 `width: 200px;
-    padding: 16px;`，再切到 `border-box`，量两次实际宽度
+  padding: 16px;`，再切到 `border-box`，量两次实际宽度
 
 每题 ≤ 10 行 CSS。**写不出来回到对应节再读一遍**。
 

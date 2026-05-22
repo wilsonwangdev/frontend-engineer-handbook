@@ -30,31 +30,47 @@ Svelte 共同依赖的视觉地基。
 进结构里，加上 Netscape 和 IE 各自塞的私有属性，整个网页是
 "结构 / 样式 / 行为"全部糊在一起的一团泥。
 
-1996 年 W3C 发布 CSS Level 1，把"怎么显示"从 HTML 里拆了出来。这
-是 Web 史上**最重要的一次分层**——从此 HTML 管"是什么"，CSS 管
-"长什么样"，JS 管"做什么"。这套分工是现在所有前端框架的根基。
+1996 年 W3C 发布 [CSS Level 1](https://www.w3.org/TR/CSS1/)，把"怎么
+显示"从 HTML 里拆了出来。这是 Web 史上**最重要的一次分层**——从此
+HTML 管"是什么"，CSS 管"长什么样"，JS 管"做什么"。这套分工是现在
+所有前端框架的根基。
 
 但 CSS 走得很慢：
 
-| 年份      | 节点                           | 留下了什么                                                                        |
-| --------- | ------------------------------ | --------------------------------------------------------------------------------- |
-| 1996      | CSS 1 发布                     | 选择器、字体、颜色、盒模型雏形                                                    |
-| 1998      | CSS 2 发布                     | 定位（`position`）、`float`、媒体类型——之后**十年没大动**                         |
-| 1999-2009 | "IE6 时代"                     | 浏览器实现互不一致，前端时间一半花在写 hack 上；jQuery 因此火了                   |
-| 2011      | Flexbox 草案                   | 终于有了"主轴 / 交叉轴"心智                                                       |
-| 2017      | Flex / Grid 在主流浏览器全支持 | **现代布局元年**——这是本章默认假设的浏览器基线                                    |
-| 2020-2025 | "现代 CSS 复兴"                | 容器查询、`:has()`、原生嵌套、`@layer`、子网格、`color-mix()`、View Transitions ⋯ |
+| 年份      | 节点                                                                 | 留下了什么                                                                        |
+| --------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1996      | [CSS 1 发布](https://www.w3.org/TR/CSS1/)                            | 选择器、字体、颜色、盒模型雏形                                                    |
+| 1998      | [CSS 2 发布](https://www.w3.org/TR/2008/REC-CSS2-20080411/)          | 定位（`position`）、`float`、媒体类型——之后**十年没大动**                         |
+| 1999-2009 | [IE6 时代](https://en.wikipedia.org/wiki/Internet_Explorer_6)        | 浏览器实现互不一致，前端时间一半花在写 hack 上；jQuery 因此火了                   |
+| 2011      | [Flexbox 草案](https://www.w3.org/TR/2011/WD-css3-flexbox-20110322/) | 终于有了"主轴 / 交叉轴"心智                                                       |
+| 2017      | [Flex / Grid 在主流浏览器全支持](https://caniuse.com/css-grid)       | **现代布局元年**——这是本章默认假设的浏览器基线                                    |
+| 2020-2025 | [State of CSS 历年报告](https://stateofcss.com/)                     | 容器查询、`:has()`、原生嵌套、`@layer`、子网格、`color-mix()`、View Transitions ⋯ |
+
+> 史料一手来源：W3C 各版规范是最权威的时间锚点；浏览器实际支持情况
+> 看 [Can I Use](https://caniuse.com/)（按特性查"什么时候哪个浏览器
+> 支持的"）；社区使用率看 [State of CSS](https://stateofcss.com/zh-Hans/)
+> 历年问卷。想深入读 CSS 演进史可参考 Eric Meyer 的
+> [CSS: The Definitive Guide](https://meyerweb.com/eric/books/css-tdg/)
+> （O'Reilly，每版都更新）。
 
 **两个结论值得记住**：
 
 1. **2017 年是分水岭**——之前的"前端写 CSS 经验"很大一部分是在
    对抗浏览器差异；之后才真正回到"用 CSS 表达设计"。如果你在网上
    看到 2017 年之前的 CSS 教程，**先确认它讲的是不是现代写法**
-2. **CSS 不是"简单"，是"被简化呈现"**——选择器优先级（specificity）、
-   层叠（cascade）、继承（inheritance）、包含块（containing block）、
-   堆叠上下文（stacking context）、margin 折叠（margin collapsing）、
-   块级格式化上下文（BFC）⋯ 这些机制每一个都能写一篇长文。**它们
-   不是冷知识，是你"为什么这个 div 不居中"的真正答案**
+2. **CSS 不是"简单"，是"被简化呈现"**——下面这些机制每一个都能写
+   一篇长文。**它们不是冷知识，是你"为什么这个 div 不居中"的真正
+   答案**：
+
+   | 中文术语         | 英文全称（缩写）               | 一手参考                                                                                          |
+   | ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+   | 选择器优先级     | specificity                    | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Specificity)                   |
+   | 层叠             | cascade                        | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Cascade)                       |
+   | 继承             | inheritance                    | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Inheritance)                   |
+   | 包含块           | containing block               | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_display/Containing_block)              |
+   | 堆叠上下文       | stacking context               | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_positioned_layout/Stacking_context)    |
+   | 外边距折叠       | margin collapsing              | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing) |
+   | 块级格式化上下文 | BFC = Block Formatting Context | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_display/Block_formatting_context)      |
 
 ---
 
@@ -111,17 +127,18 @@ Svelte 共同依赖的视觉地基。
 ### 实战复杂面：贯穿全章的"翻车之王"
 
 下面这些机制不是某一节的主题，而是**业务里出错频率最高的那批
-CSS 概念**——会在多节反复出现，本章每次提到时都会回链回来：
+CSS 概念**——会在多节反复出现，本章每次提到时都会回链回来。
+缩写都给出英文全称 + MDN 一手链接，遇到就点进去查：
 
-| 机制                                   | 一句话含义                      | 你最常在哪里栽              | 主要展开节点    |
-| -------------------------------------- | ------------------------------- | --------------------------- | --------------- |
-| 层叠 + 优先级（cascade / specificity） | 多条规则冲突时谁赢              | "为什么我加了样式没生效"    | §3.3 现代 CSS   |
-| 包含块（containing block）             | 一个元素的尺寸 / 定位以谁为参照 | `position: absolute` 跑飞了 | §3.1 + §3.3     |
-| 堆叠上下文（stacking context）         | z 轴上的"独立宇宙"              | "z-index 9999 还是被盖"     | §3.6 动画与层级 |
-| margin 折叠（margin collapsing）       | 相邻块级元素 margin 会合并      | 父子之间多了 / 少了空白     | §3.1            |
-| BFC（块级格式化上下文）                | 一种"自成一体"的布局区域        | 父元素塌陷、清除浮动        | §3.1            |
-| 盒模型（box-sizing）                   | width 包不包含 padding / border | 元素总比预期"宽一点"        | §3.1            |
-| 继承（inheritance）                    | 哪些属性会从父元素自动继承      | 字体 / 颜色为啥变了         | §3.3            |
+| 机制                                                                                                                                                                                       | 一句话含义                      | 你最常在哪里栽              | 主要展开节点    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | --------------------------- | --------------- |
+| 层叠 + 优先级（[cascade](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Cascade) + [specificity](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Specificity)） | 多条规则冲突时谁赢              | "为什么我加了样式没生效"    | §3.3 现代 CSS   |
+| [包含块（containing block）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_display/Containing_block)                                                                                | 一个元素的尺寸 / 定位以谁为参照 | `position: absolute` 跑飞了 | §3.1 + §3.3     |
+| [堆叠上下文（stacking context）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_positioned_layout/Stacking_context)                                                                  | z 轴上的"独立宇宙"              | "z-index 9999 还是被盖"     | §3.6 动画与层级 |
+| [外边距折叠（margin collapsing）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing)                                                              | 相邻块级元素 margin 会合并      | 父子之间多了 / 少了空白     | §3.1            |
+| [BFC（Block Formatting Context，块级格式化上下文）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_display/Block_formatting_context)                                                 | 一种"自成一体"的布局区域        | 父元素塌陷、清除浮动        | §3.1            |
+| [盒模型（box model / box-sizing）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_box_model/Introduction_to_the_CSS_box_model)                                                       | width 包不包含 padding / border | 元素总比预期"宽一点"        | §3.1            |
+| [继承（inheritance）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Inheritance)                                                                                            | 哪些属性会从父元素自动继承      | 字体 / 颜色为啥变了         | §3.3            |
 
 **对新人的建议**：先把 §3.1 / §3.3 顺读下来，遇到上表词条卡壳就
 停下查；等你能说出"这是堆叠上下文的问题"，CSS 才算真正入门。
