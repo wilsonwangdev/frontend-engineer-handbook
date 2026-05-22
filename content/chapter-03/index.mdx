@@ -1,0 +1,170 @@
+---
+title: HTML / CSS / 现代布局
+chapter: 3
+description: 不被框架包装的视觉与结构层——从语义、布局、现代 CSS 到中文排版
+tier: essential
+prerequisites:
+  - /chapter-02
+paths:
+  sequential: 10
+---
+
+> 这一章讲**用户最先看到的那一层**——HTML 结构、CSS 样式、布局、动画。
+> 它在浏览器里直接生效，不需要任何框架包装。
+
+第 2 章把"框架不会变的下层"讲清楚了。这一章往上挪一层：**像素如何被
+排上屏幕、文字如何换行、布局如何在小屏不崩**——这些是 React、Vue、
+Svelte 共同依赖的视觉地基。
+
+---
+
+## 这一章和"我学过的 HTML / CSS"有什么不同
+
+很多人以为 HTML / CSS 是"入门内容"，学过基础就够了。**这是 2026 年
+最容易踩的认知坑**：CSS 在 2020-2025 年经历了**一次结构性升级**——
+容器查询、`:has()`、嵌套、`@layer`、子网格、`color-mix()`、
+View Transitions ⋯ 每一项都改写了既往的"最佳实践"。
+
+> **写给已经写过几年前端的读者**：如果你最近一次系统过 CSS 是 2020
+> 年之前，这一章你需要重读。不是因为旧知识错了，是因为**很多以前
+> 必须靠 JS / 预处理器 / hack 解决的问题，现在 CSS 原生就能做**——
+> 还在用旧办法的代码就是技术债。
+
+> **写给新入行的读者**：你是赶上了好时候。这一章里讲的几乎全部都是
+> "现代写法"——浮动布局、清除浮动、IE 兼容、CSS Hack、`@import`
+> 嵌套技巧那一套**完全不必学**（详见 [SPEC-0003 §显式移除清单](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0003-table-of-contents/spec.md)）。
+> 你直接学到现在还会用 5 年的写法。
+
+---
+
+## 3.1 本章六节速览
+
+| #   | 节                                    | 一句话定位                                                      | 谁最该读         |
+| --- | ------------------------------------- | --------------------------------------------------------------- | ---------------- |
+| 3.1 | [现代布局](/chapter-03/modern-layout) | Flex / Grid / 容器查询 / 子网格——99% 的页面布局靠这套           | 所有人           |
+| 3.2 | 语义化 HTML 与可访问性 _（待写）_     | `<button>` 不是 `<div onclick>`——让屏幕阅读器和搜索引擎都能读懂 | 所有人           |
+| 3.3 | 现代 CSS 特性 _（待写）_              | `@layer` / `:has()` / 嵌套 / 变量 / `color-mix()`               | 所有人           |
+| 3.4 | 响应式与中文 Web _（待写）_           | 移动优先、CJK 排版、暗色模式——三件常被忽略的设计基础            | 所有人           |
+| 3.5 | 设计令牌与样式系统 _（待写）_         | 颜色 / 字号 / 间距统一来源——大型项目的样式可维护性根基          | 1-3 年 / 资深    |
+| 3.6 | 动画与 View Transitions _（待写）_    | 浏览器原生路由切换 / 状态切换动画                               | 所有人，资深尤其 |
+
+> 6 节里有 5 节标 **必学**——视觉基础的覆盖面摊开就这么宽。**§3.5
+> 设计令牌**对独立写小项目的新人可缓写到加入团队再补，故标为
+> 1-3 年起读。
+>
+> _「待写」_ 的章节会按推荐顺序逐节上线。本章**先发 §3.1**——
+> 现代布局是写代码场景密度最高的一节，最适合作为切入点。
+
+---
+
+## 3.2 本章三档归位
+
+| 知识点                                                | 归位         | 理由                                                                                                                                     |
+| ----------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Flexbox 主轴 / 交叉轴心智                             | **必学**     | 90% 的"水平 / 垂直居中""平均分布"靠这个                                                                                                  |
+| Grid 显式 / 隐式轨道、`grid-template-areas`           | **必学**     | 整页布局、卡片网格的现代答案                                                                                                             |
+| 容器查询（container queries）                         | **必学**     | 组件按"自身宽度"响应——比媒体查询贴近组件化时代                                                                                           |
+| 子网格（subgrid）                                     | **仍需理解** | 复杂表格 / 卡片对齐时是利器；不会每天用                                                                                                  |
+| 媒体查询 + 移动优先                                   | **必学**     | 响应式的入门项，必须会写                                                                                                                 |
+| 语义化 HTML（`<header>` / `<nav>` 等）                | **必学**     | a11y 和 SEO 的地基——AI 写出来的 `<div>` 套娃要你 review                                                                                  |
+| ARIA 属性                                             | **仍需理解** | 知道何时该用 `role` / `aria-label`；具体 attribute 让 AI 写 + review                                                                     |
+| `:has()` / `:is()` / `:where()`                       | **必学**     | 写组件库 / 状态切换时大幅减少 JS                                                                                                         |
+| `@layer` 与样式分层                                   | **必学**     | 团队项目防 specificity 大战的现代答案                                                                                                    |
+| CSS 嵌套（原生）                                      | **仍需理解** | 知道语法 + 知道与 SCSS 的差异；具体写法 AI 写得熟                                                                                        |
+| `color-mix()` / `oklch()` / 相对颜色                  | **仍需理解** | 暗色模式 / 设计令牌生成会用；记住存在即可                                                                                                |
+| 动画三件套：`transition` / `animation` / `@keyframes` | **必学**     | 微交互的基础                                                                                                                             |
+| `View Transitions` API                                | **仍需理解** | 跨页面动画是 2025 后路由动效的现代答案                                                                                                   |
+| CSS 预处理器（Sass / Less）详尽语法                   | **可委托**   | 现代项目用原生嵌套 + 变量已够；选 Sass 也让 AI 写                                                                                        |
+| 浮动布局 / 清除浮动 / IE Hack                         | **不学**     | 见 [SPEC-0003 §显式移除清单](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0003-table-of-contents/spec.md) |
+
+> **三档 vs 四 Tier 视角差**：上表是**知识档**（必学 / 仍需理解 /
+> 可委托），第 1 章 [§1.4](/chapter-01#14-ai-可委托清单完整版) 的
+> Tier 1-4 是**任务档**——同一个知识点写不同任务可能落在不同 Tier。
+> 例：「Grid」是必学知识，但"写一段 Grid 居中"是 Tier 1 任务、
+> "重构整个页面布局"是 Tier 3 任务。
+
+---
+
+## 3.3 怎么读这一章
+
+### 别脱离实时预览读
+
+CSS 与第 2 章的"协议 / 渲染 / 安全"不同——它**改一行代码就能立刻在
+屏幕上看到结果**。所以这一章的读法是：
+
+1. 打开 [CodePen](https://codepen.io) / [CSS Playground](https://playcode.io/css)
+   或本地任何 HTML 文件
+2. 一边读一边把例子敲进去
+3. 改一两个值看看变化（`gap: 1rem` 改成 `2rem`、`grid-template-columns`
+   改列数）
+
+只读不写——基本等于没读。
+
+### AI 的位置
+
+| 你想做                                 | AI 帮得上吗                                  |
+| -------------------------------------- | -------------------------------------------- |
+| 写一段 Flex / Grid 居中                | ✅ 现代 AI 写得熟                            |
+| 把"圣杯布局" / "三栏自适应"翻译成 Grid | ✅ 直接给                                    |
+| 选 Flex 还是 Grid                      | ⚠️ 心智模型必须在你脑子里，AI 给的是默认答案 |
+| 写 a11y 属性（ARIA）                   | ✅ 但你必须读懂——错配的 ARIA 比没有更糟      |
+| 设计响应式断点                         | ❌ 业务上下文 AI 拿不到，让它列方案、你拍板  |
+| 设计设计令牌（颜色 / 字号 / 间距体系） | ❌ 这是产品 / 视觉决策，不是技术决策         |
+
+---
+
+## 3.4 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md)
+的暗线规则，本章会在以下位置点破设计判断：
+
+- **§3.1 现代布局**：声明式（declarative）vs 命令式（imperative）——
+  `display: grid` 是"我要什么"，旧式 JS 算坐标是"怎么做"；声明式让浏览器
+  做调度，AI 也写得更稳
+- **§3.3 @layer**：分层控制（layered specificity）——`@layer reset, base,
+components, utilities` 把样式优先级从"谁的选择器更长"改成"谁在哪一层"，
+  消除大型项目里"不停叠 `!important`"的恶性循环
+- **§3.5 设计令牌**：信息隐藏（information hiding）——色值、字号、间距
+  暴露成"语义名"（`--color-primary`）而非"具体值"（`#3b82f6`），换主题
+  时不用全局搜索替换
+- **§3.6 View Transitions**：声明式动画（declarative animation）——
+  浏览器接管"前后状态差异 → 平滑过渡"的调度，告别旧式手写
+  FLIP 计算
+
+---
+
+## 3.5 读完本章你应该能
+
+- [ ] 看到一个布局需求，能口头说出该用 Flex 还是 Grid，理由是什么
+- [ ] 写出一段 Grid 自适应卡片网格（列数随容器宽度变化），不查文档
+- [ ] 看到 `:has(.error)` 知道这是"父选子"
+- [ ] 区分媒体查询（按视口）和容器查询（按容器自身宽度），知道何时
+      用哪个
+- [ ] 看到一段 `<div onclick>` 能识别这是 a11y 反例
+- [ ] 知道 `@layer` 的作用，能讲出"为什么不用就会陷入 `!important`
+      互砍"
+- [ ] 看到设计令牌定义（`--color-primary` 等）能解释为什么这样组织
+- [ ] 知道 `View Transitions` 是什么，能在合适场景提议用它
+
+---
+
+## 延伸阅读
+
+- [MDN: HTML 元素参考](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element)
+  — HTML 标签百科；中文版
+- [MDN: CSS](https://developer.mozilla.org/zh-CN/docs/Web/CSS) —
+  CSS 规范的中文索引页
+- [web.dev: Learn CSS](https://web.dev/learn/css) **（英文）** —
+  Google 主导的现代 CSS 教程，按主题组织、含交互例子
+- [CSS-Tricks: A Complete Guide to Flexbox](https://css-tricks.com/snippets/css/a-guide-to-flexbox/)
+  **（英文）** + [Grid 同系列](https://css-tricks.com/snippets/css/complete-guide-grid/)
+  — 社区事实标准的 Flex / Grid 速查
+- [State of CSS 2024](https://2024.stateofcss.com/zh-Hans/) —
+  CSS 社区年度调查，看"最近大家在用什么 / 想用什么"
+
+> 访问性说明：MDN 中文版 + State of CSS 中文版可直接访问；
+> CSS-Tricks / web.dev 英文站偶有访问波动，但绝大多数 ISP 可达。
+
+---
+
+下一节：[§3.1 现代布局](/chapter-03/modern-layout) —— Flex、Grid、容器查询、子网格。

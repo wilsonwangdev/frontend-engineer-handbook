@@ -1,0 +1,553 @@
+---
+title: 现代布局
+chapter: 3
+section: 1
+description: Flex、Grid、容器查询、子网格——99% 的页面布局靠这套
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 11
+---
+
+> 现代 CSS 让"两栏自适应""卡片网格""主轴居中"从靠 hack 解决变成
+> 一两行声明就能搞定。代价是：你得知道**哪种场景该选哪一套**。
+
+这一节不讲 Flex / Grid 的每一个属性——MDN 已经做得很好了。我们讲：
+**遇到一个布局需求时怎么判断该用什么、AI 写出来后怎么 review、
+2025 年之后哪些新特性值得立刻用上**。
+
+---
+
+## 1. 一张选型决策图
+
+来了一个布局需求，先按这棵树问：
+
+```text
+要排什么？
+├─ 一维（一行 / 一列里铺东西）
+│  └─ Flex
+│
+├─ 二维（行和列都有结构）
+│  └─ Grid
+│
+├─ 整页布局（header / sidebar / main / footer）
+│  └─ Grid（用 `grid-template-areas` 命名区域）
+│
+└─ 文字内容流（段落 / 列表）
+   └─ 不动布局，让正常文档流（normal flow）就好
+```
+
+**最常见的错**是反过来——用 Grid 排一行按钮、用 Flex 拼整页布局。
+都能跑，但用反了之后改起来很累。
+
+| 场景                           | 推荐                          | 为什么不是另一个                                                        |
+| ------------------------------ | ----------------------------- | ----------------------------------------------------------------------- |
+| 导航栏（一行多个按钮）         | Flex                          | Grid 也能做，但 Flex 的"主轴对齐"语义更贴近"一排东西"                   |
+| 卡片网格（多行多列）           | Grid                          | Flex 的换行需要算 `flex-basis`、间距控制变形；Grid 一行 `repeat()` 搞定 |
+| 整页 header / sidebar / footer | Grid + `grid-template-areas`  | Flex 嵌套地狱；Grid 命名区域读起来像 ASCII 画                           |
+| 表单一组 label + input         | Grid（两列）                  | 多个 input 的右列会自然对齐；Flex 要给 label 加固定宽度                 |
+| 单个元素居中                   | Flex 或 `place-items: center` | Grid 也行；这是最不重要的选型                                           |
+
+> **设计判断（声明式 vs 命令式）**：`display: grid` 是**声明式**——
+> 你说"我要 3 列、间距 1rem"，浏览器决定每个 item 落在哪。旧式靠
+> JS 计算坐标 + `position: absolute` 是**命令式**——你手把手算。
+> AI 写声明式 CSS 比命令式 JS 布局稳得多，因为浏览器接管了边界
+> 情况的调度。**何时该升级到 Grid 而不是嵌套 Flex**，是人的判断。
+
+---
+
+## 2. Flexbox：一维布局的瑞士军刀
+
+### 2.1 主轴 / 交叉轴心智
+
+Flex 的所有困惑都来自不分清"主轴"和"交叉轴"：
+
+```text
+flex-direction: row（默认）
+┌──────────────────────────────┐
+│                              │
+│   [ A ] [ B ] [ C ]    →    │  ← 主轴（main axis）
+│                              │
+└──────────────────────────────┘
+       ↓ 交叉轴（cross axis）
+```
+
+| 想做什么             | 主轴属性          | 交叉轴属性    |
+| -------------------- | ----------------- | ------------- |
+| 元素在主轴上的分布   | `justify-content` | —             |
+| 元素在交叉轴上对齐   | —                 | `align-items` |
+| 单个元素覆盖默认对齐 | —                 | `align-self`  |
+
+记住这张图，Flex 的 90% 困惑就消失了。`flex-direction: column`
+时主轴变成纵向，但**属性名不变**——这是新人最容易卡的点。
+
+### 2.2 最常用 5 种姿势
+
+```css
+/* 1. 水平 + 垂直居中 */
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 2. 平均分布（导航 / 工具栏） */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 3. 自适应剩余空间（输入框 + 按钮） */
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+.row input {
+  flex: 1; /* 撑满剩余空间 */
+}
+
+/* 4. 自动换行（标签云） */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* 5. 等宽列 */
+.cols {
+  display: flex;
+  gap: 1rem;
+}
+.cols > * {
+  flex: 1;
+}
+```
+
+会写这 5 种，业务里 80% 的 Flex 场景就够用了。
+
+### 2.3 `gap` 是现代写法
+
+旧代码用 `margin-right` + `:last-child { margin-right: 0 }` 制造间距——
+这是 IE / 旧版 Safari 时代留下的肌肉记忆。现代浏览器在 Flex / Grid
+都支持 `gap`，**统一用 `gap`**，再也不用算 `:last-child`。
+
+```css
+/* ❌ 旧 */
+.list > * {
+  margin-right: 1rem;
+}
+.list > *:last-child {
+  margin-right: 0;
+}
+
+/* ✅ 新 */
+.list {
+  display: flex;
+  gap: 1rem;
+}
+```
+
+---
+
+## 3. Grid：二维布局的现代答案
+
+### 3.1 最小心智
+
+Grid 的核心就两件事：
+
+1. **定义轨道（tracks）**：用 `grid-template-columns` /
+   `grid-template-rows` 声明几行几列、每条轨道多宽
+2. **放置元素（placement）**：让浏览器自动放，或用 `grid-column` /
+   `grid-row` / `grid-area` 显式指定
+
+```css
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 等分列 */
+  gap: 1rem;
+}
+```
+
+`fr` 是"剩余空间的份数"——3 个 `1fr` = 平均分。这是 Grid 独有的单位，
+Flex 里没有。
+
+### 3.2 自适应卡片网格（必会姿势）
+
+业务里出现频率最高的 Grid 用法：
+
+```css
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+```
+
+读法：「每列至少 240px，能放几列放几列，剩下的平均分」。这一行
+取代了**所有**"768px 以下两列、1024px 以下三列、再宽就四列"的媒体
+查询写法。
+
+`auto-fill` vs `auto-fit` 的区别：
+
+| 取值        | 容器够宽且 item 不足时              | 适用场景                    |
+| ----------- | ----------------------------------- | --------------------------- |
+| `auto-fill` | 留空轨道（visible empty tracks）    | 大多数情况；item 自然左对齐 |
+| `auto-fit`  | 把空轨道折叠（collapse），item 撑满 | 想让现有 item 撑满整行时    |
+
+只有少数 item 时差别明显——多数场景两者表现一样，记不清就用
+`auto-fill`。
+
+### 3.3 整页布局：`grid-template-areas`
+
+经典的"header / sidebar / main / footer"：
+
+```css
+.page {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "header  header"
+    "sidebar main"
+    "footer  footer";
+  min-height: 100vh;
+}
+
+.page > header {
+  grid-area: header;
+}
+.page > nav {
+  grid-area: sidebar;
+}
+.page > main {
+  grid-area: main;
+}
+.page > footer {
+  grid-area: footer;
+}
+```
+
+`grid-template-areas` 的字符串本身就是一张 ASCII 画——读 CSS 时立刻
+能看懂版面。这是 Flex 完全做不到的可读性。
+
+### 3.4 显式 vs 隐式轨道
+
+定义了 3 列结果放进 5 个 item，多出来的怎么办？浏览器**自动开新行**——
+这叫"隐式轨道"。
+
+```css
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* 显式：3 列 */
+  grid-auto-rows: 200px; /* 隐式行的高度 */
+  gap: 1rem;
+}
+```
+
+不写 `grid-auto-rows` 时，隐式行高度由内容决定（`auto`）——常见的
+"卡片高度参差"就是没设它的后果。
+
+---
+
+## 4. 容器查询：组件化时代的响应式
+
+### 4.1 为什么需要容器查询
+
+媒体查询（`@media`）响应**视口（viewport）**——整个浏览器窗口宽度。
+它的问题是：**同一个组件在不同位置宽度可能不同**。
+
+举例：一个"卡片"组件，放在主内容区里有 800px 宽，放在侧栏里只有
+240px 宽。媒体查询只能根据"屏幕宽度"决定它的样式，**不知道它实际
+被嵌在哪里**。
+
+容器查询（`@container`）解决这个：**响应组件自身所在容器的宽度**。
+
+```css
+/* 1. 父容器声明自己是查询源 */
+.card-grid {
+  container-type: inline-size;
+  /* 也可以给个名字便于嵌套场景 */
+  container-name: cards;
+}
+
+/* 2. 子组件按"容器宽度"响应，而不是"视口宽度" */
+.card {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@container cards (min-width: 480px) {
+  .card {
+    grid-template-columns: 120px 1fr; /* 缩略图 + 内容 */
+  }
+}
+```
+
+读法：「当 `cards` 容器自身宽度 ≥ 480px 时，卡片切成左右两栏」。
+这个组件**不管放在哪**，都按自身可用宽度调整——这才是真正的
+"组件化响应式"。
+
+### 4.2 何时用容器查询、何时仍用媒体查询
+
+| 场景                             | 用什么       |
+| -------------------------------- | ------------ |
+| 整页布局（侧栏在窄屏收起）       | 媒体查询     |
+| 导航栏在小屏变汉堡菜单           | 媒体查询     |
+| 卡片 / 表格 / 通用组件的内部布局 | **容器查询** |
+| 同一组件可能出现在主区或侧栏     | **容器查询** |
+| 字号 / 行距按视口缩放            | 媒体查询     |
+
+**经验法则**：组件库 / 设计系统里的组件 → 容器查询；页面级布局 →
+媒体查询。两者并用，不是替代关系。
+
+### 4.3 兼容性
+
+容器查询在 Chrome 105 / Safari 16 / Firefox 110 后稳定。**2026 年
+新项目可以无脑用**。需要兼容更老浏览器的项目按业务实际再说。
+
+---
+
+## 5. 子网格：让嵌套对齐"贯通"
+
+### 5.1 问题：嵌套 Grid 的对齐断层
+
+经典案例：一行卡片，每张卡片内部分 title / body / footer 三段。
+如果 title 长度不一，**不同卡片的 body 起始线就对不齐**——因为每张
+卡片是独立的 Grid，互不相通。
+
+```text
+┌─────────────┐  ┌──────────────┐
+│ 短标题       │  │ 一个比较长的标题 │
+├─────────────┤  ├──────────────┤
+│ body...     │  │ body...      │   ← 这两行对不齐
+├─────────────┤  ├──────────────┤
+│ footer      │  │ footer       │
+└─────────────┘  └──────────────┘
+```
+
+### 5.2 子网格（subgrid）的解法
+
+让卡片**继承**外层 Grid 的轨道定义：
+
+```css
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+}
+
+.card {
+  display: grid;
+  grid-row: span 3; /* 占满外层 3 行 */
+  grid-template-rows: subgrid; /* 关键：继承外层行轨道 */
+}
+```
+
+每张卡片的 title / body / footer 落在**同一根轨道**上，跨卡片
+天然对齐。
+
+### 5.3 兼容性 + 何时用
+
+子网格在 Chrome 117 / Safari 16 / Firefox 71 后稳定。**用得没那么频繁**——
+日常布局靠 Flex + Grid 就够了，遇到"卡片嵌套对齐断层"再上 subgrid。
+知道存在 + 何时拿出来用即可。
+
+---
+
+## 6. 居中难题：现代答案速查
+
+"垂直居中"在 2010 年代是面试题——现代 CSS 已经把它压成 1-2 行：
+
+```css
+/* 1. Flex 居中（最常用） */
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 2. Grid 一行流 */
+.center {
+  display: grid;
+  place-items: center;
+}
+
+/* 3. 绝对定位 + transform（覆盖层 / 弹窗） */
+.modal {
+  position: absolute;
+  inset: 0; /* 等价 top/right/bottom/left: 0 */
+  margin: auto;
+}
+
+/* 4. 单行文字 */
+.button {
+  line-height: 40px; /* 等于元素高度 */
+  text-align: center;
+}
+```
+
+| 场景                  | 用哪个                                       |
+| --------------------- | -------------------------------------------- |
+| 容器内单 / 多元素居中 | Flex 或 `place-items`                        |
+| 弹窗 / 全屏覆盖层居中 | `position: absolute; inset: 0; margin: auto` |
+| 单行按钮文字居中      | `line-height` + `text-align: center`         |
+
+---
+
+## 7. 间距：`gap` + 逻辑属性
+
+### 7.1 全用 `gap`，告别 `margin` 算 `:last-child`
+
+`gap` 在 Flex / Grid / 多列布局都生效。**新项目里几乎不再写
+`margin-right` / `margin-bottom` 来造间距**。
+
+### 7.2 逻辑属性（logical properties）
+
+`margin-left` / `margin-right` 在国际化时会出问题——阿拉伯语 / 希伯来语
+是从右往左排版（RTL），这时"左"应该变成"右"。
+
+逻辑属性把"物理方向"换成"逻辑方向"：
+
+| 物理属性             | 逻辑属性              |
+| -------------------- | --------------------- |
+| `margin-left`        | `margin-inline-start` |
+| `margin-right`       | `margin-inline-end`   |
+| `margin-top`         | `margin-block-start`  |
+| `margin-bottom`      | `margin-block-end`    |
+| `width`              | `inline-size`         |
+| `height`             | `block-size`          |
+| `padding-left/right` | `padding-inline`      |
+
+中文站点暂时用不到 RTL，但**`padding-inline` / `margin-block` 这种
+"上下 / 左右合并"的简写比 `padding: 0 16px` 读起来更清晰**——养成
+逻辑属性的肌肉记忆，未来做多语言不用大改。
+
+```css
+/* 旧 */
+.card {
+  padding: 0 16px;
+  margin: 8px 0;
+}
+
+/* 新 */
+.card {
+  padding-inline: 16px;
+  margin-block: 8px;
+}
+```
+
+---
+
+## 8. 中文 Web 的两个布局陷阱
+
+写中文站点会踩到两个英文社区**很少提**的坑——本节单独点破。
+
+### 8.1 `text-wrap: pretty` / `balance` 在中文场景反常
+
+`text-wrap: pretty`（CSS Text Module Level 4）是为英文段落设计的——
+它让浏览器**主动调整换行**避免末行只有一两个单词（"orphan"）。
+
+但中文每个汉字都是潜在断点，pretty 算法会在意想不到的位置换行。
+叠加 `overflow-wrap: anywhere` 后，结果就是用户看到的"无规律换行"。
+
+**踩坑案例 + 修复**：本仓库 [journal/2026-05-21](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/journal/2026-05-21-css-text-wrap-pretty-cjk-anomaly.md)
+有完整复盘——叠加三个换行属性导致段落"看起来有些行提前换行"，
+最终回退到只用 `overflow-wrap: break-word`。
+
+**经验法则**：
+
+```css
+/* ❌ 中文段落不要默认引入 */
+p {
+  text-wrap: pretty;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ✅ 默认就够 */
+p {
+  overflow-wrap: break-word;
+}
+```
+
+要用 `text-wrap: pretty` 必须先在中文段落实测——它的设计目标几乎
+全是英文场景。
+
+### 8.2 全角标点的"半个空格"
+
+中文混排英文 / 数字时，全角标点（、，。：）后面会有一个视觉上的
+"半角空"。常见解法：
+
+- **`text-spacing-trim` (实验性)**：CSS Text Module Level 4 的
+  原生答案，把全角标点之间的多余空白裁掉。Chrome 123+ 支持，
+  Safari / Firefox 仍在路上
+- **手动调整字符间距**：用 `letter-spacing` 微调，写起来麻烦
+- **不管它**：现代浏览器多数情况显示得也还行——业务里**先验证
+  实际效果再决定要不要修**
+
+> 这两条都验证了一个普适经验：**CSS 新特性默认为英文设计，
+> 中文场景必须单独验证**。详见 [SPEC-0011 反例 7](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0011-content-accessibility-standard/spec.md)。
+
+---
+
+## 9. AI 在布局这层能帮你做什么
+
+| 任务                             | Tier          | 备注                                                       |
+| -------------------------------- | ------------- | ---------------------------------------------------------- |
+| 写一段 Flex / Grid 居中          | Tier 1        | 现代 AI 写得熟，直接交付                                   |
+| 把"图 + 文 + 按钮"卡片翻译成 CSS | Tier 1        | 给截图或描述，AI 给出 Flex/Grid 实现                       |
+| 选 Flex 还是 Grid                | Tier 4 辅助   | 心智模型必须在你脑子里；让 AI 列方案 + 你拍板              |
+| 设计响应式断点                   | Tier 4 辅助   | 业务上下文决定断点；AI 只能给"通用值"                      |
+| 引入容器查询 / subgrid           | Tier 2 review | AI 会写，但**何时该升级**是你的判断                        |
+| 改造老项目的 float 布局到 Grid   | Tier 3 慎重   | 等价但行为不完全一致——边界 case（绝对定位、`clear`）需手测 |
+| 处理中文排版反常                 | Tier 4 辅助   | AI 训练语料以英文为主；中文场景必须自己实测                |
+
+布局是 AI 协作的**安全区**——多数任务可以放手让 AI 写，你 review
+
+- 跑起来看看就行。但**选型判断（Flex vs Grid、媒体查询 vs 容器
+  查询）必须你自己做**——这是 D2（推理判断）+ D5（长期委托会丢失
+  品味）的双重红线。
+
+---
+
+## 10. 最小练习清单
+
+读完这一节，照下面练一遍——能写出来才算掌握：
+
+- [ ] 写一个导航栏：左 logo、中间链接平均分布、右 "登录"按钮
+- [ ] 写一个卡片网格：每列至少 240px、间距 1rem、自动换行
+- [ ] 写一个整页布局：header + sidebar(240px) + main + footer，最小高
+      100vh
+- [ ] 把"卡片"组件做成容器查询响应：自身 ≥ 480px 时左右两栏，否则
+      上下堆叠
+- [ ] 把一段 `padding: 0 16px; margin: 8px 0` 改成逻辑属性
+
+每题 ≤ 10 行 CSS。**写不出来回到对应节再读一遍**。
+
+---
+
+## 延伸阅读
+
+- [MDN: CSS Flexible Box Layout](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_flexible_box_layout)
+  — Flex 的中文一手参考
+- [MDN: CSS 网格布局](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_grid_layout)
+  — Grid 的中文一手参考
+- [MDN: CSS 容器查询](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_containment/Container_queries)
+  — 中文一手；含可运行示例
+- [CSS-Tricks: A Complete Guide to Flexbox](https://css-tricks.com/snippets/css/a-guide-to-flexbox/)
+  **（英文）** + [Grid 同系列](https://css-tricks.com/snippets/css/complete-guide-grid/)
+  — 社区事实标准的 Flex / Grid 速查
+- [Every Layout](https://every-layout.dev/) **（英文）** —
+  Heydon Pickering，把"常见布局"抽象成可复用 primitive；适合资深读者
+- [Smashing Magazine: A Complete Guide to CSS Container Queries](https://www.smashingmagazine.com/2021/05/complete-guide-css-container-queries/)
+  **（英文）** — 容器查询的深入文章
+
+> 访问性说明：MDN 中文版可直接访问；CSS-Tricks / Every Layout /
+> Smashing 英文站偶有访问波动，但绝大多数 ISP 可达。
+
+---
+
+下一节：§3.2 语义化 HTML 与可访问性 _（待写）_——`<button>` 不是
+`<div onclick>`。
