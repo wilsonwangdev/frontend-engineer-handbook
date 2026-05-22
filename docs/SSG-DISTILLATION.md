@@ -59,6 +59,22 @@
   - 实现要点：`aria-current="page"` 兼顾 a11y；当前章下小节左侧竖线
     换 accent 色作为视觉锚
 
+- **回到顶部按钮（BackToTop）**：[src/components/handbook/back-to-top.tsx](../src/components/handbook/back-to-top.tsx)
+  （2026-05-23 引入）
+  - 选型理由：长内容页面阅读到底部需要快速回顶，单独走浏览器原生
+    `window.scrollTo({top:0})` 即可，不需要 Sticky Anchor / IO 等
+    重方案
+  - 设计要点（参 Apple HIG「按钮 - 浮动操作」）：
+    - 默认隐藏不打扰；只在 `scrollY > innerHeight`（滚过一屏）
+      才出现
+    - 固定右下，与 reading-width / 主题等 header 控件分区，避免
+      工具栏拥挤
+    - opacity + translateY 过渡，避免突现
+    - 触控目标 ≥ 40×40 满足 WCAG 2.5.5
+    - `env(safe-area-inset-bottom)` 适配 iOS 主页指示条
+    - 平滑滚动用 `scroll-behavior: smooth`，浏览器自动按
+      `prefers-reduced-motion` 降级为 instant
+
 - **阅读宽度三档（reading-width）**：自实现（2026-05-23 引入）
   - 选型理由：rspress / Nextra / Docusaurus 等主流文档站都把内容压
     在固定宽度内，**长表格被迫横滚**。手册第 3 章开始大量出现 4-5
@@ -144,6 +160,15 @@
       `overflow-x: auto`
   - 已落地的 demo（产品层，src/components/mdx/demos/layout-classics.tsx）：
     AvatarStackDemo / NotificationBadgeDemo / SkeletonCardDemo
+  - **源码语法高亮**（2026-05-23 第二轮增量）：每个 demo 是 async
+    server component，调用 `highlightCode(code, lang)`（[src/lib/highlight.ts](../src/lib/highlight.ts)）
+    在构建期用 Shiki `codeToHtml` 预渲染。helper 包 `"use cache"`
+    作为静态产物缓存。生成的 token span 与 rehype-pretty-code 同
+    样带 `--shiki-light` / `--shiki-dark` 双 CSS 变量；globals.css
+    用 `:is(figure[...], .demo-source-code)` 合并选择器统一切色。
+    与 mdx 代码块视觉一致、零运行时开销
+  - **默认折叠**：高亮后源码视觉占位变重，文档站点风格上「默认折
+    叠」更克制——让用户主动选择"我要看代码"
   - **代价**：渲染节点和源码字符串两边维护——一旦 demo 改了源码字
     符串没跟，会"看到的 ≠ 代码"。第一版接受这个代价；未来若 demo
     数 ≥ 10，考虑用 babel-plugin 自动从组件源码生成 code 字符串
@@ -299,5 +324,47 @@ demo 落地：
   embed）的明确差异化点。第 1 条仍是 reading-width 三档
 - 调研触发：否
 - 灵感触发：是——同上一轮，内容需求驱动站点能力升级
+
+下次评估：2026-08 季度复核，或差异化第 3 条触达时。
+
+### 2026-05-23 demo 高亮 + 回到顶部 + 命名中性化
+
+动因：第 13 节 demo 反馈连环：
+
+- subgrid 缺修复后对比，问题本质看不到
+- DemoBlock 源码无语法高亮，视觉与 mdx 代码块割裂
+- 长内容缺回到顶部按钮，长页面阅读体验差
+- reading-width 「舒适」label 主观（不同读者 / 场景下默认未必最舒适）
+
+落地：
+
+- 新增 `<CardAlignmentFixedDemo />`：用 `grid-template-rows: subgrid`
+  - `grid-row: span 3` 真实演示修复后效果，与既有
+    `<CardAlignmentMisalignedDemo />` 一前一后对比
+- DemoBlock 接入 Shiki：新增 [src/lib/highlight.ts](../src/lib/highlight.ts)
+  helper（`"use cache"` 缓存），demo 改 async server component；
+  globals.css 双主题选择器扩到 `.demo-source-code`；defaultOpen
+  改回 false（默认折叠）
+- 新增 [src/components/handbook/back-to-top.tsx](../src/components/handbook/back-to-top.tsx)
+  通用层组件——固定右下、滚过一屏出现、平滑滚回；图标 ArrowUp
+  与现有按钮风格一致；触控目标 ≥ 40×40；`env(safe-area-inset-bottom)`
+  适配 iOS 主页指示条；挂在 (handbook)/layout.tsx
+- reading-width 「舒适」改「默认」——中性，不暗示主观偏好
+
+跨设备验证（按 R10 第 4 问）：
+
+- BackToTop：phone `right-4 bottom-4` / sm 起 `right-6 bottom-6`；
+  safe-area 内边距适配 iOS；触控 40×40 ≥ WCAG 2.5.5
+- 高亮 demo 源码：复用 globals.css 现有 pre 横滚样式，三档视口
+  下都 `overflow-x: auto`
+
+升级触发数据更新：
+
+- 数据触发 a：维持
+- 数据触发 b（差异化 ≥ 3 条）：维持 2 条；本轮三件都是质量补齐
+  / UX 修补，BackToTop 是通用基础能力但**业界普遍存在**，不算
+  本站差异化
+- 调研触发：否
+- 灵感触发：是——内容反馈驱动站点能力补齐的同源链路
 
 下次评估：2026-08 季度复核，或差异化第 3 条触达时。

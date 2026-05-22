@@ -118,15 +118,23 @@
   /* Shiki 双主题 token：每个 span 同时携带 --shiki-light / --shiki-dark
      两套 CSS 变量。默认走 light；本站手动切到暗色（:root[data-theme="dark"]）
      或系统暗色 + 用户未明确指定（:root:not([data-theme="light"])）走 dark。
-     选择器要直接命中带 inline style 的 span，不能只靠 data-theme 父节点。 */
-  figure[data-rehype-pretty-code-figure] [data-theme] span {
+     选择器要直接命中带 inline style 的 span，不能只靠 data-theme 父节点。
+     两类来源：
+       1) rehype-pretty-code 生成的 figure[data-rehype-pretty-code-figure]
+       2) DemoBlock 用 highlightCode() 生成的 .demo-source-code（直接走
+          shiki codeToHtml，不经 rehype） */
+  :is(figure[data-rehype-pretty-code-figure] [data-theme], .demo-source-code) span {
     color: var(--shiki-light);
   }
-  :root[data-theme="dark"] figure[data-rehype-pretty-code-figure] [data-theme] span {
+  :root[data-theme="dark"]
+    :is(figure[data-rehype-pretty-code-figure] [data-theme], .demo-source-code)
+    span {
     color: var(--shiki-dark);
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) figure[data-rehype-pretty-code-figure] [data-theme] span {
+    :root:not([data-theme="light"])
+      :is(figure[data-rehype-pretty-code-figure] [data-theme], .demo-source-code)
+      span {
       color: var(--shiki-dark);
     }
   }
@@ -363,6 +371,27 @@
         text-decoration-thickness: 2px;
       }
     }
+  }
+
+  /* DemoBlock 源码区：高亮 HTML 由 Shiki 直接生成（codeToHtml），所以
+     <pre class="shiki ..."> 没有 rehype-pretty-code 的 figure 包裹。
+     这里给一份与 rehype 生成的 pre 视觉一致的样式。 */
+  .demo-source-code pre {
+    margin: 0;
+    padding: 1em;
+    overflow-x: auto;
+    background: var(--color-bg-elevated);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    line-height: 1.7;
+  }
+  .demo-source-code code {
+    background: transparent;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    font-family: inherit;
+    color: inherit;
   }
 
   /* Skeleton shimmer — used by demo SkeletonCard and any future loading state.

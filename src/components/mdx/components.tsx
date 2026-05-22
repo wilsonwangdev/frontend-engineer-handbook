@@ -2,7 +2,11 @@ import type { ComponentPropsWithoutRef } from "react";
 import { Callout } from "@/components/ui/callout";
 import { TierBadge } from "@/components/handbook/tier-badge";
 import { CopyButton } from "@/components/mdx/copy-button";
-import { FlexAxisDiagram, CardAlignmentMisalignedDemo } from "@/components/mdx/diagrams";
+import {
+  FlexAxisDiagram,
+  CardAlignmentMisalignedDemo,
+  CardAlignmentFixedDemo,
+} from "@/components/mdx/diagrams";
 import {
   AvatarStackDemo,
   NotificationBadgeDemo,
@@ -42,6 +46,7 @@ export const mdxComponents = {
   TierBadge,
   FlexAxisDiagram,
   CardAlignmentMisalignedDemo,
+  CardAlignmentFixedDemo,
   AvatarStackDemo,
   NotificationBadgeDemo,
   SkeletonCardDemo,

@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { Sidebar } from "@/components/handbook/sidebar";
 import { MobileNav } from "@/components/handbook/mobile-nav";
 import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
+import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
 
 export default async function HandbookLayout({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
         </aside>
         <main className="min-w-0">{children}</main>
       </div>
+      <BackToTop />
     </div>
   );
 }

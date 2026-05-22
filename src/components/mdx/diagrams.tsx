@@ -132,7 +132,6 @@ export function CardAlignmentMisalignedDemo() {
     flexDirection: "column",
     gap: "0.5rem",
     fontSize: "0.85rem",
-    /* 行高放大让两行标题与单行标题的高度差更显眼 */
     lineHeight: 1.5,
   };
   const titleStyle: React.CSSProperties = { fontWeight: 600 };
@@ -142,9 +141,11 @@ export function CardAlignmentMisalignedDemo() {
   };
   return (
     <figure className="not-prose my-6">
+      <div className="mb-2 text-center text-xs text-fg-muted">
+        ❌ 没用 subgrid：每卡独立 Grid，body / footer 起始线不齐
+      </div>
       <div
         style={{
-          /* 固定 220px 列宽迫使长标题换 2 行，让对齐断层可见 */
           display: "grid",
           gridTemplateColumns: "220px 220px",
           gap: "1rem",
@@ -169,8 +170,80 @@ export function CardAlignmentMisalignedDemo() {
         </div>
       </div>
       <figcaption className="not-prose text-center text-xs text-fg-muted mt-2">
-        右卡标题占 2 行 → body 起始线被推下去了；左卡 body 仍在第 2 行 起。这就是 subgrid
-        要解决的问题。
+        右卡标题占 2 行 → body 起始线被推下去；左卡 body 仍在第 2 行起。
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * subgrid 修复后效果。两卡共享外层 Grid 的行轨道，title / body /
+ * footer 各占同一根轨道线，因此即便标题字数不同也跨卡对齐。
+ *
+ * 实现用 CSS Grid `grid-template-rows: subgrid` + 每张卡 `grid-row:
+ * span 3` 占据外层 3 行；左卡的"短标题"会被外层第一行轨道撑高到
+ * 与右卡两行标题等高（这正是断层被消除的机制）。
+ */
+export function CardAlignmentFixedDemo() {
+  const titleStyle: React.CSSProperties = { fontWeight: 600 };
+  const dividerStyle: React.CSSProperties = {
+    borderTop: "1px dashed currentColor",
+    opacity: 0.5,
+  };
+  // 内层卡片用 subgrid 接管外层行轨道；标题 / body / footer 各占 1 行
+  const cardStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateRows: "subgrid",
+    gridRow: "span 3",
+    border: "1px solid currentColor",
+    borderRadius: "6px",
+    padding: "0.75rem",
+    rowGap: "0.5rem",
+    fontSize: "0.85rem",
+    lineHeight: 1.5,
+  };
+  return (
+    <figure className="not-prose my-6">
+      <div className="mb-2 text-center text-xs text-fg-muted">
+        ✅ 用 subgrid：两卡共享外层行轨道，body / footer 跨卡对齐
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "220px 220px",
+          // 外层声明 3 行轨道：title / body / footer
+          gridTemplateRows: "auto 1fr auto",
+          gap: "1rem",
+          maxWidth: "480px",
+          margin: "0 auto",
+        }}
+      >
+        <div style={cardStyle}>
+          <div style={titleStyle}>短标题</div>
+          <div>
+            <div style={dividerStyle} />
+            <div style={{ marginTop: "0.5rem" }}>body…</div>
+          </div>
+          <div>
+            <div style={dividerStyle} />
+            <div style={{ marginTop: "0.5rem", opacity: 0.7 }}>footer</div>
+          </div>
+        </div>
+        <div style={cardStyle}>
+          <div style={titleStyle}>一个相当长以至于会自然换到第二行的卡片标题</div>
+          <div>
+            <div style={dividerStyle} />
+            <div style={{ marginTop: "0.5rem" }}>body…</div>
+          </div>
+          <div>
+            <div style={dividerStyle} />
+            <div style={{ marginTop: "0.5rem", opacity: 0.7 }}>footer</div>
+          </div>
+        </div>
+      </div>
+      <figcaption className="not-prose text-center text-xs text-fg-muted mt-2">
+        左卡的 body / footer 被外层轨道下推到与右卡同一水平线上——这就 是 subgrid
+        让嵌套对齐"贯通"的效果。
       </figcaption>
     </figure>
   );

@@ -11,6 +11,10 @@ import { ChevronRight, Check, Copy } from "lucide-react";
  * - 零额外依赖，与 SSR / Cache Components 兼容
  * - 不能"在线编辑"，但手册需要的是"展示一个稳定结果"，不是"沙箱"
  *
+ * Shiki 高亮：上层 server component（demo 模块）用 highlightCode()
+ * 把源码字符串预渲染为 HTML，传 codeHtml；DemoBlock 通过
+ * dangerouslySetInnerHTML 注入。原始字符串仍传 code，供"复制"用。
+ *
  * 跨设备：预览容器自身设 padding，让内容居中；窄屏自动换行。
  */
 export type DemoBlockProps = {
@@ -20,11 +24,13 @@ export type DemoBlockProps = {
   description?: string;
   /** 真实渲染的 demo 节点 */
   children: ReactNode;
-  /** 源码字符串（包含 HTML 结构 + CSS） */
+  /** 原始源码字符串（用于复制按钮） */
   code: string;
+  /** Shiki 预渲染的高亮 HTML 字符串（含 <pre><code>...</code></pre>） */
+  codeHtml: string;
   /** 源码的语言标签（默认 tsx） */
   language?: string;
-  /** 默认是否展开源码 */
+  /** 默认是否展开源码——默认折叠：保持页面视觉简洁，让读者主动选择 */
   defaultOpen?: boolean;
 };
 
@@ -33,10 +39,9 @@ export function DemoBlock({
   description,
   children,
   code,
+  codeHtml,
   language = "tsx",
-  /* 源码默认展开——对学习类站点而言"看到源码"是核心诉求；折叠会
-     让用户错过它。需要节省视觉空间时显式传 defaultOpen={false}。 */
-  defaultOpen = true,
+  defaultOpen = false,
 }: DemoBlockProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
@@ -68,7 +73,7 @@ export function DemoBlock({
       <details
         open={open}
         onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
-        className="border-t border-[var(--color-border)]"
+        className="demo-source border-t border-[var(--color-border)]"
       >
         <summary className="flex cursor-pointer select-none items-center gap-1.5 px-4 py-2 text-xs text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]">
           <ChevronRight
@@ -84,7 +89,7 @@ export function DemoBlock({
             type="button"
             onClick={onCopy}
             aria-label={copied ? "已复制" : "复制源码"}
-            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg)]/80 text-fg-muted backdrop-blur transition-colors hover:text-[var(--color-fg)]"
+            className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg)]/80 text-fg-muted backdrop-blur transition-colors hover:text-[var(--color-fg)]"
           >
             {copied ? (
               <Check size={14} strokeWidth={2} aria-hidden="true" />
@@ -92,9 +97,7 @@ export function DemoBlock({
               <Copy size={14} strokeWidth={1.75} aria-hidden="true" />
             )}
           </button>
-          <pre className="overflow-x-auto bg-[var(--color-bg-elevated)] p-4 font-mono text-xs leading-relaxed text-[var(--color-fg)]">
-            <code>{code}</code>
-          </pre>
+          <div className="demo-source-code" dangerouslySetInnerHTML={{ __html: codeHtml }} />
         </div>
       </details>
     </figure>

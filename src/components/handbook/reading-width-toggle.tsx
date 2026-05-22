@@ -12,8 +12,12 @@ const STORAGE_KEY = "handbook:reading-width";
  * 设计原则（参考 Apple HIG「响应式布局」）：
  * - phone（< 768px）：内容已全宽 + 侧栏改 drawer，三档无意义 → 隐藏整个控件
  * - tablet（768-1279px）：comfortable 与 wide 视觉无差（视口本身 < 96rem），
- *   只暴露 comfortable + focus 两档；comfortable label 改"默认"更贴切
+ *   只暴露 comfortable + focus 两档
  * - desktop（≥ 1280px）：三档全开，差异肉眼可见
+ *
+ * 命名取舍：comfortable / wide / focus 是内部 mode key（不展示）；
+ * 用户可见的 label 是「默认 / 宽屏 / 专注」——「默认」比「舒适」中性，
+ * 后者带主观倾向（不同读者 / 不同场景下默认未必最舒适）。
  *
  * 关键：mode 数据本身只有 3 档（持久化），不同视口只是隐藏不该看到的选项。
  * 用户在桌面选了 wide 后切到平板，存储仍是 wide，但 UI 不显示——回到桌面
@@ -26,8 +30,8 @@ type Option = { mode: Mode; label: string; hint: string; Icon: typeof Square };
 const ALL_OPTIONS: Record<Mode, Option> = {
   comfortable: {
     mode: "comfortable",
-    label: "舒适",
-    hint: "默认：侧栏 + 72ch 正文",
+    label: "默认",
+    hint: "侧栏 + 72ch 正文",
     Icon: Columns3,
   },
   wide: { mode: "wide", label: "宽屏", hint: "侧栏 + 96ch 正文", Icon: Columns2 },
@@ -37,7 +41,7 @@ const ALL_OPTIONS: Record<Mode, Option> = {
 function visibleOptions(device: Device): Option[] {
   if (device === "phone") return [];
   if (device === "tablet") {
-    return [{ ...ALL_OPTIONS.comfortable, label: "默认", hint: "侧栏 + 正文" }, ALL_OPTIONS.focus];
+    return [ALL_OPTIONS.comfortable, ALL_OPTIONS.focus];
   }
   return [ALL_OPTIONS.comfortable, ALL_OPTIONS.wide, ALL_OPTIONS.focus];
 }
