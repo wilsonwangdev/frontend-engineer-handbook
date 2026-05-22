@@ -133,8 +133,38 @@
 }
 
 @layer components {
+  /* Reading width modes — three tiers driven by [data-reading-width] on <html>.
+     comfortable (default): max prose 72ch, sidebar shown, container 7xl
+     wide: max prose 96ch, sidebar shown, container 8xl
+     focus: max prose 100%, sidebar hidden, container near-full-width */
+  :root {
+    --handbook-container: 80rem; /* 7xl */
+    --handbook-prose-max: 72ch;
+  }
+  :root[data-reading-width="wide"] {
+    --handbook-container: 96rem; /* 8xl-ish */
+    --handbook-prose-max: 96ch;
+  }
+  :root[data-reading-width="focus"] {
+    --handbook-container: min(120rem, 100%);
+    --handbook-prose-max: none;
+  }
+
+  .handbook-container {
+    max-width: var(--handbook-container);
+  }
+
+  /* In focus mode, hide the sidebar and let main occupy full width.
+     We override the grid template so the aside column collapses cleanly. */
+  :root[data-reading-width="focus"] .handbook-shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  :root[data-reading-width="focus"] .handbook-aside {
+    display: none !important;
+  }
+
   .prose-cn {
-    max-width: 72ch;
+    max-width: var(--handbook-prose-max);
     line-height: 1.85;
 
     & > * + * {
@@ -276,20 +306,33 @@
     & .table-wrapper {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      /* In focus mode, allow tables to break out of the prose width
+         (which becomes 100% anyway) so they can use the full reading area. */
+      margin-inline: 0;
     }
 
     & table {
       border-collapse: collapse;
       font-size: 0.875em;
-      line-height: 1.5;
-      min-width: 100%;
+      line-height: 1.6;
+      width: 100%;
+      min-width: 0;
+      table-layout: auto;
     }
 
     & th,
     & td {
-      padding: 0.5em 0.75em;
+      padding: 0.55em 0.75em;
       border-bottom: 1px solid var(--color-border);
       text-align: left;
+      vertical-align: top;
+      /* CJK text wraps cleanly; only force-nowrap inside <code> / short labels. */
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    & th code,
+    & td code {
       white-space: nowrap;
     }
 

@@ -156,15 +156,131 @@ Grid**——按下面的顺序补就够：
 
 Flex 的所有困惑都来自不分清"主轴"和"交叉轴"：
 
-```text
-flex-direction: row（默认）
-┌──────────────────────────────┐
-│                              │
-│   [ A ] [ B ] [ C ]    →    │  ← 主轴（main axis）
-│                              │
-└──────────────────────────────┘
-       ↓ 交叉轴（cross axis）
-```
+<figure className="not-prose my-6">
+  <svg
+    viewBox="0 0 480 200"
+    role="img"
+    aria-label="Flex 主轴与交叉轴示意图（flex-direction: row 时主轴水平、交叉轴垂直）"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }}
+  >
+    <rect
+      x="20"
+      y="40"
+      width="440"
+      height="120"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      rx="6"
+    />
+    <rect
+      x="60"
+      y="80"
+      width="60"
+      height="40"
+      fill="currentColor"
+      opacity="0.08"
+      stroke="currentColor"
+      strokeWidth="1"
+      rx="3"
+    />
+    <text
+      x="90"
+      y="105"
+      textAnchor="middle"
+      fontSize="14"
+      fill="currentColor"
+      fontFamily="monospace"
+    >
+      A
+    </text>
+    <rect
+      x="140"
+      y="80"
+      width="60"
+      height="40"
+      fill="currentColor"
+      opacity="0.08"
+      stroke="currentColor"
+      strokeWidth="1"
+      rx="3"
+    />
+    <text
+      x="170"
+      y="105"
+      textAnchor="middle"
+      fontSize="14"
+      fill="currentColor"
+      fontFamily="monospace"
+    >
+      B
+    </text>
+    <rect
+      x="220"
+      y="80"
+      width="60"
+      height="40"
+      fill="currentColor"
+      opacity="0.08"
+      stroke="currentColor"
+      strokeWidth="1"
+      rx="3"
+    />
+    <text
+      x="250"
+      y="105"
+      textAnchor="middle"
+      fontSize="14"
+      fill="currentColor"
+      fontFamily="monospace"
+    >
+      C
+    </text>
+    <line
+      x1="60"
+      y1="100"
+      x2="430"
+      y2="100"
+      stroke="currentColor"
+      strokeOpacity="0.45"
+      strokeWidth="1.5"
+      strokeDasharray="4 3"
+    />
+    <polygon points="430,95 442,100 430,105" fill="currentColor" opacity="0.7" />
+    <text x="350" y="92" fontSize="12" fill="currentColor" opacity="0.8">
+      主轴 main axis →
+    </text>
+    <line
+      x1="40"
+      y1="60"
+      x2="40"
+      y2="178"
+      stroke="currentColor"
+      strokeOpacity="0.45"
+      strokeWidth="1.5"
+      strokeDasharray="4 3"
+    />
+    <polygon points="35,178 40,190 45,178" fill="currentColor" opacity="0.7" />
+    <text x="48" y="180" fontSize="12" fill="currentColor" opacity="0.8">
+      交叉轴 cross axis ↓
+    </text>
+    <text
+      x="240"
+      y="30"
+      textAnchor="middle"
+      fontSize="12"
+      fill="currentColor"
+      opacity="0.7"
+      fontFamily="monospace"
+    >
+      flex-direction: row（默认）
+    </text>
+  </svg>
+  <figcaption className="not-prose text-center text-xs text-fg-muted mt-2">
+    Flex 容器里主轴是水平方向、交叉轴是垂直方向；改成 <code>column</code> 时两者交换
+  </figcaption>
+</figure>
 
 | 想做什么             | 主轴属性          | 交叉轴属性    |
 | -------------------- | ----------------- | ------------- |
@@ -522,15 +638,55 @@ Flex 里没有。
 如果 title 长度不一，**不同卡片的 body 起始线就对不齐**——因为每张
 卡片是独立的 Grid，互不相通。
 
-```text
-┌─────────────┐  ┌──────────────┐
-│ 短标题       │  │ 一个比较长的标题 │
-├─────────────┤  ├──────────────┤
-│ body...     │  │ body...      │   ← 这两行对不齐
-├─────────────┤  ├──────────────┤
-│ footer      │  │ footer       │
-└─────────────┘  └──────────────┘
-```
+<figure className="not-prose my-6">
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "1rem",
+      maxWidth: "480px",
+      margin: "0 auto",
+    }}
+  >
+    <div
+      style={{
+        border: "1px solid currentColor",
+        borderRadius: "6px",
+        padding: "0.75rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.5rem",
+        fontSize: "0.85rem",
+      }}
+    >
+      <div style={{ fontWeight: 600 }}>短标题</div>
+      <div style={{ borderTop: "1px dashed currentColor", opacity: 0.5 }} />
+      <div>body…</div>
+      <div style={{ borderTop: "1px dashed currentColor", opacity: 0.5 }} />
+      <div style={{ opacity: 0.7 }}>footer</div>
+    </div>
+    <div
+      style={{
+        border: "1px solid currentColor",
+        borderRadius: "6px",
+        padding: "0.75rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.5rem",
+        fontSize: "0.85rem",
+      }}
+    >
+      <div style={{ fontWeight: 600 }}>一个比较长的标题</div>
+      <div style={{ borderTop: "1px dashed currentColor", opacity: 0.5 }} />
+      <div>body…</div>
+      <div style={{ borderTop: "1px dashed currentColor", opacity: 0.5 }} />
+      <div style={{ opacity: 0.7 }}>footer</div>
+    </div>
+  </div>
+  <figcaption className="not-prose text-center text-xs text-fg-muted mt-2">
+    两张卡片各自的 body / footer 起始线没对齐——这就是 subgrid 要解决的问题
+  </figcaption>
+</figure>
 
 ### 5.2 子网格（subgrid）的解法
 
