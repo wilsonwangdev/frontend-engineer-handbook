@@ -34,7 +34,9 @@ export function DemoBlock({
   children,
   code,
   language = "tsx",
-  defaultOpen = false,
+  /* 源码默认展开——对学习类站点而言"看到源码"是核心诉求；折叠会
+     让用户错过它。需要节省视觉空间时显式传 defaultOpen={false}。 */
+  defaultOpen = true,
 }: DemoBlockProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
@@ -60,7 +62,9 @@ export function DemoBlock({
           {language}
         </span>
       </header>
-      <div className="grid place-items-center bg-[var(--color-bg)] p-6 sm:p-8">{children}</div>
+      <div className="flex min-h-[140px] items-center justify-center bg-[var(--color-bg)] p-6 sm:p-8">
+        {children}
+      </div>
       <details
         open={open}
         onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}

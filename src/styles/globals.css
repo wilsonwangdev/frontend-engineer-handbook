@@ -335,9 +335,11 @@
       border-bottom: 1px solid var(--color-border);
       text-align: left;
       vertical-align: top;
-      /* CJK text wraps cleanly; only force-nowrap inside <code> / short labels. */
+      /* Wrap long unbreakable strings (URLs, English terms) but don't shred
+         short tokens like "~1996". `anywhere` is too aggressive for CJK
+         tables where columns may be short labels. */
       word-break: normal;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     & th code,

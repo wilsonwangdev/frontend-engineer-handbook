@@ -123,19 +123,27 @@
     - **自建 DemoBlock（采纳）**：零运行时、SSR / Cache Components
       原生兼容、demo 是真实编译过的 React 组件，源码字符串作为 prop
       单独传——和站点其余部分完全统一
-  - API：`<DemoBlock title="..." description="..." code="..." language="..." defaultOpen={false}>{真实 demo}</DemoBlock>`
+  - API：每个 demo 模块**包装好完整 DemoBlock 后**导出（如
+    `<AvatarStackDemo />`），mdx 里只写一个标签即可
+  - **重要：mdx scope 限制（已踩坑）**：mdx 的 JSX 表达式 scope 不
+    会自动注入命名常量。曾经试过
+    `<DemoBlock code={AVATAR_STACK_CODE}>...</DemoBlock>` 在 mdx
+    里——编译过，但 SSR 时 code 被解析为 undefined 导致 `<pre>`
+    源码区空白。这是因为 next-mdx-remote 把这个表达式的 scope 限
+    制到 `mdxComponents` 内，常量被取到的是 `undefined`（mdx 把
+    JSX expression child 当 React node 渲染，`undefined` 渲染为空）。
+    **解决**：在 demo 模块里把 DemoBlock + 渲染节点 + 源码字符串
+    打包成单一组件，mdx 只看到包装组件
   - 体验细节：
-    - 上方预览区 `grid place-items-center` 自动居中各种尺寸 demo
-    - 下方源码用 `<details>` 默认折叠，节省视觉噪音；展开后右上角
-      复制按钮
-    - 头部带 title / description / 语言标签，单看头部就知道这个
-      demo 演示什么
+    - 上方预览区 `flex justify-center items-center` + `min-h-[140px]`
+      自动居中各种尺寸 demo，最小高度避免小 demo 显得空
+    - 下方源码用 `<details open>` **默认展开**（学习类站点核心诉求）；
+      右上角复制按钮
+    - 头部带 title / description / 语言标签
     - 跨设备：预览区 padding 在 sm 断点收紧；源码 pre 自然
       `overflow-x: auto`
   - 已落地的 demo（产品层，src/components/mdx/demos/layout-classics.tsx）：
-    - AvatarStackDemo + AVATAR_STACK_CODE：协同头像叠放
-    - NotificationBadgeDemo + NOTIFICATION_BADGE_CODE：通知徽章
-    - SkeletonCardDemo + SKELETON_CARD_CODE：骨架屏
+    AvatarStackDemo / NotificationBadgeDemo / SkeletonCardDemo
   - **代价**：渲染节点和源码字符串两边维护——一旦 demo 改了源码字
     符串没跟，会"看到的 ≠ 代码"。第一版接受这个代价；未来若 demo
     数 ≥ 10，考虑用 babel-plugin 自动从组件源码生成 code 字符串

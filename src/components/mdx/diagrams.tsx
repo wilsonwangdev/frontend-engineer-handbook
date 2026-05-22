@@ -118,6 +118,10 @@ export function FlexAxisDiagram() {
  *
  * 直接用浏览器渲染的 HTML 卡片来"演示"断层本身——比 ASCII 图自洽，
  * 也避免了字宽对齐风险。
+ *
+ * 关键：右卡的标题必须**自然换行到 2 行**，左右两卡的 body 起始线
+ * 才会真正错开（这是 subgrid 要解决的问题）。卡片宽度固定较窄、
+ * 标题文本足够长，是让差异可见的前提。
  */
 export function CardAlignmentMisalignedDemo() {
   const cardStyle: React.CSSProperties = {
@@ -128,7 +132,10 @@ export function CardAlignmentMisalignedDemo() {
     flexDirection: "column",
     gap: "0.5rem",
     fontSize: "0.85rem",
+    /* 行高放大让两行标题与单行标题的高度差更显眼 */
+    lineHeight: 1.5,
   };
+  const titleStyle: React.CSSProperties = { fontWeight: 600 };
   const dividerStyle: React.CSSProperties = {
     borderTop: "1px dashed currentColor",
     opacity: 0.5,
@@ -137,22 +144,24 @@ export function CardAlignmentMisalignedDemo() {
     <figure className="not-prose my-6">
       <div
         style={{
+          /* 固定 220px 列宽迫使长标题换 2 行，让对齐断层可见 */
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "220px 220px",
           gap: "1rem",
           maxWidth: "480px",
           margin: "0 auto",
+          alignItems: "start",
         }}
       >
         <div style={cardStyle}>
-          <div style={{ fontWeight: 600 }}>短标题</div>
+          <div style={titleStyle}>短标题</div>
           <div style={dividerStyle} />
           <div>body…</div>
           <div style={dividerStyle} />
           <div style={{ opacity: 0.7 }}>footer</div>
         </div>
         <div style={cardStyle}>
-          <div style={{ fontWeight: 600 }}>一个比较长的标题</div>
+          <div style={titleStyle}>一个相当长以至于会自然换到第二行的卡片标题</div>
           <div style={dividerStyle} />
           <div>body…</div>
           <div style={dividerStyle} />
@@ -160,7 +169,8 @@ export function CardAlignmentMisalignedDemo() {
         </div>
       </div>
       <figcaption className="not-prose text-center text-xs text-fg-muted mt-2">
-        两张卡片各自的 body / footer 起始线没对齐——这就是 subgrid 要解决的问题
+        右卡标题占 2 行 → body 起始线被推下去了；左卡 body 仍在第 2 行 起。这就是 subgrid
+        要解决的问题。
       </figcaption>
     </figure>
   );

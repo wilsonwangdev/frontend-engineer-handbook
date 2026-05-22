@@ -3,14 +3,10 @@ import { Callout } from "@/components/ui/callout";
 import { TierBadge } from "@/components/handbook/tier-badge";
 import { CopyButton } from "@/components/mdx/copy-button";
 import { FlexAxisDiagram, CardAlignmentMisalignedDemo } from "@/components/mdx/diagrams";
-import { DemoBlock } from "@/components/mdx/demo-block";
 import {
   AvatarStackDemo,
-  AVATAR_STACK_CODE,
   NotificationBadgeDemo,
-  NOTIFICATION_BADGE_CODE,
   SkeletonCardDemo,
-  SKELETON_CARD_CODE,
 } from "@/components/mdx/demos/layout-classics";
 
 function Table(props: ComponentPropsWithoutRef<"table">) {
@@ -46,13 +42,9 @@ export const mdxComponents = {
   TierBadge,
   FlexAxisDiagram,
   CardAlignmentMisalignedDemo,
-  DemoBlock,
   AvatarStackDemo,
-  AVATAR_STACK_CODE,
   NotificationBadgeDemo,
-  NOTIFICATION_BADGE_CODE,
   SkeletonCardDemo,
-  SKELETON_CARD_CODE,
   table: Table,
   figure: Figure,
 };

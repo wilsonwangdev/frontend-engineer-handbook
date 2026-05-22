@@ -1162,14 +1162,7 @@ GitHub PR / Vercel Deployment / Figma 评论里都有的"参与者头像叠
 着显示"——核心是**负 margin** 让头像重叠 + **同色边框**制造视觉
 分隔线。
 
-<DemoBlock
-  title="协同头像叠放"
-  description="GitHub / Vercel / Figma 风格"
-  code={AVATAR_STACK_CODE}
-  language="html"
->
-  <AvatarStackDemo />
-</DemoBlock>
+<AvatarStackDemo />
 
 **为什么这样写**：
 
@@ -1189,22 +1182,16 @@ GitHub PR / Vercel Deployment / Figma 评论里都有的"参与者头像叠
 红点 / 数字角标——任何带通知的图标按钮都用得到。核心是 `position:
 relative` 父 + `position: absolute` 子，徽章相对图标定位。
 
-<DemoBlock
-  title="通知徽章"
-  description="红点 + 数字角标 + 99+ 三种形态"
-  code={NOTIFICATION_BADGE_CODE}
-  language="html"
->
-  <NotificationBadgeDemo />
-</DemoBlock>
+<NotificationBadgeDemo />
 
 **为什么这样写**：
 
 - 父按钮 `position: relative` 是徽章的**包含块**——这正是
   §11.3 的应用：忘了这一行徽章会跑到 `<body>` 角落
-- 数字角标用 `top: -6px; right: -6px` 露出图标边缘，配
-  `min-width: 18px; height: 18px; border-radius: 9px` 自动从圆形
-  扩展为胶囊形（"12" 是圆，"99+" 是胶囊）
+- 数字角标用 `top: -6px; right: -8px` 露出图标边缘，`min-width: 20px;
+height: 20px` + `border-radius: 999px` 让短文本（"12"）保持圆、
+  长文本（"99+"）自动撑成胶囊；`box-sizing: border-box` 让 border
+  算入尺寸不撑大
 - `border: 2px solid var(--bg)` 同样起描边作用——让小徽章在任何
   背景上都不糊
 - a11y：图标按钮用 `aria-label` 包含通知数；徽章本身 `aria-hidden="true"`
@@ -1218,14 +1205,7 @@ relative` 父 + `position: absolute` 子，徽章相对图标定位。
 接口返回前先显示"占位骨架"——比转圈圈友好得多。核心是**线性渐变
 背景 + `background-position` 动画**。
 
-<DemoBlock
-  title="骨架屏"
-  description="渐变 shimmer 动画 + reduced-motion 适配"
-  code={SKELETON_CARD_CODE}
-  language="html"
->
-  <SkeletonCardDemo />
-</DemoBlock>
+<SkeletonCardDemo />
 
 **为什么这样写**：
 
