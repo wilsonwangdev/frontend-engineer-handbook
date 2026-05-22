@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { Callout } from "@/components/ui/callout";
 import { TierBadge } from "@/components/handbook/tier-badge";
 import { CopyButton } from "@/components/mdx/copy-button";
+import { FlexAxisDiagram, CardAlignmentMisalignedDemo } from "@/components/mdx/diagrams";
 
 function Table(props: ComponentPropsWithoutRef<"table">) {
   return (
@@ -34,6 +35,8 @@ function Figure({ children, ...props }: ComponentPropsWithoutRef<"figure">) {
 export const mdxComponents = {
   Callout,
   TierBadge,
+  FlexAxisDiagram,
+  CardAlignmentMisalignedDemo,
   table: Table,
   figure: Figure,
 };

@@ -54,10 +54,45 @@
   - 选型理由：Next.js 16 没有稳定 RSC pathname API；标准模式是
     "use client" + `usePathname()`，影响仅 sidebar 一处，开销可忽略
   - 替代方案对比：middleware 注 x-pathname header（脆弱、与 Cache
-    Components 静态化打架）；layout.tsx 读 params 算（不通用）
+    Components 静态化打架）；layout.tsx 读 params 算(不通用)
   - 触发场景：sidebar 不知道当前位置——用户视觉锚点缺失
   - 实现要点：`aria-current="page"` 兼顾 a11y；当前章下小节左侧竖线
     换 accent 色作为视觉锚
+
+- **阅读宽度三档（reading-width）**：自实现（2026-05-23 引入）
+  - 选型理由：rspress / Nextra / Docusaurus 等主流文档站都把内容压
+    在固定宽度内，**长表格被迫横滚**。手册第 3 章开始大量出现 4-5
+    列表格，问题被放大——这正是本站的差异化机会
+  - 三档：comfortable（80rem 容器 + 72ch 正文，默认）/ wide
+    （96rem + 96ch）/ focus（min(120rem,100%) + 隐藏侧栏 + 全宽正文）
+  - 实现要点：
+    - `:root[data-reading-width=...]` 驱动 CSS 变量
+      `--handbook-container` / `--handbook-prose-max`，三档零 JS 切换
+    - 状态写 `localStorage`；FOUC 防护用顶层内联 script（[ReadingWidthScript](../src/components/ui/reading-width-script.tsx)
+      照搬 [ThemeScript](../src/components/ui/theme-script.tsx) 模式）
+    - UX 选 segmented control（三段并排显示选中态），不是循环按钮
+      ——离散选项的标准模式；`role="radiogroup"` + `aria-checked`
+      照顾键盘 / 屏幕阅读器
+  - 顺手做的表格升级：去掉 `td/th { white-space: nowrap }`（CJK 表
+    格被迫横滚的根因），改 `overflow-wrap: anywhere`；表格内 `<code>`
+    保持 nowrap 避免代码片段被切
+  - **手册侧关联**：本能力本身就是 §3.5 / §3.6 的活案例——CSS 变量
+    驱动状态、`data-*` attribute 替代 class、防 FOUC 的内联 script
+    模式都可以在写到对应节时直接引为本站实例
+
+- **MDX diagrams 组件**：[src/components/mdx/diagrams.tsx](../src/components/mdx/diagrams.tsx)
+  （2026-05-23 引入）
+  - 选型理由：mdx 里直接嵌内联 SVG / 复杂 HTML 会让内容文件臃肿、
+    作者心智负担高；抽成命名组件后 mdx 里只写 `<FlexAxisDiagram />`
+    一行
+  - 当前条目：FlexAxisDiagram（Flex 主轴 / 交叉轴示意）、
+    CardAlignmentMisalignedDemo（Grid 嵌套对齐断层 HTML 演示）
+  - 替代方案对比：Mermaid（语法学习成本 + 中文渲染欠佳）、外部图片
+    （编辑流程长、暗色适配麻烦）、ASCII 文字图（CJK + ASCII 字宽混
+    排无法稳定对齐——已踩过坑）
+  - 实现要点：颜色统一用 `currentColor`，自动跟随暗色模式；图本身
+    放 `<figure className="not-prose">` 跳出 prose 排版约束；底部带
+    `<figcaption>` 解释含义
 
 ### 产品层（手册特定，不抽离）
 
@@ -134,3 +169,26 @@ _TBD_
 - 灵感触发：否
 
 下次评估：2026-08 季度复核，或第 5-6 章上线时（按 SPEC-0010 升级触发 a）
+
+### 2026-05-23 内容自洽 + 站点 UX 增量
+
+动因：写第 3 章 §3.1 现代布局时暴露多个站点能力问题：表格被迫横滚、
+ASCII 图对齐失败、内容固定宽度不适合 4-5 列表格。这一轮把三件事一并
+落地：
+
+- reading-width 三档（segmented control + CSS 变量 + 防 FOUC）
+- 表格 CJK 友好（去 nowrap）
+- mdx diagrams 组件（FlexAxisDiagram / CardAlignmentMisalignedDemo）
+
+升级触发数据更新：
+
+- 数据触发 a（内容 ≥ 第 5-6 章）：否，当前 0 / 1 / 2 / 3 章 §3.1 上线
+- 数据触发 b（差异化 ≥ 3 条）：**+1，当前 1 条**——reading-width 三
+  档是相对 rspress / Nextra / Docusaurus 的明确差异化点（这些站点
+  内容区都是固定宽度，不支持调宽 / 隐藏侧栏 / 全宽阅读）；表格 CJK
+  友好和 mdx diagrams 是基础质量补齐，不算差异化
+- 调研触发（完成竞品调研）：否
+- 灵感触发：是——本节内容暴露的渲染问题反过来成为站点能力升级机会，
+  这正是 SPEC-0010 §灵感触发的标准形态
+
+下次评估：2026-08 季度复核，或差异化第 2-3 条触达时。
