@@ -145,14 +145,6 @@ GitHub Release 标题的事件。commit 粒度详情查 `git log`。
 
 ---
 
-## 发布记录
-
-发布历史**不在本文件维护**——`git log --oneline` 是真源，未来正式
-发布后 [GitHub Releases](https://github.com/wilsonwangdev/frontend-engineer-handbook/releases)
-会作为版本化记录。本文件只跟踪**未发生**的事 + 里程碑节点。
-
----
-
 ## 怎么用本文件
 
 - **新会话**：从上到下读一遍。"当前焦点"或"下一步"里第一个未勾选项就是
