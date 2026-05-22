@@ -33,7 +33,13 @@ export default function HomePage() {
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           <PathCard tag="A" title="系统学习" desc="从头到尾建立完整知识体系" tone="essential" />
           <PathCard tag="B" title="按需查阅" desc="查漏补缺，快速复习" tone="understand" />
-          <PathCard tag="C" title="实践驱动" desc="边做边学，从项目入手" tone="delegatable" />
+          <PathCard
+            tag="C"
+            title="实践驱动"
+            desc="边做边学，从项目入手"
+            tone="delegatable"
+            note="第 10 章上线后开放"
+          />
         </div>
 
         <ChapterPlan />
@@ -47,11 +53,13 @@ function PathCard({
   title,
   desc,
   tone,
+  note,
 }: {
   tag: string;
   title: string;
   desc: string;
   tone: "essential" | "understand" | "delegatable";
+  note?: string;
 }) {
   return (
     <div className="rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]">
@@ -66,6 +74,7 @@ function PathCard({
       </div>
       <h3 className="font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-fg-muted">{desc}</p>
+      {note && <p className="mt-2 text-xs text-fg-muted/70">⏳ {note}</p>}
     </div>
   );
 }
