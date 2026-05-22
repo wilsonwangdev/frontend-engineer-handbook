@@ -124,8 +124,11 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
     - 通用层 / 产品层 / 待分类？
     - 是否触发新增 [docs/SSG-DISTILLATION.md](docs/SSG-DISTILLATION.md) 条目？
     - 是否产生值得 [journal/](journal/) 记录的非显然踩坑？
+    - **跨设备体验是否验证过**？UI 改动至少过 phone（< 768px）/
+      tablet（768-1279px）/ desktop（≥ 1280px）三档；不同视口下的
+      最佳选项可能不同（参 Apple HIG），通用实现≠好体验
 
-    三问全 No 也合格，但要显式答；详见
+    四问全 No 也合格，但要显式答；详见
     [SPEC-0010](specs/0010-progressive-ssg-distillation/spec.md) §Confirmation。
 
 ## 代码风格

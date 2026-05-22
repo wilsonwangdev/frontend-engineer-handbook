@@ -65,6 +65,17 @@
     列表格，问题被放大——这正是本站的差异化机会
   - 三档：comfortable（80rem 容器 + 72ch 正文，默认）/ wide
     （96rem + 96ch）/ focus（min(120rem,100%) + 隐藏侧栏 + 全宽正文）
+  - **设备分档（参 Apple HIG「响应式布局」）**：
+    - phone（< 768px）：toggle **完全隐藏**——容器已撑满 + 侧栏
+      改 drawer，三档无差异
+    - tablet（768-1279px）：toggle 只显示**两档**「默认 / 专注」——
+      此视口下 comfortable 与 wide 视觉无差（视口本身 < 96rem 容器），
+      暴露相同选项是噪音；wide 样式同时由 `@media (min-width: 1280px)`
+      包裹，存储是 wide 也降级到 comfortable
+    - desktop（≥ 1280px）：三档全开
+    - 状态保持原则：mode 数据层只有 3 档，视口变化只影响"哪些选项
+      可见 / 哪种 CSS 生效"，用户在桌面选了 wide 切到平板再回桌面
+      仍是 wide
   - 实现要点：
     - `:root[data-reading-width=...]` 驱动 CSS 变量
       `--handbook-container` / `--handbook-prose-max`，三档零 JS 切换
@@ -73,12 +84,15 @@
     - UX 选 segmented control（三段并排显示选中态），不是循环按钮
       ——离散选项的标准模式；`role="radiogroup"` + `aria-checked`
       照顾键盘 / 屏幕阅读器
+    - 设备检测用 `window.matchMedia` + `addEventListener('change')`
+      实时响应窗口拖拽 / 横竖屏切换
   - 顺手做的表格升级：去掉 `td/th { white-space: nowrap }`（CJK 表
     格被迫横滚的根因），改 `overflow-wrap: anywhere`；表格内 `<code>`
     保持 nowrap 避免代码片段被切
   - **手册侧关联**：本能力本身就是 §3.5 / §3.6 的活案例——CSS 变量
     驱动状态、`data-*` attribute 替代 class、防 FOUC 的内联 script
-    模式都可以在写到对应节时直接引为本站实例
+    模式、按视口分档暴露选项的"适应性设计"原则都可以在写到对应节
+    时直接引为本站实例
 
 - **MDX diagrams 组件**：[src/components/mdx/diagrams.tsx](../src/components/mdx/diagrams.tsx)
   （2026-05-23 引入）
@@ -190,5 +204,29 @@ ASCII 图对齐失败、内容固定宽度不适合 4-5 列表格。这一轮把
 - 调研触发（完成竞品调研）：否
 - 灵感触发：是——本节内容暴露的渲染问题反过来成为站点能力升级机会，
   这正是 SPEC-0010 §灵感触发的标准形态
+
+下次评估：2026-08 季度复核，或差异化第 2-3 条触达时。
+
+### 2026-05-23 跨设备适配 + R10 元约束扩展
+
+动因：reading-width 上一轮只在桌面验证，iPad 实测发现 comfortable
+与 wide 视觉无差（视口 < 96rem 容器）、phone 视口下三档完全无意义。
+违反"通用实现≠好体验"的适应性设计基本要求。
+
+落地：
+
+- toggle 按设备分档：phone 隐藏整个控件 / tablet 只显示「默认 +
+  专注」/ desktop 三档全开（参 Apple HIG「响应式布局」）
+- CSS 同步：wide 样式包裹在 `@media (min-width: 1280px)`，存储是
+  wide 也按视口降级
+- AGENTS.md §10 R10 加第 4 问「跨设备体验是否验证过？」——把"phone /
+  tablet / desktop 三档过一遍"提升为站点能力修改的元约束
+
+升级触发数据更新：
+
+- 数据触发 a：维持上一轮
+- 数据触发 b（差异化 ≥ 3 条）：维持 1 条；本轮是质量补齐不算新差异化
+- 调研触发：否
+- 灵感触发：否（本轮是上一轮的修补）
 
 下次评估：2026-08 季度复核，或差异化第 2-3 条触达时。

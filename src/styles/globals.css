@@ -133,17 +133,26 @@
 }
 
 @layer components {
-  /* Reading width modes — three tiers driven by [data-reading-width] on <html>.
-     comfortable (default): max prose 72ch, sidebar shown, container 7xl
-     wide: max prose 96ch, sidebar shown, container 8xl
-     focus: max prose 100%, sidebar hidden, container near-full-width */
+  /* Reading width modes — driven by [data-reading-width] on <html>.
+     Three tiers, but only meaningfully applied at certain viewport sizes:
+       phone   (< 768px): toggle hidden; container is already full-width,
+                          all three tiers behave identically.
+       tablet  (768-1279px): comfortable & wide collapse to the same look
+                          (viewport itself caps at < 96rem). Toggle shows
+                          only "default" and "focus".
+       desktop (≥ 1280px): all three differentiated.
+     Following Apple HIG: surface only meaningful options for each device. */
   :root {
     --handbook-container: 80rem; /* 7xl */
     --handbook-prose-max: 72ch;
   }
-  :root[data-reading-width="wide"] {
-    --handbook-container: 96rem; /* 8xl-ish */
-    --handbook-prose-max: 96ch;
+  /* wide variant only kicks in at ≥1280px (lg). On smaller screens, even
+     if the stored mode is "wide", we fall back to comfortable. */
+  @media (min-width: 1280px) {
+    :root[data-reading-width="wide"] {
+      --handbook-container: 96rem;
+      --handbook-prose-max: 96ch;
+    }
   }
   :root[data-reading-width="focus"] {
     --handbook-container: min(120rem, 100%);
