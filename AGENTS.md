@@ -119,6 +119,14 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
    后可代为执行。
 9. **守住开源资产边界**：写入仓库前过 fork 测试 + 客观性测试。
    详见 [SPEC-0007](specs/0007-open-source-asset-boundary/spec.md)。
+10. **改站点能力时分类 + 沉淀**：动 `src/components/` / `src/lib/` /
+    `src/app/` / `next.config.*` 或加新依赖时，commit body 一句话答：
+    - 通用层 / 产品层 / 待分类？
+    - 是否触发新增 [docs/SSG-DISTILLATION.md](docs/SSG-DISTILLATION.md) 条目？
+    - 是否产生值得 [journal/](journal/) 记录的非显然踩坑？
+
+    三问全 No 也合格，但要显式答；详见
+    [SPEC-0010](specs/0010-progressive-ssg-distillation/spec.md) §Confirmation。
 
 ## 代码风格
 
