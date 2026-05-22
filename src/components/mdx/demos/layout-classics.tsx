@@ -174,6 +174,11 @@ const NOTIFICATION_BADGE_CODE = `<button class="icon-btn" aria-label="通知（�
   <span class="num-badge" aria-hidden="true">12</span>
 </button>
 
+<button class="icon-btn" aria-label="收件箱（99+ 条新消息）">
+  ✉️
+  <span class="num-badge" aria-hidden="true">99+</span>
+</button>
+
 <style>
 .icon-btn {
   position: relative;            /* 关键：作为徽章的包含块 */

@@ -4,6 +4,8 @@ export interface PlannedChapter {
   type: "chapter" | "appendix";
   published: boolean;
   url?: string;
+  /** 部分发布：整章 frame 上线 + 部分子节上线，但子节不全 */
+  partial?: { released: number; total: number };
 }
 
 export const chapterPlan: PlannedChapter[] = [
@@ -16,7 +18,14 @@ export const chapterPlan: PlannedChapter[] = [
     url: "/chapter-01",
   },
   { id: "02", title: "Web 平台基石", type: "chapter", published: true, url: "/chapter-02" },
-  { id: "03", title: "HTML / CSS / 现代布局", type: "chapter", published: false },
+  {
+    id: "03",
+    title: "HTML / CSS / 现代布局",
+    type: "chapter",
+    published: true,
+    url: "/chapter-03",
+    partial: { released: 1, total: 6 },
+  },
   { id: "04", title: "JavaScript 与 TypeScript", type: "chapter", published: false },
   { id: "05", title: "React 与 Next.js", type: "chapter", published: false },
   { id: "06", title: "工程化与构建", type: "chapter", published: false },
@@ -30,8 +39,13 @@ export const chapterPlan: PlannedChapter[] = [
   { id: "D", title: "实战避坑录", type: "appendix", published: false },
 ];
 
+/** 完整发布的章数（partial 不计；它"在路上"但不是"完成") */
 export function getPublishedCount() {
-  return chapterPlan.filter((c) => c.type === "chapter" && c.published).length;
+  return chapterPlan.filter((c) => c.type === "chapter" && c.published && !c.partial).length;
+}
+
+export function getPartialCount() {
+  return chapterPlan.filter((c) => c.type === "chapter" && c.partial).length;
 }
 
 export function getChapterCount() {

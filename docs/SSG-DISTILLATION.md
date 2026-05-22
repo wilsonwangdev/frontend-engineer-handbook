@@ -180,6 +180,51 @@ schema 字段（tier / paths / lastVerified 等）。
 
 _TBD_
 
+### 设计语言一致性原则
+
+跨组件视觉一致性原则。新增 / 调整 UI 组件时对照——**不一致才需
+要解释**，一致是默认。
+
+| 维度        | 原则                                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 形状        | 二级控件（toggle / 浮动按钮 / 复制按钮 / FAB-like 辅助按钮）一律 `rounded-md`；圆形 `rounded-full` 仅保留给"主操作 FAB"——本站当前没有 |
+| 边框 + 背景 | 控件外壳：`border-[var(--color-border)] bg-[var(--color-bg-elevated)]`；选中态再加 `bg-[var(--color-bg)] shadow-sm ring-1`            |
+| 触控目标    | 主要操作 ≥ 40×40（WCAG 2.5.5）；辅助按钮（icon-only）28-32px 也 OK，但 hit area 要补 padding                                          |
+| 命名        | 用户可见 label 用**客观行为描述**（默认 / 宽屏 / 全宽），不用主观感受词（舒适 / 专注 / 沉浸）                                         |
+| 图标尺寸    | 14-18px：14 用于内嵌（toggle 内）；18 用于浮动 / 独立按钮（BackToTop / GitHub）                                                       |
+| 过渡        | `transition-colors` 默认；`transition-[opacity,transform,color]` 用于浮入浮出                                                         |
+| a11y        | 所有 icon-only 按钮必须 `aria-label`；多选项 toggle 用 `role="radiogroup"` + `aria-checked`                                           |
+
+**为什么写下来**：本仓库 2026-05-23 单天连续优化 reading-width
+toggle / BackToTop / DemoBlock 时出现"圆形 vs 方形"不一致——根因
+是没有明确原则，每次拍脑袋。这份原则把不一致的代价显化，未来动 UI
+前先对照。
+
+### CSS 实战案例池（写到对应章节时引用）
+
+打磨站点过程中撞上的 CSS 高级话题，每条都是未来章节的现成案例。
+**不主动展开**——只在写到对应章节时把"本站如何解决"作为活案例
+引入。
+
+| 话题                                               | 本站如何用                                                                                 | 写到哪节时引用                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------- |
+| CSS 变量驱动状态                                   | reading-width 三档由 `:root[data-reading-width=...]` 切 `--handbook-*` 变量                | §3.5 样式方案选型 / §3.3 现代 CSS 特性 |
+| `data-*` attribute 替代 class                      | reading-width / theme 都用 `data-*`，避免 class 冲突 + 便于 SSR / cookie                   | §3.5 样式方案选型                      |
+| 防 FOUC 内联 script 模式                           | ThemeScript / ReadingWidthScript 顶层内联 script 在 hydration 前应用样式                   | §3.5 样式方案选型 / §3.4 暗色模式      |
+| 容器查询 vs 媒体查询                               | toggle 按视口分档 + DemoBlock 预览区 padding 在 sm 断点收紧                                | §3.1 现代布局 §4 容器查询（已写）      |
+| `@media (prefers-color-scheme)` 与手动 theme 协调  | `:root[data-theme="dark"]` 优先 + `@media` 兜底（用户未明确选时跟系统）                    | §3.4 响应式与中文 Web                  |
+| `prefers-reduced-motion` 适配                      | skeleton-shimmer 关动画；scroll-behavior smooth 自动降级；BackToTop 渐显                   | §3.6 动画与 View Transitions           |
+| `subgrid` 嵌套对齐                                 | CardAlignmentFixedDemo 真实演示                                                            | §3.1 §5（已写）                        |
+| `@keyframes` + `background-size` 200% 驱动 shimmer | SkeletonCard demo                                                                          | §3.6 动画                              |
+| `position: sticky` + 包含块陷阱                    | header / sidebar 都用 sticky                                                               | §3.1 §7.1（已写）                      |
+| `env(safe-area-inset-*)` iOS 适配                  | BackToTop 的 paddingBottom                                                                 | §3.4 响应式与中文 Web                  |
+| segmented control（radiogroup）                    | ReadingWidthToggle                                                                         | §3.5 样式方案选型 / §3.2 a11y          |
+| `:is()` 合并选择器减少重复                         | globals.css 的 `:is(figure[data-rehype-pretty-code-figure], .demo-source-code)` 双主题切色 | §3.3 现代 CSS 特性                     |
+| `dangerouslySetInnerHTML` + Shiki 预渲染           | DemoBlock 源码区                                                                           | §3.5 样式方案选型 / 第 5 章 React 集成 |
+| `--color-bg` + `currentColor` 主题透传             | 所有 SVG diagrams 用 currentColor，配色跟主题切                                            | §3.4 暗色模式 / §3.5 设计令牌          |
+
+新增 case 时追加；写章节时挑用——**不要为了"用满"而硬塞**。
+
 ### 待分类
 
 新增组件 / 工具但暂未判断归属时放这里，下次复核时清空。
@@ -366,5 +411,37 @@ demo 落地：
   本站差异化
 - 调研触发：否
 - 灵感触发：是——内容反馈驱动站点能力补齐的同源链路
+
+下次评估：2026-08 季度复核，或差异化第 3 条触达时。
+
+### 2026-05-23 设计语言一致性 + CSS 实践案例池
+
+动因：连续多轮 UI 改动暴露"圆形 vs 方形 / 各按钮 token 不一致 /
+主观命名"等问题——根因是缺一份明确的设计语言声明。同时这一周 CSS
+高级话题（subgrid / shimmer / 容器查询 / 防 FOUC / data-\* 状态）
+被反复用上但分散在各 commit 里，需要集中沉淀以便未来章节引用。
+
+落地：
+
+- 通知徽章源码补第 3 个 button（99+），与预览三个按钮一致——这条
+  是基础质量缺口，"看到的 ≠ 代码"是手册可信度红线
+- DemoBlock 语言标签从预览头部移到源码 summary 行：语言标签描述源
+  码而非预览，逻辑上不该出现在预览头
+- reading-width「专注」改「全宽」：与「舒适」改「默认」同思路，全
+  部 label 走"客观行为描述"，去主观化
+- BackToTop 圆形改 `rounded-md` 矩形：与 ReadingWidthToggle / theme
+  等次级控件统一。原圆形是误用——圆形保留给"主操作 FAB"
+- SSG-DISTILLATION 加「设计语言一致性原则」章节：形状 / 边框 / 触
+  控 / 命名 / 图标尺寸 / 过渡 / a11y 七维度成文，未来动 UI 前对照
+- SSG-DISTILLATION 加「CSS 实战案例池」：13 条本站撞上的 CSS 高级
+  话题，每条标"写到哪节时引用"——把"站点构建实践→手册内容"的回路
+  做扎实
+
+升级触发数据更新：
+
+- 数据触发 a：维持
+- 数据触发 b（差异化 ≥ 3 条）：维持 2 条
+- 调研触发：否
+- 灵感触发：是——本次"圆形 vs 方形"不一致直接催生设计语言原则
 
 下次评估：2026-08 季度复核，或差异化第 3 条触达时。

@@ -58,14 +58,11 @@ export function DemoBlock({
 
   return (
     <figure className="not-prose my-6 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]">
-      <header className="flex items-baseline justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-4 py-2">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-4 py-2">
         <div className="flex flex-col">
           <span className="text-sm font-medium text-[var(--color-fg)]">{title}</span>
           {description && <span className="text-xs text-fg-muted">{description}</span>}
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-fg-muted">
-          {language}
-        </span>
       </header>
       <div className="flex min-h-[140px] items-center justify-center bg-[var(--color-bg)] p-6 sm:p-8">
         {children}
@@ -75,14 +72,17 @@ export function DemoBlock({
         onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
         className="demo-source border-t border-[var(--color-border)]"
       >
-        <summary className="flex cursor-pointer select-none items-center gap-1.5 px-4 py-2 text-xs text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]">
-          <ChevronRight
-            size={12}
-            strokeWidth={2}
-            aria-hidden="true"
-            className={"transition-transform " + (open ? "rotate-90" : "")}
-          />
-          <span>{open ? "收起源码" : "查看源码"}</span>
+        <summary className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-2 text-xs text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]">
+          <span className="flex items-center gap-1.5">
+            <ChevronRight
+              size={12}
+              strokeWidth={2}
+              aria-hidden="true"
+              className={"transition-transform " + (open ? "rotate-90" : "")}
+            />
+            <span>{open ? "收起源码" : "查看源码"}</span>
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-wider">{language}</span>
         </summary>
         <div className="relative">
           <button

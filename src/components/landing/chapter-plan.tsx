@@ -5,6 +5,7 @@ import {
   chapterPlan,
   getAppendixCount,
   getChapterCount,
+  getPartialCount,
   getPublishedCount,
   type PlannedChapter,
 } from "@/lib/chapter-plan";
@@ -13,14 +14,21 @@ export function ChapterPlan() {
   const chapters = chapterPlan.filter((c) => c.type === "chapter");
   const appendices = chapterPlan.filter((c) => c.type === "appendix");
   const published = getPublishedCount();
+  const partial = getPartialCount();
 
   return (
     <section className="mt-16">
       <header className="mb-4">
         <p className="text-xs font-medium tracking-widest text-fg-muted uppercase">章节规划</p>
         <p className="mt-2 text-sm text-fg-muted">
-          已发布 <span className="font-semibold text-[var(--color-fg)]">{published}</span> 章 · 规划{" "}
-          {getChapterCount()} 章 + {getAppendixCount()} 个附录 · 持续更新中
+          已上线 <span className="font-semibold text-[var(--color-fg)]">{published}</span> 章
+          {partial > 0 && (
+            <>
+              {" "}
+              · 进行中 <span className="font-semibold text-[var(--color-fg)]">{partial}</span> 章
+            </>
+          )}{" "}
+          · 规划 {getChapterCount()} 章 + {getAppendixCount()} 个附录 · 持续更新中
         </p>
       </header>
       <ol className="overflow-hidden rounded-lg border border-[var(--color-border)]">
@@ -50,10 +58,15 @@ function ChapterRow({ chapter, isLast }: { chapter: PlannedChapter; isLast: bool
         <span className={cn("truncate text-sm", !chapter.published && "text-fg-muted")}>
           {chapter.title}
         </span>
+        {chapter.partial && (
+          <span className="shrink-0 rounded-md bg-[var(--color-bg-elevated)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-fg-muted">
+            {chapter.partial.released}/{chapter.partial.total}
+          </span>
+        )}
       </div>
       {chapter.published ? (
         <span className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--color-accent)]">
-          阅读
+          {chapter.partial ? "进行中" : "阅读"}
           <ArrowRight size={12} strokeWidth={2} aria-hidden="true" />
         </span>
       ) : (

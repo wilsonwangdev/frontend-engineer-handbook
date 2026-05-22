@@ -16,8 +16,8 @@ const STORAGE_KEY = "handbook:reading-width";
  * - desktop（≥ 1280px）：三档全开，差异肉眼可见
  *
  * 命名取舍：comfortable / wide / focus 是内部 mode key（不展示）；
- * 用户可见的 label 是「默认 / 宽屏 / 专注」——「默认」比「舒适」中性，
- * 后者带主观倾向（不同读者 / 不同场景下默认未必最舒适）。
+ * 用户可见的 label 都用**客观行为描述**——「默认 / 宽屏 / 全宽」，
+ * 避免「舒适 / 专注」这类主观感受词（不同读者 / 场景下感受不一）。
  *
  * 关键：mode 数据本身只有 3 档（持久化），不同视口只是隐藏不该看到的选项。
  * 用户在桌面选了 wide 后切到平板，存储仍是 wide，但 UI 不显示——回到桌面
@@ -35,7 +35,7 @@ const ALL_OPTIONS: Record<Mode, Option> = {
     Icon: Columns3,
   },
   wide: { mode: "wide", label: "宽屏", hint: "侧栏 + 96ch 正文", Icon: Columns2 },
-  focus: { mode: "focus", label: "专注", hint: "隐藏侧栏 + 全宽阅读", Icon: Square },
+  focus: { mode: "focus", label: "全宽", hint: "隐藏侧栏 + 正文撑满", Icon: Square },
 };
 
 function visibleOptions(device: Device): Option[] {
