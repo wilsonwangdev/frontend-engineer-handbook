@@ -30,8 +30,13 @@ tags: [css, mobile, agent-behavior]
 - 删除两条伪兜底选择器。可见性策略简化为：默认隐藏 → 移动端 media query
   显示。代价是 PC 窄窗也会看到提示，但项目断点体系下 desktop ≥ 1280px，
   实际表格几乎不会溢出，可接受。
+- **二次修正**：第一版还在移动端塞了 `table-layout: fixed`，理由是
+  "防止 CJK 单字换行"。但这相当于用"等分列宽"换"不滑动"——"#" / "归位"
+  这种 1-2 字短列被拉到和长说明列同宽，整体可读性比横滑还糟。wrapper
+  本来就有 `overflow-x: auto` + 渐变提示，移动端横滑是既定可接受方案，
+  不该再叠一层 fixed 把短列也撑大。改回 `table-layout: auto`。
 
-提交：见同 commit。
+提交：见同 commit 与后续 amend / 跟进 commit。
 
 ## Lesson for next time
 
@@ -39,3 +44,7 @@ tags: [css, mobile, agent-behavior]
 不要从 Tailwind 默认值反射性下笔。**当一个想法 ("仅在真正溢出时显示")
 没法用当前技术（纯 CSS）表达时，要么换技术（JS observer），要么改约束
 （移动端无脑显示），不要写假装能工作的代码。**
+
+第二条教训：**遇到一个症状不要顺手叠"看起来稳"的兜底**。`table-layout:
+fixed` 看似治住了 CJK 单字换行，实则把所有列拉成一样宽，破坏了内容
+本来的信息层级。先想清楚溢出是问题还是可接受方案，再决定要不要"修"。

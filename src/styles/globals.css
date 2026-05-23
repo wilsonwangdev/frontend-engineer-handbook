@@ -347,15 +347,13 @@
 
     /* Mobile (< 768px, 项目 phone 档): 表格更可能横向溢出，给提示。
        767.98px 沿用 reading-width-toggle 的边界 -0.02 写法，避免与
-       (min-width: 768px) 在整数像素上重叠。 */
+       (min-width: 768px) 在整数像素上重叠。
+       不强制 table-layout: fixed——等宽分列会把"#"/"归位"这种 1-2 字
+       的短列拉到和长说明列同宽，整体可读性反而更差。让短列保持紧凑、
+       内容溢出时横向滑动（wrapper 已 overflow-x: auto + 渐变提示）。 */
     @media (max-width: 767.98px) {
       & .table-wrapper::after {
         display: block;
-      }
-
-      /* 强制等宽分列，避免 CJK 文本被挤成单字换行。 */
-      & table {
-        table-layout: fixed;
       }
     }
 
