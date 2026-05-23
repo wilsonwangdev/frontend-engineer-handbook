@@ -173,6 +173,38 @@
     符串没跟，会"看到的 ≠ 代码"。第一版接受这个代价；未来若 demo
     数 ≥ 10，考虑用 babel-plugin 自动从组件源码生成 code 字符串
 
+- **表格移动端适配策略**：[src/styles/globals.css](../src/styles/globals.css#L323-L405)
+  （2026-05-23 引入）
+  - 默认行为（≥ 768px）：`table { width: 100% }` + `table-layout: auto`，
+    内容自然分列、cell `overflow-wrap: break-word` 允许长 URL / 英文长
+    词换行；行内 `<code>` 维持 `white-space: nowrap` 不被切
+  - 移动端（< 768px）切换为"**表格内横滑**"：`table { width: max-content;
+min-width: 100% }` + `.table-wrapper { overflow-x: auto }`
+    - 短列（# / 归位 / 难度等 1-3 字定位列）保持紧凑一行展示
+    - 长说明列（理由 / 一句话定位 / 谁最该读）按内容自然宽度
+    - 表格自然总宽超过 wrapper 时在 wrapper 内横滑，**不触发整页横滑**
+    - 右侧 sticky 渐变提示告知"右边还有内容可滑"
+  - **关键陷阱**：媒体查询块必须放在所有基础 table/cell 规则**之后**——
+    nested CSS 同 specificity 下 source order 决定胜负，`width: max-content`
+    写在 `width: 100%` 之前会被静默覆盖（曾踩坑见
+    [journal/2026-05-23-table-mobile-breakpoint-mismatch.md](../journal/2026-05-23-table-mobile-breakpoint-mismatch.md)）
+  - **不选 wrap / 不选 fixed 的理由**：
+    - 整表 wrap：所有列按比例压缩，"必学"竖排成一字一行，破坏短列
+      的视觉锚点作用
+    - `table-layout: fixed`：等分列宽，把"#"这种 1 字短列拉到和长说
+      明列同宽，列宽信息丧失
+    - `word-break: break-word`：改变 min-content 计算，浏览器认为任
+      意字符可断，与 `width: 100%` 组合会把短列压成 1ch（已验证）
+  - **选择标准（写新表时参考）**：
+    - 适合**横滑**（当前默认）：列宽差异大、且短列必须保持紧凑才有
+      意义。手册当前所有"# / 归位 / 理由"类速览表都属此类
+    - 适合**换行**（未来如需 opt-in）：列内容长度差不多、没有"一定
+      不能断"的语义单元（纯描述性长段、读者笔记）。出现这类表再加
+      `.table-wrap` opt-in class，**不要现在先建抽象**
+    - 含 code / URL / 长英文标识符的列：cell 内 `<code>` 已 nowrap
+      处理，与外层 wrap / scroll 选择无关
+  - 调试踩坑（4 轮迭代）完整脉络：见上述 journal
+
 ### 产品层（手册特定，不抽离）
 
 候选范围：TierBadge、三档路径卡片、D1-D5 评估清单、手册特定
@@ -443,5 +475,34 @@ demo 落地：
 - 数据触发 b（差异化 ≥ 3 条）：维持 2 条
 - 调研触发：否
 - 灵感触发：是——本次"圆形 vs 方形"不一致直接催生设计语言原则
+
+下次评估：2026-08 季度复核，或差异化第 3 条触达时。
+
+### 2026-05-23 表格移动端横滑策略沉淀
+
+动因：第 2-3 章速览表 / 三档归位表在 H5 上反复出现"短列被压扁、字符
+级换行"问题，4 轮迭代（断点对齐 → table-layout fixed → word-break →
+source order）才稳定。表面是 CSS 调样式，本质是"列宽差异大的表格在
+窄视口下，到底该 wrap 还是 scroll"的设计选择没有沉淀过——之前只在
+2026-05-23 第三轮 reading-width 条目里顺手提了一句"去掉 nowrap"，
+但那时方案还没演进到当前形态。
+
+落地：
+
+- 通用层加「表格移动端适配策略」独立条目，把横滑 vs 换行的选择标准、
+  当前默认（横滑）的取舍、未来 opt-in 换行的触发条件都写明
+- globals.css 顶部 `.table-wrapper` 注释加一行指回 SSG-DISTILLATION
+- 4 轮迭代脉络仍在 journal/2026-05-23 里，本条目只引用不复制，避免
+  设计意图与事故记录混淆（参 SSG-DISTILLATION 顶部注释「不是 journal」）
+
+升级触发数据更新：
+
+- 数据触发 a：维持
+- 数据触发 b（差异化 ≥ 3 条）：维持 2 条；本轮是基础质量补齐，业界
+  rspress / Nextra / Docusaurus 默认都让表格在窄视口下整体横滚（连
+  short / long 列区分都没做），当前策略已是更好的体验，但还不算明
+  确差异化点，再观察
+- 调研触发：否
+- 灵感触发：否（本轮是反复踩坑后的策略沉淀，不是新方向）
 
 下次评估：2026-08 季度复核，或差异化第 3 条触达时。

@@ -326,7 +326,10 @@
       /* In focus mode, allow tables to break out of the prose width
          (which becomes 100% anyway) so they can use the full reading area. */
       margin-inline: 0;
-      /* Gradient scroll hint — visible when table overflows on mobile.
+      /* 表格移动端策略（横滑 vs 换行的选择标准、4 轮迭代踩坑脉络）
+         沉淀在 docs/SSG-DISTILLATION.md「表格移动端适配策略」条目。
+         动这一块前先读那里，不要凭印象改。
+         Gradient scroll hint — visible when table overflows on mobile.
          Purely decorative; screen readers ignore it. */
       position: relative;
 
