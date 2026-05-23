@@ -119,7 +119,6 @@
       "Bash(npm publish:*)",
       "Bash(pnpm publish:*)",
       "Bash(yarn publish:*)",
-      "Bash(curl:*POST*)",
       "Bash(gh pr merge:*)",
       "Bash(gh release create:*)"
     ]
