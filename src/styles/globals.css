@@ -348,12 +348,18 @@
     /* Mobile (< 768px, 项目 phone 档): 表格更可能横向溢出，给提示。
        767.98px 沿用 reading-width-toggle 的边界 -0.02 写法，避免与
        (min-width: 768px) 在整数像素上重叠。
-       不强制 table-layout: fixed——等宽分列会把"#"/"归位"这种 1-2 字
-       的短列拉到和长说明列同宽，整体可读性反而更差。让短列保持紧凑、
-       内容溢出时横向滑动（wrapper 已 overflow-x: auto + 渐变提示）。 */
+       table 用 max-content + min-width: 100%：内容能撑就撑、超过视口
+       让 wrapper 横滑（已 overflow-x: auto + 渐变提示）。否则
+       width: 100% + auto 布局会按比例压缩所有列，"#"这种 1-2 字短列
+       会被挤到内容字符级换行。 */
     @media (max-width: 767.98px) {
       & .table-wrapper::after {
         display: block;
+      }
+
+      & table {
+        width: max-content;
+        min-width: 100%;
       }
     }
 
@@ -372,17 +378,16 @@
       border-bottom: 1px solid var(--color-border);
       text-align: left;
       vertical-align: top;
-      /* Break long words/URLs at any point to prevent overflow on mobile.
-         `break-word` wraps at word boundaries when possible, falls back
-         to `anywhere` behavior for unbreakable strings (URLs, code). */
-      word-break: break-word;
+      /* overflow-wrap: break-word 处理长 URL / 不可断英文长词的换行；
+         不用 word-break: break-word —— 它会让浏览器把"2.1"这种短 token
+         也按字符级压缩，破坏列宽分配。 */
+      word-break: normal;
       overflow-wrap: break-word;
     }
 
     & th code,
     & td code {
       white-space: nowrap;
-      word-break: normal;
     }
 
     & th {

@@ -35,6 +35,14 @@ tags: [css, mobile, agent-behavior]
   这种 1-2 字短列被拉到和长说明列同宽，整体可读性比横滑还糟。wrapper
   本来就有 `overflow-x: auto` + 渐变提示，移动端横滑是既定可接受方案，
   不该再叠一层 fixed 把短列也撑大。改回 `table-layout: auto`。
+- **三次修正**：去掉 fixed 后"#"列仍在窄视口下显示异常（"2.1" 被字符级
+  撕成竖排）。根因是 cell 上的 `word-break: break-word` + table
+  `width: 100%` 双管齐下：前者允许浏览器在任意字符处断行做内容压缩，
+  后者强制表格填满 wrapper 不溢出，组合下来短列被压成 1ch 宽。
+  - cells 改回 `word-break: normal`，保留 `overflow-wrap: break-word`。
+    后者只有"整词放不下"才断，长 URL 仍能换行，但短 token 不会被撕。
+  - 移动端 table 用 `width: max-content; min-width: 100%`：内容能撑
+    就撑、超过视口由 wrapper 横滑承接，不再按比例压缩列。
 
 提交：见同 commit 与后续 amend / 跟进 commit。
 
@@ -48,3 +56,9 @@ tags: [css, mobile, agent-behavior]
 第二条教训：**遇到一个症状不要顺手叠"看起来稳"的兜底**。`table-layout:
 fixed` 看似治住了 CJK 单字换行，实则把所有列拉成一样宽，破坏了内容
 本来的信息层级。先想清楚溢出是问题还是可接受方案，再决定要不要"修"。
+
+第三条教训：**`word-break: break-word` 与 `overflow-wrap: break-word`
+不可混淆**。前者改变内容压缩的"最小宽度"——浏览器算列宽时认为可以拆到
+1ch，于是短列被压扁；后者只在"整词不下"才断行，不改变 min-content 计算。
+表格 cell 默认就该用后者；前者只在确知"内容必须能撕碎"才用（罕见）。
+配合 `width: 100%` 时尤其危险，会让所有列被等比挤压。
