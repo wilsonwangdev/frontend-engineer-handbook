@@ -1,0 +1,1173 @@
+---
+title: 语义化 HTML 与可访问性
+chapter: 3
+section: 2
+description: <button> 不是 <div onclick>——让屏幕阅读器、键盘用户、搜索引擎都能读懂
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 12
+---
+
+> 这一节讲**网页的"语义层"**——HTML 标签不是给浏览器看的，是给
+> **屏幕阅读器、键盘用户、搜索引擎、AI 爬虫**看的。语义对了，
+> 后面所有事情都顺；语义错了，CSS 再漂亮也是假的可用。
+
+§3.1 把"像素如何排上屏幕"讲清楚了。这一节往回退一步问：**那些
+像素背后的"是什么"**——这是按钮还是链接？这段图是装饰还是有信息？
+标题是第几级？这些问题的答案在 HTML 标签里，不在 CSS 里。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                 | 直接读                                          |
+> | ------------------------------------ | ----------------------------------------------- |
+> | **新人 / 转行者**                    | §0 简史 → §1 选型图 → §2 地基五件套 → §3 反例库 |
+> | **写过几年前端但从没系统学 a11y**    | §1 选型图 → §3 反例库 → §4 ARIA → §6 测试       |
+> | **被产品 / 法务 / 合规要求做无障碍** | §0 §WCAG 部分 → §6 测试 → §9 经典翻车           |
+> | **要带 AI 写组件，想知道自己看什么** | §8 AI 时代写 a11y 的最小集                      |
+>
+> 整节读完约 1 小时；按上面挑读 15-20 分钟。**遇到具体 bug 再回查
+> 更高效**——a11y 不是一次学完的清单，是一个不断对照具体场景的习惯。
+
+---
+
+## 0. 一段必要的回顾：a11y 是怎么"长成现在这样"的
+
+> **a11y** 是 "accessibility" 的缩写——首尾各取一个字母，中间是
+> 11 个字母。中文常译"无障碍"或"可访问性"。本手册混用，意思一样。
+
+### 0.1 a11y 到底在解决什么
+
+可访问性不是"对残障用户的特殊照顾"——它是 **Web 的本来设计意图**。
+1989 年 Tim Berners-Lee 在 CERN 提交的 Web 提案就写明："Web 的
+普适性**包含残障用户**" ([W3C 历史](https://www.w3.org/People/Berners-Lee/ShortHistory.html))。
+但理解 a11y 真正的范围，需要先打破一个常见误解——**它不只是为
+"少数人"做的**：
+
+| 你以为只是      | 其实包括                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| 视障用户        | 视障 + **戴老花镜的中老年人** + **强光下看屏幕的人**                                              |
+| 听障用户        | 听障 + **在嘈杂地铁里听不清视频的人** + **办公室不方便外放的人**                                  |
+| 肢体残障用户    | 残障 + **手腕受伤打石膏的人** + **抱孩子只能单手操作的人**                                        |
+| 认知 / 学习障碍 | 阅读障碍 + **疲劳 / 焦虑下注意力下降的所有人** + **在用第二语言（如中文母语用户读英文）的所有人** |
+
+[微软包容性设计](https://www.microsoft.com/design/inclusive/) **（英文）** 把这个范围
+归纳为 "Permanent / Temporary / Situational"——**永久残障 / 暂时
+受限 / 情境性受限**。世界上**没有谁不属于其中至少一档**：每个人
+都会变老、都会受伤、都会有抱孩子和单手操作手机的时刻。a11y 是
+"把所有人都当一等用户"的设计基线。
+
+WHO 在 [《World Report on Disability》](https://www.who.int/teams/noncommunicable-diseases/sensory-functions-disability-and-rehabilitation/world-report-on-disability) **（英文）**
+的估算：全球约 **16%** 人口有显著残障——这还没算上面三档里的
+临时与情境性受限。把"a11y 不做"等于自愿放弃这部分用户。
+
+### 0.2 价值层：商业 + 法律 + 用户
+
+a11y 不是道德义务——三个维度都站得住脚：
+
+| 维度        | 具体价值                                                                                                                                                    |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **法律**    | 欧盟 EAA（2024 生效，B2C 强制）、美国 ADA Title III（适用商业网站，每年数千起诉讼）、中国 GB/T 37668（推荐性，政府采购越来越多写入要求）                    |
+| **商业**    | 英国 [Click-Away Pound 报告](https://www.clickawaypound.com/) **（英文）** 估算：英国残障用户每年因网站不可用流失 **£17.1B / 年**；这是企业能直接捡回的市场 |
+| **SEO**     | 语义化 HTML 是 Google / Bing / 百度爬虫理解页面结构的同一套信号——做 a11y = 同时做 SEO                                                                       |
+| **AI 友好** | 大模型读 HTML 的方式越来越贴近屏幕阅读器（landmark / heading 跳转、alt / label 关联）——做 a11y 也在为 LLM 抓取做适配                                        |
+| **用户**    | 16% 显性 + 大量临时 / 情境用户能用你的产品                                                                                                                  |
+
+### 0.3 业界标杆：a11y 是怎么被推行起来的
+
+a11y 从"理想"走到"标准做法"，靠的是几家公司把它写进自己的产品
+DNA。值得新人知道的几条线：
+
+- **微软（Microsoft）**：把 a11y 升级为公司战略级目标。推出
+  [Inclusive Design Toolkit](https://inclusive.microsoft.design/) **（英文）** 把
+  "为残障人群设计"重新框定为"为人类的全部状态设计"；硬件层面有
+  [Xbox Adaptive Controller](https://www.xbox.com/en-US/accessories/controllers/xbox-adaptive-controller) **（英文）**——
+  把游戏手柄做成可拼装的可访问形态；软件层面 Windows 内置
+  [Narrator](https://support.microsoft.com/zh-cn/windows/narrator-%E5%AE%8C%E6%95%B4%E6%8C%87%E5%8D%97-e4397a0d-ef4f-b386-d8ae-c172f109bdb1)
+  屏幕阅读器、视觉辅助 [Seeing AI](https://www.seeingai.com/) **（英文）**
+- **苹果（Apple）**：1984 年就在 Mac 里内置辅助功能；今天 iOS 的
+  [VoiceOver](https://www.apple.com.cn/accessibility/vision/) 是移动端屏幕
+  阅读器的事实标准；[Apple HIG](https://developer.apple.com/design/human-interface-guidelines/accessibility) **（英文）**
+  把 a11y 列为最高级设计原则之一
+- **谷歌（Google）**：Android 内置 [TalkBack](https://support.google.com/accessibility/android/answer/6283677) **（中文）**；
+  Chrome DevTools 内置 [Lighthouse Accessibility 审计](https://developer.chrome.com/docs/lighthouse/accessibility/)；
+  Material Design 整章讲 a11y 实现；[axe-core](https://github.com/dequelabs/axe-core)
+  虽然由 Deque 开源，但事实上是 Google 系产品（Lighthouse / Puppeteer）
+  全部接入的引擎
+- **英国政府数字服务（GDS）**：[GOV.UK Design System](https://design-system.service.gov.uk/) **（英文）**
+  是政府服务级 a11y 标杆——每个组件都标注完整的 a11y 行为、键盘
+  交互与屏幕阅读器期望；2018 年起所有英国政府服务网站强制达 WCAG 2.1 AA
+- **Deque / WebAIM 等专业咨询机构**：每年发布 [WebAIM Million 报告](https://webaim.org/projects/million/) **（英文）**
+  扫描全球 Top 100 万站点的 a11y 状况——2024 年报告显示 **96.3%
+  的首页有可检测的 WCAG 错误**；这是行业基线，远比想象中差
+
+读者层面值得知道的两组数据来自这些实践沉淀：
+
+1. **a11y 投入产出**：[微软 2017 年内部研究](https://design.microsoft.com/inclusive)
+   显示——为残障用户优化的产品，**对所有人**的可用性提升约 7-12%
+2. **修复成本曲线**：a11y bug **设计阶段修复** 1×、**开发阶段修复** 6×、
+   **上线后修复** 100× ([Deque "Shifting Left" 白皮书](https://www.deque.com/shift-left-accessibility/) **（英文）**)。
+   这条曲线和"软件 bug 越晚修越贵"是同一个量级——但 a11y 经常被
+   推到上线后才补，于是付了最高那档代价
+
+### 0.4 时间线：标准是如何落地的
+
+理解了"为什么"，再看"怎么走到今天"——下面这条线把规范、法律、
+中国国标串起来：
+
+| 年份 | 节点                                                                                                                                                                                                                            | 留下了什么                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1999 | [WCAG 1.0 发布](https://www.w3.org/TR/WAI-WEBCONTENT/)                                                                                                                                                                          | 第一份**网页内容可访问性指南**；告诉作者"alt 要写"                              |
+| 2008 | [WCAG 2.0 发布](https://www.w3.org/TR/WCAG20/)                                                                                                                                                                                  | 引入 **POUR 四原则**（可感知 / 可操作 / 可理解 / 健壮）+ A / AA / AAA 三级别    |
+| 2014 | [WAI-ARIA 1.0 发布](https://www.w3.org/TR/wai-aria-1.0/)                                                                                                                                                                        | 给"必须用 div 自造组件"的场景一套补丁机制；同时也开了"补丁滥用"的口子           |
+| 2018 | [WCAG 2.1 发布](https://www.w3.org/TR/WCAG21/)                                                                                                                                                                                  | 补移动端 + 低视力 + 认知障碍场景                                                |
+| 2018 | [欧盟 EN 301 549 强制](https://en.wikipedia.org/wiki/EN_301_549)                                                                                                                                                                | 公共部门网站必须达 WCAG 2.1 AA；**a11y 第一次有法律牙齿**                       |
+| 2019 | [GB/T 37668-2019 发布](http://c.gb688.cn/bzgk/gb/showGb?type=online&hcno=8FCF59DA1D3E83AAFD92D75D75DE6DA3) **（需代理）**                                                                                                       | 中国"信息技术 互联网内容无障碍可访问性技术要求与测试方法"——国标对齐 WCAG 2.0 AA |
+| 2023 | [WCAG 2.2 发布](https://www.w3.org/TR/WCAG22/)                                                                                                                                                                                  | 加 9 条新成功标准；焦点遮挡 / 拖拽替代 / 一致帮助等                             |
+| 2024 | [欧盟 EAA 生效](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030/european-accessibility-act_en) **（需代理）** | **私营 B2C 也强制**——电商、支付、媒体一律要 AA；不合规会被罚                    |
+| 2025 | [State of HTML 2024 报告](https://2024.stateofhtml.com/zh-Hans/)                                                                                                                                                                | a11y 进入开发者日常关注 Top 5；自动化工具（axe / Lighthouse）渗透率 > 60%       |
+
+> 史料一手来源：W3C 各版规范 + Wikipedia 法规条目最权威；浏览器 +
+> 屏幕阅读器实际支持看 [a11ysupport.io](https://a11ysupport.io/)；
+> 想读完整 ARIA 设计模式去 [WAI-ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)。
+
+**两个结论值得记住**：
+
+1. **2024 年是分水岭**——欧盟 EAA 把 a11y 从"道德义务"变成"法律
+   义务"。如果你做 B2C 业务（电商 / 媒体 / 金融）+ 用户里有任何欧盟
+   公民，**不做 a11y 是会被罚款的**。中国国标 GB/T 37668 目前是
+   推荐性标准，但政府采购 / 公共服务项目越来越多写进招标要求
+2. **a11y 不是"额外功夫"**——下面这张图把它和 SEO / AI 爬虫的关系
+   画穿了：
+
+| 你做对的事                         | a11y 受益      | SEO 受益             | AI 爬虫受益            |
+| ---------------------------------- | -------------- | -------------------- | ---------------------- |
+| 用 `<button>` 而非 `<div onclick>` | 键盘用户能用   | —                    | LLM 知道这是"动作触发" |
+| 给 `<img>` 写 alt                  | 屏幕阅读器能读 | 图片搜索可索引       | 图文理解模型能读       |
+| 标题层级（h1→h2→h3）规整           | 跳转结构       | 搜索引擎理解信息架构 | 大纲提取更准           |
+| `<main>` / `<nav>` 等 landmark     | 跳转区域       | 主体内容识别         | 内容抽取更准           |
+| 表单 `<label for>`                 | 屏幕阅读器关联 | 表单可被索引         | 自动填表 agent 能用    |
+
+**做 a11y 等于同时白送 SEO + AI 友好性**。不是三件事，是一件事
+的三种受益方。这是**第 2 章 §渲染**的"分层"思想在内容层的延续——
+HTML 是真正的内容层，CSS 和 JS 都是它的修饰层。
+
+---
+
+## 1. 一张选型决策图：先原生、再 ARIA、最后自造
+
+a11y 看似规则多，但有一条压倒性原则—— [W3C 官方第一规则](https://www.w3.org/TR/using-aria/#rule1)：
+
+> **如果原生 HTML 元素能做，就**不要**用 ARIA 自造**。
+
+这条规则是 ARIA 自身规范里写的，不是社区共识。原因很现实——
+**原生元素自带键盘、焦点、屏幕阅读器、表单关联的全套行为**，自造
+要把这些手动复刻一遍，每一处都是 bug 风险。
+
+下面这张图是本节其余内容的总索引。读完整节再回到这里，你会有
+完整心智：
+
+```
+遇到一个交互需求
+        │
+        ▼
+┌─────────────────────┐
+│ 原生 HTML 能做吗？  │
+└──────────┬──────────┘
+   能 │    │ 不能
+      ▼    ▼
+   §2 地基五件套        ┌──────────────────────────┐
+   <button>             │ ARIA APG 有现成模式吗？  │
+   <a href>             └────────────┬─────────────┘
+   <input>                  有 │     │ 没有
+   <details>                   ▼     ▼
+   <dialog>             §4 ARIA      §自造（极少见）
+                        增强器       逐项手测键盘
+                                     + 三大屏幕阅读器
+```
+
+> **APG = ARIA Authoring Practices Guide**，W3C 官方的"自造组件
+> 怎么做才合规"参考库——下拉菜单、模态、Tabs、Tree 各 30+ 模式都
+> 有完整 ARIA + 键盘交互范例。**自造组件前先去 APG 看一遍**
+> ([w3.org/WAI/ARIA/apg](https://www.w3.org/WAI/ARIA/apg/))。
+
+### 1.1 老前端用户的 5 分钟升级路径
+
+如果你已经写过几年前端但从来没系统学过 a11y，先看这 5 行——
+**它们覆盖业务里 80% 的 a11y bug**：
+
+1. 把所有 `<div onclick>` 改成 `<button type="button">`
+2. 给所有 `<img>` 写 `alt`（装饰图写 `alt=""`）
+3. 表单每个 `<input>` 配一个 `<label for>` 或 `<label>` 包起来
+4. 页面顶层用 `<header>` `<main>` `<nav>` `<footer>` 而非 `<div>`
+5. `<a>` 只能跳页面、不能"模拟按钮"——要触发动作就用 `<button>`
+
+写代码时反射性过一遍这 5 条，你已经超过同行 70%。剩下 20% 在
+§4 ARIA、§5 焦点、§7 中文场景。最难的那 10% 在 §9 经典翻车。
+
+---
+
+## 2. 语义化 HTML 的"地基五件套"
+
+> **本节核心：信息隐藏（information hiding）**——`<button>` 把
+> "焦点 / 键盘 / 默认 role / 表单提交"等十几条行为藏在一个标签后面。
+> 你用 `<div>` + `onclick` 去模拟它，等于把这些被藏起来的细节全部
+> **暴露**到自己的代码里。每一条都得手工复刻 + 测试，每一条都是
+> bug 来源。这是第 2 章 §安全暗线"信息隐藏"在 HTML 层的同款应用。
+
+下面这五件套是 99% 业务页面都用得到的。**一定要写对**——它们是
+ARIA 的前提，也是后面所有判断的基础。
+
+### 2.1 按钮 vs 链接：90% 的人选错过
+
+最经典的混淆：**什么时候用 `<button>`、什么时候用 `<a>`**？
+
+| 你想做                               | 用                          | 为什么                                                          |
+| ------------------------------------ | --------------------------- | --------------------------------------------------------------- |
+| 跳到另一个 URL（含锚点 `#section`）  | `<a href="...">`            | 链接的本意是"导航"——浏览器会处理新标签页 / 复制链接 / 后退      |
+| 触发 JS 动作（开模态 / 提交 / 切换） | `<button>`                  | 按钮的本意是"动作"——回车 / 空格触发，不会"另存为"               |
+| SPA 内路由跳转                       | `<a href="...">` + 框架接管 | Next.js / React Router 的 `<Link>` 内部是 `<a>` 加拦截          |
+| **不要**：`<a href="#">` + onclick   | —                           | "看着是链接、行为是按钮" = 键盘空格不响应、复制链接给别人是空的 |
+| **不要**：`<div onclick>`            | —                           | 没有焦点、键盘按不了、屏幕阅读器读不到                          |
+
+**两个高频踩坑**：
+
+1. **`<button>` 默认 `type="submit"`**——在 `<form>` 里写 `<button onClick={...}>`
+   会顺便提交整个表单。**规矩**：所有非提交按钮显式写 `type="button"`。
+   一手参考：[MDN · `<button>` 的 type 属性](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Elements/button#type)
+2. **`<a>` 没有 `href` 时不可聚焦也不显示手型光标**——这是 HTML
+   规范行为，不是 bug。"待激活"的链接应当用 `<button>` + 后续切回
+   `<a>`，不要写 `<a onclick>` 想绕过这条规则。
+
+> **作者反思（[SPEC-0014](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0014-taste-cultivation-for-beginners/spec.md) 触点 B）**：
+> 我以前写过 `<a href="javascript:void(0)" onClick={...}>`——
+> 表面看像链接、点了能触发动作。这种代码每条都同时坑了**屏幕
+> 阅读器用户**（被告知这是链接，但激活后没有导航）和**用户的
+> 浏览器历史**（"打开新标签页"会得到 `about:blank`）。现在我看到
+> `<a href="#"` / `href="javascript:"` 一律改 `<button>`，没有
+> 例外。
+
+### 2.2 Landmark：页面骨架的语义版
+
+> **landmark = 页面区域路标**——屏幕阅读器用户按一个键（VoiceOver
+> 是 `VO + U`、NVDA 是 `D`）就能在所有 landmark 之间跳转。没有
+> landmark 的页面，键盘 / 阅读器用户只能从头一个个 Tab 过去。
+
+七个 landmark 元素（不需要写 `role`，标签自带）：
+
+| 元素        | 一句话用途                                                                | 一页应有几个                |
+| ----------- | ------------------------------------------------------------------------- | --------------------------- |
+| `<header>`  | 顶部 banner（站点 logo / 主导航容器）                                     | 通常 1 个（在 `<body>` 下） |
+| `<nav>`     | 主导航 / 章节导航 / 面包屑                                                | 多个时各加 `aria-label`     |
+| `<main>`    | 当前页面**唯一的**主内容区                                                | **必须正好 1 个**           |
+| `<aside>`   | 与主内容相关的辅助信息（侧边栏 / 推荐 / 注释）                            | 0-N 个                      |
+| `<section>` | 主题相关的内容分组（**需要可访问名**：`aria-labelledby` 或 `aria-label`） | 按需                        |
+| `<article>` | 独立可分发的内容（博文 / 卡片 / 评论）                                    | 按需                        |
+| `<footer>`  | 底部信息（版权 / 友链）                                                   | 通常 1 个                   |
+
+**反例**（业务里常见）：
+
+```tsx
+// ❌ div 套娃：屏幕阅读器只能告诉用户"一堆 group"
+<div className="header">...</div>
+<div className="sidebar">...</div>
+<div className="content">...</div>
+<div className="footer">...</div>
+
+// ✅ landmark：阅读器用户一键跳到任意区域
+<header>...</header>
+<nav aria-label="章节导航">...</nav>
+<main id="main" tabIndex={-1}>...</main>
+<aside>...</aside>
+<footer>...</footer>
+```
+
+> **现场试**：本手册的 [(handbook)/layout.tsx](<https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/src/app/(handbook)/layout.tsx>)
+> 用了上面这套 landmark。打开 macOS VoiceOver（`Cmd + F5`）后按
+> `VO + U` 唤出 rotor，能看到"banner / navigation / main / complementary"
+> 列表——这就是 landmark 的真实价值。
+
+精确参考：[MDN · ARIA Landmarks 教程](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Core/Accessibility/WAI-ARIA_basics#%E5%9C%B0%E6%A0%87%EF%BC%88signposts%2Flandmarks%EF%BC%89)。
+更深一层：[W3C ARIA Authoring Practices · Landmark Regions](https://www.w3.org/WAI/ARIA/apg/practices/landmark-regions/) **（英文）**——
+讲解每种 landmark 的语义边界与"什么时候应该 / 不应该用"。
+
+### 2.3 表单：`<label>` 是不能省的
+
+表单是 a11y 翻车率最高的 UI——因为它**同时**要管视觉、键盘、屏幕
+阅读器、自动填充、错误提示五件事。**`<label>` 把控件和它的名字
+绑在一起**，是其余四件事的基础。
+
+三种关联方式（任选其一，不要全用）：
+
+```tsx
+// 1. for 关联（最稳）：屏幕阅读器读「邮箱：[输入框]」
+<label htmlFor="email">邮箱</label>
+<input id="email" type="email" />
+
+// 2. 包裹关联：不需要 id，结构上更紧凑
+<label>
+  邮箱
+  <input type="email" />
+</label>
+
+// 3. aria-labelledby：当可见名不在 <label> 里（如表头当 label）
+<h2 id="profile-title">个人资料</h2>
+<input aria-labelledby="profile-title" type="text" />
+```
+
+**两个常被当 label 用、其实不能当的属性**：
+
+| 属性          | 可以替代 label 吗 | 为什么                                                      |
+| ------------- | ----------------- | ----------------------------------------------------------- |
+| `placeholder` | ❌                | 用户开始输入就消失；自动填充会盖住；颜色对比度通常不达 AA   |
+| `title`       | ❌                | 只在悬停时显示；触屏 / 键盘用户看不到；屏幕阅读器读法不一致 |
+
+> **反思**：`placeholder` 当 label 是 2010 年代审美驱动的设计 ——
+> 表单"看起来更干净"。但代价是用户填到一半看不到字段名、表单出错
+> 时不知道哪格是哪格。**正确做法是 label 始终可见**，placeholder
+> 只放"格式提示"（如 "name@example.com"）。
+
+错误提示要用 `aria-describedby` 关联，不要把错误塞进 placeholder：
+
+```tsx
+<label htmlFor="email">邮箱</label>
+<input
+  id="email"
+  type="email"
+  aria-invalid={hasError}
+  aria-describedby={hasError ? "email-error" : undefined}
+/>
+{hasError && <span id="email-error" role="alert">请输入有效邮箱</span>}
+```
+
+精确参考：[MDN · 表单可访问性指南](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Extensions/Forms/How_to_structure_a_web_form#%E5%88%A9%E7%94%A8_label_%E6%A0%87%E7%AD%BE%E5%85%83%E7%B4%A0%E5%A4%9A%E4%B8%AA%E8%A1%A8%E5%8D%95%E6%8E%A7%E4%BB%B6) +
+[Adam Silver · Form Design Patterns](https://adamsilver.io/articles/where-to-put-button-form/) **（英文）**——
+表单 a11y 设计的事实标准来源。
+
+### 2.4 图像：alt 不是"图片描述"，是"在没有图的时候这格放什么字"
+
+**这是绝大多数人写错 alt 的根因**——他们把 alt 当"图片描述"
+（描述这张图长什么样），但 alt 的本意是**图加载失败时这格的替代
+内容**。决定 alt 的不是图的样子，而是**图在这段上下文里承担什么
+信息**。
+
+| 图的角色                                    | alt 怎么写                                                          |
+| ------------------------------------------- | ------------------------------------------------------------------- |
+| **传达信息**（产品图、人物头像、地图）      | 写一句"这张图传达的信息"                                            |
+| **纯装饰**（背景花纹、分隔线、icon 配文字） | `alt=""`（**空字符串，不是省略**）                                  |
+| **本身就是一段文字**（slogan 截图、表情包） | 把那段字原样写进 alt                                                |
+| **链接 / 按钮的唯一内容**（图标按钮）       | alt 要描述**动作**，不是图（"返回"而非"箭头"）                      |
+| **复杂信息图 / 数据图**                     | alt 写一句概括 + 用 `<figcaption>` 或 `aria-describedby` 关联长描述 |
+
+**反例**：
+
+```html
+<!-- ❌ 装饰图写"图片"——屏幕阅读器读"图片，图片，图片"成噪音 -->
+<img src="divider.svg" alt="图片" />
+
+<!-- ❌ 文字 + 图标，alt 重复了文字 -->
+<button>
+  <img src="trash.svg" alt="删除图标" />
+  删除
+</button>
+
+<!-- ✅ 装饰图：空 alt，阅读器跳过 -->
+<img src="divider.svg" alt="" />
+
+<!-- ✅ 文字 + 图标：图标 aria-hidden，避免重复 -->
+<button>
+  <img src="trash.svg" alt="" aria-hidden="true" />
+  删除
+</button>
+```
+
+> **现场试**：本手册的图标按钮（`back-to-top` / `mobile-nav` /
+> `copy-button`）全部用 `aria-hidden="true"` + 外层 `<button>` 的
+> `aria-label` 提供动作名。这样阅读器读"按钮 · 回到顶部"而非
+> "图片，按钮，回到顶部"。
+
+精确参考：[W3C WAI · Images Tutorial · Decision Tree](https://www.w3.org/WAI/tutorials/images/decision-tree/) **（英文）**——
+官方决策树，按"图的功能"问到底用哪种 alt 策略。
+
+### 2.5 标题层级：从 h1 到 h6 是文档大纲
+
+标题不是字号，是**大纲层级**。h1-h6 给屏幕阅读器一个跳转结构
+（VoiceOver `VO + Cmd + H`、NVDA `H`），跟 Word 的"文档结构图"
+是同一个意思。
+
+**三条铁律**：
+
+1. **一页只有一个 h1**——它是这页的标题；多个 h1 会让阅读器用户
+   分不清主次
+2. **不要跳级**——h1 之后下一级是 h2、不能直接到 h3。跳级 = 在
+   大纲里漏了一层
+3. **不要为了字号选标题**——视觉大小用 CSS 控制，标签选哪一级
+   只看**信息层级**
+
+```html
+<!-- ❌ 跳级 + 拿标题当字号用 -->
+<h1>首页</h1>
+<h3>新品推荐</h3>
+<!-- 跳过了 h2 -->
+<h5>限时折扣</h5>
+<!-- 又跳了一级 -->
+
+<!-- ✅ 严格层级 -->
+<h1>首页</h1>
+<h2>新品推荐</h2>
+<h3>限时折扣</h3>
+```
+
+**Next.js / 现代 React 项目特有**：MDX 渲染默认会按 `#` 数量
+直接映射到 h1-h6——但章节页 + 节页的层级要规划好（本手册的章节
+页 `<h1>` = 章名、节页 `<h1>` = 节名，节内只能从 `##` 起步）。
+否则同一棵 React 树上会出现两个 h1 = 反例 1。
+
+精确参考：[MDN · 标题元素 `<h1>`-`<h6>`](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Elements/Heading_Elements#%E5%8F%AF%E8%AE%BF%E9%97%AE%E6%80%A7) +
+[W3C WAI · Headings Tutorial](https://www.w3.org/WAI/tutorials/page-structure/headings/) **（英文）**。
+
+---
+
+## 3. 反例库：AI 最容易写错的 5 种 a11y 反模式
+
+> **本节核心：对照训练（[SPEC-0014](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0014-taste-cultivation-for-beginners/spec.md) 触点 A）**——
+> 每个反例配一个正例，让你**亲眼看到差异**。a11y 是"细节决定对错"
+> 的领域，看 100 条规则不如对 5 组正反例。
+>
+> 这五个反例**都是 AI 自动补全里高频出现的**——它在训练数据里见过
+> 大量这种代码（StackOverflow + 老博客）。AI 时代的人 = ARIA 的
+> "事实核查员"。
+
+### 反例 1：`<div onclick>` 当按钮
+
+```tsx
+// ❌
+<div className="btn" onClick={handleClick}>
+  保存
+</div>
+
+// ✅
+<button type="button" onClick={handleClick}>
+  保存
+</button>
+```
+
+**差异不止"语义对错"**：
+
+| 维度       | `<div onclick>` | `<button>`          |
+| ---------- | --------------- | ------------------- |
+| 键盘焦点   | ❌ 无           | ✅ Tab 可达         |
+| 空格触发   | ❌              | ✅                  |
+| 回车触发   | ❌              | ✅                  |
+| 屏幕阅读器 | ❌ 读"group"    | ✅ 读"按钮 · 保存"  |
+| 表单提交   | —               | ✅（type="submit"） |
+| 禁用状态   | 自己写          | ✅ `disabled` 属性  |
+
+要把 `<div>` 模拟成按钮，**至少**要补：`role="button"` +
+`tabindex="0"` + `onKeyDown` 监听空格 / 回车 + `aria-disabled`。
+六七行代码换一个 `<button>` 标签——这就是"信息隐藏"的代价对比。
+
+### 反例 2：`<a href="#">` + onClick 当按钮
+
+```tsx
+// ❌ 看着是链接、行为是按钮
+<a href="#" onClick={openModal}>打开设置</a>
+
+// ❌ 同样错——javascript: 协议在 CSP 严格模式下还会被拦
+<a href="javascript:void(0)" onClick={openModal}>打开设置</a>
+
+// ✅
+<button type="button" onClick={openModal}>打开设置</button>
+```
+
+**为什么链接当按钮特别坏**：
+
+- 屏幕阅读器告诉用户这是**链接**，激活后应该导航——结果没动
+- 用户中键点击 / Cmd 点击想"在新标签页打开" → 拿到一个空白页
+- 复制链接给同事 → 同事拿到 `javascript:void(0)`
+- "返回"按钮的行为完全错乱
+
+精确参考：[MDN · `<a>` 在没有 href 时的行为](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Elements/a#%E5%B1%9E%E6%80%A7)。
+
+### 反例 3：装饰 alt 写"图片"
+
+```html
+<!-- ❌ 阅读器读出"图片，图片，图片"成噪音 -->
+<img src="divider.svg" alt="图片" />
+<img src="bg-pattern.png" alt="装饰图" />
+
+<!-- ✅ 装饰图：空字符串告诉阅读器"跳过我" -->
+<img src="divider.svg" alt="" />
+<img src="bg-pattern.png" alt="" role="presentation" />
+```
+
+**`alt=""`（空字符串）≠ 没写 `alt`**——前者明确告诉阅读器"这是
+装饰，跳过"，后者会让阅读器念出文件名 `divider-svg`。决策树看
+§2.4。
+
+### 反例 4：标题跳级 / 拿标题当字号
+
+```html
+<!-- ❌ -->
+<h1>用户中心</h1>
+<h4>账户信息</h4>
+<!-- 跳过了 h2 / h3 -->
+<div className="title-2xl">个人资料</div>
+<!-- 视觉是标题，标签是 div -->
+
+<!-- ✅ -->
+<h1>用户中心</h1>
+<h2>账户信息</h2>
+<h3>个人资料</h3>
+<style>
+  h2 {
+    font-size: 1.5rem;
+  } /* 字号靠 CSS，不靠标签 */
+</style>
+```
+
+屏幕阅读器用户用"标题跳转键"快速浏览页面——跳级 = 在他们的目录
+里漏了一层；用 `<div>` 模仿标题 = 这页根本没有目录。
+
+### 反例 5：placeholder 当 label
+
+```tsx
+// ❌ 用户开始输入就看不到字段名了；自动填充会盖住；颜色对比通常不达 AA
+<input type="email" placeholder="邮箱" />
+
+// ✅ label 始终可见；placeholder 只放格式提示
+<label htmlFor="email">邮箱</label>
+<input id="email" type="email" placeholder="name@example.com" />
+```
+
+精确参考：[W3C WAI · Labeling Controls](https://www.w3.org/WAI/tutorials/forms/labels/) **（英文）** +
+[Adam Silver · Placeholders are Problematic](https://www.smashingmagazine.com/2018/06/placeholder-attribute/) **（英文）**——
+为什么 placeholder 当 label 在键盘 / 视障 / 老年用户身上同时失败。
+
+---
+
+> **怎么用这个反例库**：写完一段代码先 grep 一次：搜 `onClick=`
+> 看有没有挂在 div / a 上、搜 `<img` 看有没有 `alt`、搜 `<h` 看
+> 层级、搜 `placeholder` 看有没有配套的 `<label>`。这五条 grep
+> 拦住业务里 80% 的 a11y bug。
+
+---
+
+## 4. ARIA：不是补丁，是"语义增强器"
+
+> **本节核心：抽象的代价**——ARIA 是 HTML 的"修饰层"，每加一个
+> 属性就在和原生默认值打补丁。**错配的 ARIA 比没有 ARIA 更糟**——
+> 它会主动撒谎，告诉屏幕阅读器一个不存在的状态。
+
+### 4.1 ARIA 三类属性
+
+ARIA 一共三类属性，理解这个分类就懂了 80%：
+
+| 类别                 | 作用                                                   | 例子                                                                    |
+| -------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| **role**（角色）     | 告诉阅读器"这个元素是什么"                             | `role="dialog"` / `role="tab"` / `role="alert"`                         |
+| **state**（状态）    | 告诉阅读器"这个元素**现在是什么状态**"——会变化         | `aria-expanded` / `aria-checked` / `aria-selected` / `aria-current`     |
+| **property**（属性） | 告诉阅读器"这个元素**关于另一个元素的关系**"——通常不变 | `aria-label` / `aria-labelledby` / `aria-describedby` / `aria-controls` |
+
+**state vs property 的本质差异**：state 会随交互变化（一个 Tab
+被选中或没选中），property 通常固定（这个按钮控制哪个区域）。
+看 attribute 名也能判断——多数 state 是布尔值（`true` / `false`），
+多数 property 是字符串或 ID 引用。
+
+### 4.2 ARIA 的五条铁律（W3C 官方）
+
+[W3C ARIA Authoring Practices](https://www.w3.org/TR/using-aria/) **（英文）**
+列了五条规则，记住这五条就避开了 80% 的 ARIA 错误：
+
+1. **能用原生 HTML 就别用 ARIA**——`<button>` 自带 `role="button"`，
+   不需要再加
+2. **不要改原生元素的 role**——`<a role="button">` 是反模式，应当
+   直接用 `<button>`
+3. **所有交互式 ARIA 控件必须键盘可达**——给 `<div role="button">`
+   加 `role` 等于承诺"我会自己复刻键盘行为"，但绝大多数实现都不完整
+4. **可见的可聚焦元素不能用 `role="presentation"` 或 `aria-hidden="true"`
+   隐藏**——这会让键盘用户能 Tab 到一个屏幕阅读器读不到的元素，
+   非常诡异
+5. **所有交互元素必须有可访问名（accessible name）**——`<button>` 的
+   文字、`<a>` 的链接文字、`<input>` 的 `<label>`，三者之一必须有
+
+### 4.3 错配 ARIA 比没有更糟：三个真实案例
+
+```tsx
+// ❌ 案例 1：同时用 disabled 和 aria-disabled，且不一致
+<button disabled aria-disabled="false">提交</button>
+// 视觉灰、键盘按不了，但屏幕阅读器读"按钮 · 启用"——用户被骗了
+
+// ❌ 案例 2：aria-label 覆盖了可见文字
+<button aria-label="删除">移除项目</button>
+// 视觉用户看到"移除项目"，阅读器用户听到"删除"
+// 后果：语音控制软件用户说"点击移除项目"——找不到这个按钮
+
+// ❌ 案例 3：aria-hidden 套在可聚焦元素外层
+<div aria-hidden="true">
+  <button>登录</button>
+</div>
+// 阅读器跳过整个 div 但 Tab 还是能进——焦点落在"不存在"的按钮上
+```
+
+**修复**：
+
+- 案例 1：保持 `disabled` 单独使用；只有需要"灰但可聚焦讲解"的特殊
+  场景才用 `aria-disabled="true"` + `tabindex="0"`
+- 案例 2：让 `aria-label` 与可见文字**首词一致**（推荐做法见
+  [W3C · Visible label and accessible name](https://www.w3.org/WAI/WCAG22/Techniques/general/G208) **（英文）**）
+- 案例 3：用 `inert` 属性（现代浏览器原生支持）替代 `aria-hidden`，
+  它会**同时**禁用焦点和阅读器
+
+### 4.4 不要自造组件——先去 APG 找模式
+
+写自定义 dropdown / dialog / tab / tree / combobox 之前，先去
+[ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/patterns/) **（英文）**
+看一遍。APG 列了 30 多种常用组件模式，每个都给出：
+
+- 完整的 ARIA 属性组合（哪些 role + state + property 配套）
+- **键盘交互规范**（哪个键做什么——这是大多数自造组件的最大坑）
+- WAI 官方的可工作示例
+
+**实战建议**：直接用 [Radix UI](https://www.radix-ui.com/) /
+[React Aria](https://react-spectrum.adobe.com/react-aria/) /
+[Headless UI](https://headlessui.com/) 等"无头组件库"——它们就是
+APG 的工程化封装，比自己照着 APG 写要稳得多。第 5 章会从 React
+视角再讲一遍这些库。
+
+---
+
+## 5. 焦点管理：键盘导航的关键
+
+> **本节核心：可见性 ≠ 可达性**——视觉看到 ≠ 键盘到得了。这条
+> 暗线在 §3.6 动画里还会回来——动画过程中焦点丢失是高频 bug。
+
+### 5.1 skip-to-content link：键盘用户的"逃生通道"
+
+> **现场试**：在本手册任意章节页按一下 Tab——左上角应该弹出"跳到
+> 主内容"按钮，按 Enter 焦点直接落到正文区。**这个能力本手册就在
+> 用**，源码在
+> [src/app/(handbook)/layout.tsx](<https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/src/app/(handbook)/layout.tsx>)。
+
+**为什么需要 skip link**：键盘用户每次进新页面都要从 header 第一项
+开始 Tab——网站如果有 30 个 header 链接，要按 30 次 Tab 才能到正文。
+skip link 是"绕过 header 直达 main"的逃生通道。
+
+实现的关键不是 `<a href="#main">` 一行——目标元素必须**同时**有：
+
+```tsx
+// ✅ 正确实现
+<a href="#main" className="sr-only focus:not-sr-only ...">
+  跳到主内容
+</a>;
+{
+  /* ... header ... */
+}
+<main id="main" tabIndex={-1} className="focus:outline-none">
+  {children}
+</main>;
+```
+
+**`tabIndex={-1}` 是不可省的**——它的作用是"让这个元素可以**通过
+JS / 锚点接收焦点**，但 Tab 键正常顺序时**不会**落到它身上"。
+没有这一行，浏览器只滚动锚点、键盘焦点不会真的进入 main。
+
+> **作者反思（[SPEC-0014](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0014-taste-cultivation-for-beginners/spec.md) 触点 B）**：
+> 写本节时第一版的 skip link 我就漏了 `tabIndex={-1}`——视觉验证
+> 看到 Tab 弹出按钮、自以为修好了，直到读者按 Enter 后告诉我
+> "没反应"。这是 a11y 的典型陷阱：**视觉验证不能替代键盘验证**，
+> 而键盘验证里**焦点位置**比"跳到哪了"更重要——按 Enter 后，
+> 焦点是否真的落进 main 决定了下一次 Tab 会去哪。
+>
+> 这个踩坑已经登记 [journal/2026-05-23-skip-link-needs-tabindex-minus-one.md](https://github.com/wilsonwangdev/frontend-engineer-handbook/tree/main/journal/)。
+> 修复后的本仓代码就是 §3.2 §5 的活案例。
+
+精确参考：[Heydon Pickering · A Todo List · Managing focus 段](https://inclusive-components.design/a-todo-list/) **（英文）**——
+skip link 设计的事实标准来源。
+
+### 5.2 `:focus-visible`：只在键盘 focus 时显示轮廓
+
+```css
+/* ❌ 老做法：移除所有焦点轮廓——键盘用户彻底瞎 */
+*:focus {
+  outline: none;
+}
+
+/* ❌ 老做法：所有焦点都显示轮廓——鼠标点击也出现，视觉上很丑 */
+*:focus {
+  outline: 2px solid blue;
+}
+
+/* ✅ 现代做法：只在「键盘聚焦」时显示，鼠标点击不显示 */
+*:focus-visible {
+  outline: 2px solid blue;
+  outline-offset: 2px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+```
+
+`:focus-visible` 浏览器自己判断"这次焦点是从键盘来还是从鼠标来"，
+2022 年起全主流浏览器支持（[caniuse](https://caniuse.com/css-focus-visible)）。
+**不要删 outline——只是把它移到 `:focus-visible` 里**。
+
+### 5.3 模态焦点陷阱：打开模态后焦点必须锁在里面
+
+模态（dialog / drawer / popover）打开后**焦点必须留在模态内部**，
+按 Tab 在模态最后一项后回到第一项；按 ESC 关闭后，焦点回到触发
+按钮。这套行为叫 **focus trap**。
+
+**原生 `<dialog>` 元素自带 focus trap**——2024 起全浏览器支持
+（[caniuse](https://caniuse.com/dialog)）：
+
+```tsx
+<dialog ref={dialogRef}>
+  <h2>确认删除</h2>
+  <button onClick={confirm}>确认</button>
+  <button onClick={() => dialogRef.current.close()}>取消</button>
+</dialog>
+// dialogRef.current.showModal() 打开 = 自动 focus trap + ESC 关闭
+```
+
+**自造的模态（用 `<div>` + `position: fixed`）必须自己实现**：
+本手册的 [`mobile-nav.tsx`](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/src/components/handbook/mobile-nav.tsx)
+就是一个完整范例——它维护三件事：
+
+1. 打开后焦点落到关闭按钮（`closeButtonRef.current?.focus()`）
+2. Tab / Shift+Tab 在抽屉内循环（`FOCUSABLE_SELECTOR` + 边界检测）
+3. 关闭后焦点回到触发按钮（`triggerRef.current?.focus()`）
+
+**反例**：模态打开后焦点还在背景按钮上——用户按 Tab 跑出模态、看
+不到光标在哪、按 ESC 没反应。这是 a11y 翻车率最高的组件。
+
+精确参考：[Heydon Pickering · A Modal Dialog · Focus management](https://inclusive-components.design/a-modal-dialog/) **（英文）** +
+[MDN · `inert` 属性](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Global_attributes/inert) —— 现代浏览器把"模态外的元素全部
+disable"做到了一行属性，是 focus trap 的进阶武器。
+
+### 5.4 SPA 路由切换：焦点必须主动恢复
+
+服务端渲染的多页应用（MPA）每次跳页面浏览器会自动把焦点重置到
+`<body>`。但 SPA（Next.js / React Router）只是替换 DOM，**焦点
+不会自动重置**——上一页的按钮被卸载后，焦点会"原地落回 body"，
+键盘用户和阅读器用户会觉得"页面没动"。
+
+**解决方法**：路由切换后把焦点送到新页面的 `<h1>`：
+
+```tsx
+// 简化伪代码
+const headingRef = useRef<HTMLHeadingElement>(null);
+useEffect(() => {
+  headingRef.current?.focus();
+}, [pathname]);
+
+return (
+  <h1 ref={headingRef} tabIndex={-1}>
+    {title}
+  </h1>
+);
+```
+
+Next.js App Router 在路由切换时已经做了焦点恢复（落在 `<main>`
+或 `<h1>`，看 [Next.js 路由焦点处理](https://nextjs.org/docs/app/getting-started/linking-and-navigating#linking-and-navigating)），
+但**自定义 `<Link>` 拦截 / 滚动恢复**时要自己复刻这套逻辑。
+
+---
+
+## 6. 可访问性测试：从开发态到上线
+
+> **本节核心：自动化能查 70%、键盘能查 20%、屏幕阅读器查最后 10%**——
+> 三道工序缺一不可。
+>
+> 这个 70/20/10 的分工不是拍脑袋——[Deque axe-core 文档](https://www.deque.com/blog/automated-testing-study-identifies-57-percent-of-digital-accessibility-issues/) **（英文）**
+> 实测了上千个站点，**自动化工具能稳定捕获约 57% 的 WCAG 违规**；
+> 加上键盘 + 阅读器手测可以把覆盖率推到 95%+。
+
+### 6.1 第一道：自动化（axe-core）
+
+[axe-core](https://github.com/dequelabs/axe-core) 是 a11y 测试的事实
+标准引擎——Lighthouse、WAVE、Pa11y、Microsoft Accessibility Insights
+内部都用它。它扫一遍 DOM 给出 WCAG 违规列表。
+
+**本仓库就在 e2e 里跑 axe-core**，源码：
+
+```ts
+// e2e/handbook.spec.ts
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test("chapter pages have no axe accessibility violations", async ({ page }) => {
+  await page.goto("/chapter-00");
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});
+```
+
+三个细节值得记：
+
+1. **`withTags` 限定 WCAG 等级**——`wcag2aa` 是欧盟 EAA / 英国
+   GDS / 美国 Section 508 共同的法律基线
+2. **断言 `violations` 全空**——任何违规都让 CI 红，强制开发者
+   立即修
+3. **e2e 测试而非单元测试**——axe 在真实浏览器里跑才能捕获 CSS
+   引起的对比度问题
+
+部署本地试：装 [axe DevTools 浏览器扩展](https://www.deque.com/axe/devtools/) **（英文）**
+或在 Chrome DevTools 里跑 Lighthouse Accessibility 审计——5 秒
+出报告。
+
+### 6.2 第二道：键盘（手测）
+
+关掉鼠标，**只用键盘走一遍页面**。检查 5 件事：
+
+1. **Tab 顺序合理**——视觉上从上到下、从左到右
+2. **每个交互元素能被 Tab 到**——按钮、链接、输入框、自定义控件
+3. **焦点视觉清晰**——不能 `outline: none`、对比度要看得到
+4. **没有"焦点陷阱"**——除了模态，普通页面 Tab 不能卡住
+5. **ESC 键关闭模态 / 下拉**——所有"打开了某层 UI"的操作都要可
+   ESC 撤销
+
+**5 分钟键盘扫**比 5 小时读规范有用得多。
+
+### 6.3 第三道：屏幕阅读器（每周一次足够）
+
+| 平台    | 阅读器       | 唤起方式                                                  |
+| ------- | ------------ | --------------------------------------------------------- |
+| macOS   | VoiceOver    | `Cmd + F5` 或设置里开                                     |
+| iOS     | VoiceOver    | 设置 · 辅助功能 · VoiceOver                               |
+| Windows | NVDA（免费） | 装 [nvaccess.org](https://www.nvaccess.org/) **（英文）** |
+| Android | TalkBack     | 设置 · 辅助功能 · TalkBack                                |
+
+**最高频用三个键就够**：
+
+- 唤出 rotor / elements list（VoiceOver `VO + U`、NVDA `Insert + F7`）→ 看 landmark / heading 列表
+- 按 `H` / `VO + Cmd + H` 在标题间跳
+- 按 `Tab` 试键盘焦点
+
+写完一个组件至少在 VoiceOver 里听一遍——你会发现自己写的
+`aria-label` 念起来意外地诡异（"按 钮 · 删 除 项 目 · 按 钮"）。
+
+精确参考：[WebAIM · Designing for Screen Reader Compatibility](https://webaim.org/techniques/screenreader/) **（英文）**——
+讲屏幕阅读器**怎么解析 HTML** 的最完整入门。
+
+---
+
+## 7. 中文 Web 的 a11y 陷阱
+
+中文 Web 在 a11y 上有几个英文圈不强调的坑——主要因为屏幕阅读器
+的中文支持比英文晚了 10 年，且中英混排是中文 Web 的常态。
+
+### 7.1 `lang` 属性必须设到子树级
+
+```html
+<!-- ❌ 整页 zh-CN 但夹了一段英文——阅读器会用中文发音念英文 -->
+<html lang="zh-CN">
+  <body>
+    <p>API documentation describes how to use this service.</p>
+  </body>
+</html>
+
+<!-- ✅ 整页中文，英文段落显式 lang="en" -->
+<html lang="zh-CN">
+  <body>
+    <p lang="en">API documentation describes how to use this service.</p>
+  </body>
+</html>
+```
+
+中文阅读器（VoiceOver 中文 / NVDA 中文）遇到 `lang="en"` 会**切到
+英文发音引擎**——否则会用拼音风格念英文（"诶屁艾"念成 "ai pi ai"）。
+
+### 7.2 中英混排的发音一致性
+
+**正例**：把行内英文术语包在 `<span lang="en">` 里：
+
+```html
+<p>本节讲 <span lang="en">React Server Components</span> 的渲染机制。</p>
+```
+
+业务里全做完代价高——**至少给"高频英文术语 + 整段英文段落"加**。
+小写 / 缩写（`API` / `URL`）一般不必加，阅读器知道这是缩写。
+
+### 7.3 中文细体的对比度敏感
+
+WCAG AA 要求正文对比度 ≥ 4.5:1。**英文字体可以靠 weight 400 还
+显得清晰**，但中文字体 weight 300/400 在浅灰背景上对比度通常不
+足——同一组颜色组合，英文阅读 ok，中文就糊。
+
+**实战经验**：中文正文 weight ≥ 400，浅灰文字（`#666` 之类）
+**实测**前先放进 [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/) **（英文）** 算一下，
+不要凭感觉。
+
+### 7.4 "图片当文字"反模式
+
+中文站点常把"标题文字做成图片"（为了字体效果 / 营销活动）。**这
+是 a11y 大忌**：
+
+```html
+<!-- ❌ slogan 是图，没 alt = 屏幕阅读器读不到这页的核心信息 -->
+<img src="big-slogan.png" />
+
+<!-- ✅ 用真文字 + CSS 装饰 -->
+<h1 className="font-display text-5xl">前端工程师手册</h1>
+
+<!-- ✅ 必须用图（特殊字体）：alt 写出原文字 -->
+<img src="big-slogan.png" alt="前端工程师手册" />
+```
+
+### 7.5 中文标点的朗读差异
+
+不同阅读器对中文标点的朗读策略不一致——句号 / 顿号 / 全角空格
+有些会停顿、有些不停。**实战建议**：节奏依赖标点的内容（如诗歌
+/ 引文）测两到三个阅读器再发版。
+
+精确参考：[W3C i18n WG · Internationalization Activity](https://www.w3.org/International/) **（英文）** +
+[CJK 排版陷阱（State of HTML 2024）](https://2024.stateofhtml.com/zh-Hans/typography/)——
+中文 Web 在国际化与可访问性的交叉点。
+
+---
+
+## 8. AI 时代写 a11y 的最小集：人到底该看什么
+
+> **本节核心：AI 在 a11y 上"看着对实际错"的概率最高**——
+> 它能流畅写出 ARIA 属性，但**经常错配**（例如给禁用按钮加
+> `aria-disabled` 同时不加 `disabled`、给只读输入加 `aria-readonly`
+> 但样式还像可编辑）。AI 时代的人 = ARIA 的"事实核查员"。
+
+| 你想做                             | AI 帮得上吗                                           |
+| ---------------------------------- | ----------------------------------------------------- |
+| 把 `<div onclick>` 改成 `<button>` | ✅ 模式简单                                           |
+| 给一个 dropdown 加正确的 ARIA      | ⚠️ 写得快但**经常错配**——必须键盘 + 阅读器双重 review |
+| 决定一张图要不要 alt / alt 写什么  | ❌ 业务语义 AI 拿不到；让它列方案、你拍板             |
+| 跑 axe-core / Lighthouse 列出违规  | ✅ 自动化是 AI 强项                                   |
+| 看一段 HTML 判断 landmark 是否合理 | ⚠️ 大局判断 AI 易表面化——结构关系靠你                 |
+| 写一段 `aria-live` 通知逻辑        | ⚠️ "polite vs assertive" AI 经常选错                  |
+
+**三步法**：
+
+1. **先用原生 HTML 表达**——AI 写一遍，你 review 标签选对了吗
+2. **必要时让 AI 加 ARIA**——配上 APG 链接让它对照模式写
+3. **人手测两件事**：纯键盘走一遍、屏幕阅读器读一遍
+
+跳过任何一步都不算"做了 a11y"。
+
+---
+
+## 9. 经典 a11y 翻车：业务里反复出现的 5 个
+
+> **本节核心：反思（[SPEC-0014](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0014-taste-cultivation-for-beginners/spec.md) 触点 B）**——
+> 下面这 5 个翻车里，**本手册自己就栽了 1 个**（写本节前 mobile-nav
+> 抽屉缺焦点陷阱）。已在写本节配套的 a11y commit 里修复，现在
+> mobile-nav 反而成了**正例案例**。
+>
+> **A11y 是"做了才会发现没做"的领域**——不亲自做一次键盘 + 阅读器
+> 测试，永远不会知道自己写的 ARIA 是真对还是假对。
+
+### 翻车 1：自定义 dropdown 缺 ARIA + 键盘行为
+
+```tsx
+// ❌ 视觉看着是下拉，键盘 / 阅读器全瞎
+<div onClick={() => setOpen(!open)}>选择城市 ▼</div>;
+{
+  open && <div>...</div>;
+}
+```
+
+至少要补：
+
+- 触发器用 `<button>` + `aria-expanded` + `aria-controls` + `aria-haspopup="listbox"`
+- 下拉容器 `role="listbox"`、每项 `role="option"` + `aria-selected`
+- 键盘：`↑↓` 导航、`Enter` 选中、`ESC` 关闭、`Home/End` 跳首尾
+- 打开后焦点落在第一项，关闭后回到触发按钮
+
+**别自己写**——直接用 [Radix UI · Dropdown Menu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu) **（英文）** 或
+[React Aria · Combobox](https://react-spectrum.adobe.com/react-aria/Combobox.html) **（英文）**，
+完整 APG 实现 + 经过 Deque 审计。
+
+### 翻车 2：模态遮罩没焦点陷阱
+
+```tsx
+// ❌ 焦点跑到背景按钮、ESC 不关、关闭后焦点丢失
+{
+  open && (
+    <div className="fixed inset-0">
+      <div onClick={() => setOpen(false)} className="absolute inset-0 bg-black/40" />
+      <div>{children}</div>
+    </div>
+  );
+}
+```
+
+**正例参考本仓库** [`mobile-nav.tsx`](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/src/components/handbook/mobile-nav.tsx)：
+
+```tsx
+// ✅ 完整范例
+<aside ref={drawerRef} role="dialog" aria-modal="true" aria-label="目录">
+  {/* 关闭按钮 ref，用于「打开后焦点落在这」 */}
+  <button ref={closeButtonRef} onClick={close} aria-label="关闭目录">
+    <X aria-hidden="true" />
+  </button>
+  {/* ... 内容 ... */}
+</aside>
+```
+
+配套 effect 三件事（参考 [§5.3 模态焦点陷阱](#53-模态焦点陷阱打开模态后焦点必须锁在里面)）：
+
+- 打开 → `closeButtonRef.current?.focus()`
+- 监听 `Tab` / `Shift+Tab` 在 `drawerRef` 内循环；ESC 关闭
+- 关闭 → `triggerRef.current?.focus()` 焦点归位
+
+**或者直接用 `<dialog>` 元素**——浏览器原生 `showModal()` 自带
+focus trap + ESC 关闭，2024 起全主流支持。
+
+### 翻车 3：toast 通知没 `aria-live`
+
+```tsx
+// ❌ 屏幕阅读器完全不知道发生了什么
+<div className="toast">保存成功</div>
+
+// ✅ aria-live="polite" 等当前阅读完播报；assertive 立即打断
+<div role="status" aria-live="polite">保存成功</div>
+
+// ❌ 错误信息用 polite——用户可能错过
+<div role="status" aria-live="polite">支付失败：余额不足</div>
+
+// ✅ 错误用 assertive 立即打断（但慎用——打断很烦）
+<div role="alert" aria-live="assertive">支付失败：余额不足</div>
+```
+
+**记忆法**：`role="status"` ≈ `aria-live="polite"`、`role="alert"` ≈
+`aria-live="assertive"`。两者二选一即可。
+
+精确参考：[MDN · ARIA live regions](https://developer.mozilla.org/zh-CN/docs/Web/Accessibility/ARIA/ARIA_Live_Regions) +
+[W3C ARIA APG · Alert Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/alert/) **（英文）**。
+
+### 翻车 4：数据表格缺 `<caption>` / `scope`
+
+```html
+<!-- ❌ 阅读器读「2024，3.5%，5%」用户不知道哪格是哪格 -->
+<table>
+  <tr>
+    <td>年份</td>
+    <td>GDP 增速</td>
+    <td>CPI</td>
+  </tr>
+  <tr>
+    <td>2024</td>
+    <td>3.5%</td>
+    <td>5%</td>
+  </tr>
+</table>
+
+<!-- ✅ caption + th + scope -->
+<table>
+  <caption>
+    2024 年宏观经济指标
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">年份</th>
+      <th scope="col">GDP 增速</th>
+      <th scope="col">CPI</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">2024</th>
+      <td>3.5%</td>
+      <td>5%</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+`scope="col"` / `scope="row"` 让阅读器在念单元格时**自动报上对应
+表头**——读"2024 行 · GDP 增速 列：3.5%"。这是 1990 年代就该做对
+的事。
+
+精确参考：[W3C WAI · Tables Tutorial](https://www.w3.org/WAI/tutorials/tables/) **（英文）**——
+覆盖单层表 / 多层表头 / 不规则表的所有 a11y 模式。
+
+### 翻车 5：自定义复选框 / 开关漏 role + 键盘
+
+```tsx
+// ❌ div 模拟开关——键盘 / 阅读器都不认
+<div onClick={toggle} className={isOn ? "switch-on" : "switch-off"}>
+  通知
+</div>
+
+// ✅ 选项 1：用原生 <input type="checkbox"> + label
+<label>
+  <input type="checkbox" checked={isOn} onChange={toggle} />
+  通知
+</label>
+
+// ✅ 选项 2：自造视觉但保留语义（按 APG 模式）
+<button
+  type="button"
+  role="switch"
+  aria-checked={isOn}
+  onClick={toggle}
+>
+  通知 {isOn ? "开" : "关"}
+</button>
+```
+
+**优先选项 1**（W3C ARIA 第一规则）；只有原生 checkbox 视觉满足
+不了设计要求时才走选项 2。
+
+精确参考：[W3C ARIA APG · Switch Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/switch/) **（英文）**。
+
+---
+
+> **写到这里你应该有个直觉**：a11y 不是"加一堆 ARIA"——它是
+> **"先别走偏，必要时再加"**。每个翻车的修法都比反例只多 5-10 行
+> 代码，但读者群体规模可能扩大 16%（按 WHO 数据）。这个 ROI 几乎
+> 没有其他工程实践能比。
+
+---
+
+## 10. 最小练习清单
+
+写代码时遇到下面任意一项，停下来用 30-60 分钟把它做对：
+
+1. 选一个项目，跑一遍 [axe DevTools](https://www.deque.com/axe/devtools/)
+   或 Lighthouse Accessibility 审计，把 critical / serious 项全修了
+2. 关闭鼠标，**纯键盘**用一遍你最近写的页面：能不能 tab 到所有
+   交互？焦点视觉清晰吗？模态打开后焦点对吗？
+3. 打开 macOS VoiceOver（`Cmd + F5`）或 Windows NVDA，听一遍你
+   的页面：landmark 报对了吗？按钮的可访问名是什么？
+4. 把项目里所有 `<div onclick>` 搜出来，改成 `<button>`
+5. 把项目里所有 `<img>` 搜出来，每张图问自己"装饰还是有信息"，
+   补 `alt`
+
+做完任意一项，你就比 80% 的同行更懂 a11y。
+
+---
+
+## 延伸阅读
+
+- [MDN: 无障碍](https://developer.mozilla.org/zh-CN/docs/Web/Accessibility) —
+  中文 a11y 入口；按主题导航
+- [W3C WAI-ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
+  **（英文）** — 自造组件前的标配参考；30+ 模式都有完整代码 + 键盘交互
+- [WCAG 2.2 中文版](https://www.w3.org/Translations/WCAG22-zh/) —
+  万一被合规问起来直接引这个
+- [The A11y Project](https://www.a11yproject.com/) **（英文）** —
+  社区维护的 a11y 速查 + 检查清单
+- [inclusive-components.design](https://inclusive-components.design/) **（英文）** —
+  Heydon Pickering 的"包容性组件"系列；从按钮到 Tabs 每个组件一篇深度文
+- [State of HTML 2024](https://2024.stateofhtml.com/zh-Hans/) —
+  社区在 a11y 实践上的分布与趋势
+
+> 访问性说明：MDN 中文 / WCAG 中文 / State of HTML 中文均直达；
+> APG / a11yproject / inclusive-components 英文站偶有访问波动，
+> 但绝大多数 ISP 可达。
+
+---
+
+下一节：§3.3 现代 CSS 特性 _（待写）_ —— `@layer` / `:has()` /
+嵌套 / 变量 / `color-mix()`。
