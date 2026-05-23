@@ -345,24 +345,6 @@
       }
     }
 
-    /* Mobile (< 768px, 项目 phone 档): 表格更可能横向溢出，给提示。
-       767.98px 沿用 reading-width-toggle 的边界 -0.02 写法，避免与
-       (min-width: 768px) 在整数像素上重叠。
-       table 用 max-content + min-width: 100%：内容能撑就撑、超过视口
-       让 wrapper 横滑（已 overflow-x: auto + 渐变提示）。否则
-       width: 100% + auto 布局会按比例压缩所有列，"#"这种 1-2 字短列
-       会被挤到内容字符级换行。 */
-    @media (max-width: 767.98px) {
-      & .table-wrapper::after {
-        display: block;
-      }
-
-      & table {
-        width: max-content;
-        min-width: 100%;
-      }
-    }
-
     & table {
       border-collapse: collapse;
       font-size: 0.875em;
@@ -393,6 +375,31 @@
     & th {
       font-weight: 600;
       background: var(--color-bg-elevated);
+    }
+
+    /* Mobile (< 768px, 项目 phone 档): 短列容易被 width: 100% + auto
+       布局压成 1ch（"归位"列每行 1 字、"#"列字符级换行）。
+       策略：
+       - table 改 max-content + min-width: 100%：让浏览器按内容自然宽度
+         展开，wrapper 已 overflow-x: auto，超宽时表格内横滑而不是
+         整个页面横滑。
+       - 长文本列（理由 / 一句话定位）虽然走 max-content 默认会一行不换，
+         但仍受 overflow-wrap: break-word 约束，遇到长 URL / 英文长词时
+         会断行。让用户拉宽列读完一行长说明、短列保持紧凑。
+       - ::after 渐变提示告诉读者"右侧还有内容可以滑"。
+       767.98px 沿用 reading-width-toggle 的边界 -0.02 写法，避免与
+       (min-width: 768px) 在整数像素上重叠。
+       注意：必须放在上面的 `& table { width: 100% }` 之后，否则
+       source order 会让 100% 覆盖 max-content（specificity 相同）。 */
+    @media (max-width: 767.98px) {
+      & .table-wrapper::after {
+        display: block;
+      }
+
+      & table {
+        width: max-content;
+        min-width: 100%;
+      }
     }
 
     & a {

@@ -43,6 +43,13 @@ tags: [css, mobile, agent-behavior]
     后者只有"整词放不下"才断，长 URL 仍能换行，但短 token 不会被撕。
   - 移动端 table 用 `width: max-content; min-width: 100%`：内容能撑
     就撑、超过视口由 wrapper 横滑承接，不再按比例压缩列。
+- **四次修正**：上一版改完发现"归位"列（2-3 字）每行还是只能展示 1 字。
+  根因是 source order：`@media (max-width: 767.98px) { & table { width:
+max-content } }` 写在了 `& table { width: 100% }` 之前，两条规则
+  specificity 相同，后定义的 `100%` 覆盖了媒体查询里的 `max-content`，
+  移动端规则形同虚设。把媒体查询块移到所有基础 table/cell 规则之后即可。
+  教训：在 nested CSS 里写媒体查询时，**先写基础规则、再写覆盖规则**，
+  否则同 specificity 下后写的会赢。
 
 提交：见同 commit 与后续 amend / 跟进 commit。
 
