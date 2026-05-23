@@ -326,6 +326,37 @@
       /* In focus mode, allow tables to break out of the prose width
          (which becomes 100% anyway) so they can use the full reading area. */
       margin-inline: 0;
+      /* Gradient scroll hint — visible when table overflows on mobile.
+         Purely decorative; screen readers ignore it. */
+      position: relative;
+
+      &::after {
+        content: "";
+        position: sticky;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 2rem;
+        flex-shrink: 0;
+        pointer-events: none;
+        background: linear-gradient(to left, var(--color-bg) 0%, transparent 100%);
+        /* Default hidden; mobile media query below turns it on */
+        display: none;
+      }
+    }
+
+    /* Mobile (< 768px, 项目 phone 档): 表格更可能横向溢出，给提示。
+       767.98px 沿用 reading-width-toggle 的边界 -0.02 写法，避免与
+       (min-width: 768px) 在整数像素上重叠。 */
+    @media (max-width: 767.98px) {
+      & .table-wrapper::after {
+        display: block;
+      }
+
+      /* 强制等宽分列，避免 CJK 文本被挤成单字换行。 */
+      & table {
+        table-layout: fixed;
+      }
     }
 
     & table {
@@ -343,16 +374,17 @@
       border-bottom: 1px solid var(--color-border);
       text-align: left;
       vertical-align: top;
-      /* Wrap long unbreakable strings (URLs, English terms) but don't shred
-         short tokens like "~1996". `anywhere` is too aggressive for CJK
-         tables where columns may be short labels. */
-      word-break: normal;
+      /* Break long words/URLs at any point to prevent overflow on mobile.
+         `break-word` wraps at word boundaries when possible, falls back
+         to `anywhere` behavior for unbreakable strings (URLs, code). */
+      word-break: break-word;
       overflow-wrap: break-word;
     }
 
     & th code,
     & td code {
       white-space: nowrap;
+      word-break: normal;
     }
 
     & th {
