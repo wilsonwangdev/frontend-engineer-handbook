@@ -123,6 +123,14 @@
   - 实现要点：颜色统一用 `currentColor`，自动跟随暗色模式；图本身
     放 `<figure className="not-prose">` 跳出 prose 排版约束；底部带
     `<figcaption>` 解释含义
+  - **窄屏踩坑（2026-05-23 修）**：CardAlignment 系列 demo 第一版用
+    `gridTemplateColumns: "220px 220px"` 固定列宽 + `maxWidth: 480px`，
+    在 < 456px 视口（典型手机）会撑大 prose → main → article 一路触发
+    **整页横向滑动**。`maxWidth` 是上限不是下限，没起兜底作用。修法：
+    内层列宽改 `repeat(2, minmax(0, 1fr))` + 容器 `width: 100%`，让卡
+    片随父级宽度自适应——窄屏下卡片更窄、标题更易自然换行，subgrid 的
+    断层 vs 对齐对比反而更明显。**写新 demo 时不要写死像素列宽 / 容器
+    宽度；用 `1fr` / `minmax(0, ...)` / `width: 100%` 让内容跟随父级**
 
 - **DemoBlock 实时预览组件**：[src/components/mdx/demo-block.tsx](../src/components/mdx/demo-block.tsx)
   （2026-05-23 引入）
@@ -179,11 +187,7 @@
     内容自然分列、cell `overflow-wrap: break-word` 允许长 URL / 英文长
     词换行；行内 `<code>` 维持 `white-space: nowrap` 不被切
   - 移动端（< 768px）切换为"**表格内横滑**"：`table { width: max-content;
-min-width: 100% }` + `.table-wrapper { overflow-x: auto }`
-    - 短列（# / 归位 / 难度等 1-3 字定位列）保持紧凑一行展示
-    - 长说明列（理由 / 一句话定位 / 谁最该读）按内容自然宽度
-    - 表格自然总宽超过 wrapper 时在 wrapper 内横滑，**不触发整页横滑**
-    - 右侧 sticky 渐变提示告知"右边还有内容可滑"
+min-width: 100% }` + `.table-wrapper { overflow-x: auto }` - 短列（# / 归位 / 难度等 1-3 字定位列）保持紧凑一行展示 - 长说明列（理由 / 一句话定位 / 谁最该读）按内容自然宽度 - 表格自然总宽超过 wrapper 时在 wrapper 内横滑，**不触发整页横滑** - 右侧 sticky 渐变提示告知"右边还有内容可滑"
   - **关键陷阱**：媒体查询块必须放在所有基础 table/cell 规则**之后**——
     nested CSS 同 specificity 下 source order 决定胜负，`width: max-content`
     写在 `width: 100%` 之前会被静默覆盖（曾踩坑见

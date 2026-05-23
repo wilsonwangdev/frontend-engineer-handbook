@@ -147,8 +147,14 @@ export function CardAlignmentMisalignedDemo() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "220px 220px",
+          /* 列宽用 minmax(0, 1fr) 而不是固定 220px：
+             固定列宽在 < 456px 视口（典型手机）会撑大父容器触发整页横滑，
+             用 1fr + 外层 maxWidth 兼顾"大屏限宽 / 小屏自适应"。
+             窄屏下卡片更窄、右卡标题更容易自然换 2-3 行，subgrid 的
+             断层 vs 对齐对比反而比固定 220px 更明显。 */
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "1rem",
+          width: "100%",
           maxWidth: "480px",
           margin: "0 auto",
           alignItems: "start",
@@ -210,10 +216,12 @@ export function CardAlignmentFixedDemo() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "220px 220px",
+          /* 同上 demo：列宽用 1fr 而非固定 220px，避免窄屏整页横滑。 */
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           // 外层声明 3 行轨道：title / body / footer
           gridTemplateRows: "auto 1fr auto",
           gap: "1rem",
+          width: "100%",
           maxWidth: "480px",
           margin: "0 auto",
         }}
