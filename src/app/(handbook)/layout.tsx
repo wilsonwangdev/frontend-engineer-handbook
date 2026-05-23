@@ -11,6 +11,12 @@ export default async function HandbookLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-[var(--color-bg)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:outline-2 focus:outline-[var(--color-accent)]"
+      >
+        跳到主内容
+      </a>
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-bg)]/85 backdrop-blur">
         <div className="handbook-container mx-auto flex h-14 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -43,7 +49,9 @@ export default async function HandbookLayout({ children }: { children: React.Rea
             <Sidebar tree={tree} />
           </div>
         </aside>
-        <main className="min-w-0">{children}</main>
+        <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
+          {children}
+        </main>
       </div>
       <BackToTop />
     </div>
