@@ -1,0 +1,1247 @@
+---
+title: 现代 CSS 特性
+chapter: 3
+section: 3
+description: "@layer / :has() / 原生嵌套 / oklch() / color-mix()——2020 年后稳定下来的语言层升级"
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 13
+---
+
+> §3.1 讲了**像素如何被排上屏幕**（布局），§3.2 讲了**像素背后是什么**
+> （语义）。这一节讲 CSS **语言本身**——2020 年后稳定下来的几组新
+> 语法。它们替换了过去十年靠 `!important` / JS 计算 / 预处理器变量
+> / 媒体查询硬列的全套旧解法。
+
+很多人对 CSS 的印象停留在"选择器 + 盒模型 + Flex"——这套基础在 2017
+年左右就稳定了。但 2020-2025 年间 CSS 经历了**第二轮结构性升级**：
+`@layer`、`:has()`、原生嵌套、CSS 变量加类型、`oklch()` / `color-mix()`
+——每一项都改写了某条既往的"最佳实践"。
+
+这一节就是给"上次系统过 CSS 是 2018 年"或"刚学完基础想知道前沿"的
+读者一张升级地图。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                       | 直接读                                            |
+> | ------------------------------------------ | ------------------------------------------------- |
+> | **新人 / 转行者**                          | §0 简史 → §1 升级路径 → §2 cascade → §4 选择器    |
+> | **写过几年前端但没系统跟过 2020 后的 CSS** | §1 升级路径 → §3 `@layer` → §4 `:has()` → §6 色彩 |
+> | **遇到具体 bug 来查**                      | §2 cascade（"样式没生效"）/ §12 翻车库            |
+> | **不知道某特性能不能放心用**               | §10 兼容性判断 + 何时用原生何时用库               |
+> | **要带 AI 写 CSS，想知道自己看什么**       | §11 AI 协作最小集                                 |
+>
+> 整节读完约 50-70 分钟；按上面挑读 15 分钟。**遇到具体问题再回查
+> 比通读更高效**——CSS 的现代特性不是一次学完的清单，是一个不断
+> 在已知问题前选对工具的习惯。
+
+---
+
+## 0. 一段必要的回顾：CSS 在 2020 年之后变了什么
+
+### 0.1 从"大版本停滞"到"分模块持续发布"
+
+CSS 的发版节奏在 2010 年代经常被吐槽——CSS 2 在 1998 年发布，
+之后想看下一份"CSS 3 总规范"始终没等到。**这不是 W3C 偷懒，是
+他们换了发布模式**：CSS 在 2011 年起改为**按模块独立发布**——
+Selectors 是一个模块、Color 是一个模块、Grid 是一个模块、Cascade
+是一个模块——每个模块独立推进版本号。
+
+> 一手参考：[W3C CSS Working Group Editor's Drafts 索引](https://drafts.csswg.org/) **（英文）**——
+> 列出当前所有 CSS 模块的最新草案。`Cascade Level 5` / `Color Level 5`
+> / `Selectors Level 4` 这种命名就是"分模块"模式的产物。
+
+这套发版方式有两个直接后果：
+
+1. **不再有"CSS 3 / CSS 4"这种笼统说法**——业界里说"现代 CSS"
+   通常指**那一批近年稳定的模块**，不是某个统一版本号
+2. **特性进入浏览器的速度大幅加快**——一个模块只需要一两家浏览器
+   先实现 + 一两年互通，就能进入"业务能用"状态
+
+### 0.2 现代 CSS 的关键里程碑（按规范定稿的先后）
+
+这一节后面要讲的特性都集中在这条时间线上。**下表只列每个特性的
+规范页 + 在 CSS 模块演进中的位置**——具体浏览器互通时间请查 MDN
+顶部 Baseline 徽章（理由见 §10）：
+
+| 模块 / 特性                                                                                                              | 改写了什么                                               |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| [CSS Custom Properties Level 1](https://www.w3.org/TR/css-variables-1/)                                                  | 运行时变量成为标准（不再是 SCSS 编译时变量的替代品）     |
+| [`@layer`（Cascade Level 5）](https://www.w3.org/TR/css-cascade-5/#layering)                                             | 替代 `!important` 互砍——大型项目的 cascade 治理          |
+| [`:has()`（Selectors Level 4）](https://drafts.csswg.org/selectors-4/#has-pseudo)                                        | 父选子——业务里反复"差一点就用 JS 写"的痛点解决了         |
+| [CSS Nesting Level 1](https://www.w3.org/TR/css-nesting-1/)                                                              | 原生嵌套——SCSS / Less 用户最常依赖的功能进入语言本身     |
+| [`oklch()` / `color-mix()`（CSS Color Level 4 / 5）](https://www.w3.org/TR/css-color-5/)                                 | 现代色彩；视觉一致性 + 运行时混色                        |
+| [`@property`（Properties and Values API Level 1）](https://www.w3.org/TR/css-properties-values-api-1/)                   | 自定义属性首次有类型 / 默认值 / 是否继承                 |
+| [`@starting-style`（CSS Transitions Level 2）](https://drafts.csswg.org/css-transitions-2/#defining-before-change-style) | "进入态"动画的标准答案——`display: none → block` 也能过渡 |
+| [`@scope`（CSS Cascade Level 6）](https://www.w3.org/TR/css-cascade-6/#scope-atrule)                                     | 限定样式作用域——Vue / Svelte scoped 的原生答案           |
+
+> **怎么查每个特性的"业务能不能用"**：
+>
+> - **MDN 文档页**：每个特性页顶部有 Baseline 徽章（Limited /
+>   Newly / Widely available），下方有 BCD（浏览器兼容性表）
+>   列具体版本号
+> - **Can I Use**：[caniuse.com/](https://caniuse.com/) **（英文）**——
+>   按特性查全球用户份额
+> - **国内浏览器版本分布**：[StatCounter China](https://gs.statcounter.com/browser-market-share/all/china) **（英文）** /
+>   [百度统计公开数据](https://tongji.baidu.com/research/site)——
+>   做兼容决策时实测比凭印象准
+>
+> **本节正文不再标具体浏览器版本号或具体年份**——这类数据滚动变化，
+> 写定后必然过期，唯一真实的来源是 MDN / Can I Use 的实时数据。
+
+**两个结论值得记住**：
+
+1. **2020 年代是 CSS 的"补缺阶段"**——`@layer` / `:has()` / 原生
+   嵌套这批模块同期推进，多数旧项目"为什么 CSS 难维护"的痛点这
+   之后都有原生答案
+2. **现代 CSS 不是"花哨新功能"——它的核心是补缺**——补的是
+   "样式优先级管理 / 父选子 / 运行时变量"这些**业务里早就需要、
+   过去只能靠 JS 或预处理器解决**的能力
+
+> **写给已经写过几年前端的读者**：如果你的肌肉记忆还停在
+> `!important` 救场、SCSS 变量、`.parent .child:hover .target` 长链
+> 选择器——这一节你需要重读。**不是因为旧知识错了，是因为很多以前
+> 必须靠工具链解决的问题，现在 CSS 原生就能做**。
+
+---
+
+## 1. 5 分钟升级路径：老 CSS 用户最该补的 5 件事
+
+如果你已经写过几年前端，下面这 5 个语法是最值得**今天就开始用**的——
+按"用上之后能立刻减少代码量 / bug 数"排序：
+
+1. **`@layer`**：把样式分成 `reset / base / components / utilities` 几层，
+   消除 `!important` 互砍。详见 §3
+2. **`:has()`**：父选子选择器——表单含 `.error` 的卡片高亮、菜单含
+   `[aria-current]` 的项标记，过去要给 JS 动 class 的活，现在一行
+   CSS。详见 §4
+3. **原生嵌套**：跟 SCSS 几乎一样的写法但**不需要构建工具**——
+   组件库 / 样式文件不再需要 SCSS。详见 §7
+4. **CSS 变量 + `light-dark()`**：暗色模式从"复制一套变量"压成一行
+   `color: light-dark(black, white)`。详见 §6
+5. **`oklch()` 替代 `hsl()` / `hex`**：视觉一致性显著提升，调色更
+   贴近"人眼感受"。详见 §6
+
+**没列在前 5 但值得知道的下一档**：`color-mix()`、`@property`、
+`@scope`、`@starting-style`——按需用。
+
+> **设计判断（声明式 vs 命令式）**：上面 5 项都在做同一件事——
+> **把过去要靠 JS 或预处理器"算"的事，让浏览器声明式地"接管"**。
+> `:has()` 就是典型——以前要 JS 监听 DOM 变化、动 class，现在一句
+> CSS 描述"我要什么"就够。这是 §3.1 §1.3 那条暗线在 CSS 语言层
+> 的延续。
+
+---
+
+## 2. 先把 cascade + specificity 讲清楚
+
+> **先约定两个词**——本节后面会反复出现。下面行文统一使用括号里
+> 的中文术语；遇到原文 / 一手参考保持英文形态。
+>
+> - **cascade**（**层叠**）：CSS 处理"多条规则同时命中同一个元素"
+>   时**决定谁赢**的算法。是 CSS 这门语言名字里 `Cascading Style
+Sheets` 的那个 `Cascading`
+> - **specificity**（**优先级**——MDN 中文版的官方译法；社区也叫
+>   "特异度"）：cascade 算法里**最关键的一档评分**——按选择器复杂度
+>   算分，分高的赢
+
+**业务里"我加了样式但没生效"95% 的原因都在这两个词里**。
+
+### 2.1 cascade 的核心 5 步排序
+
+W3C 把 cascade 写成一个**有先后顺序的比较链**（完整 7 档）——只有
+前一档比不出胜负，才进入下一档。**业务里只需要记前 5 档**（剩下
+两档涉及 `:scope` / 用户代理伪元素，极少用到）：
+
+| 档次 | 比的是                        | 例子                                                                             |
+| ---- | ----------------------------- | -------------------------------------------------------------------------------- |
+| 1    | **来源 + 重要性**             | 用户 `!important` > 作者 `!important` > 作者普通规则 > 用户普通规则 > 浏览器默认 |
+| 2    | **`@layer` 层级**（2022 起）  | 后声明的 layer 优先级高（普通规则）；`!important` 时**反过来**——前层赢           |
+| 3    | **优先级分数（specificity）** | inline > id > class/属性/伪类 > 标签/伪元素                                      |
+| 4    | **声明顺序**                  | 同分时后写的赢                                                                   |
+| 5    | **继承 vs 直接命中**          | 直接命中赢                                                                       |
+
+一手参考：[MDN · CSS 层叠](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Cascade)
+
+- [CSS Cascade Level 5 完整算法](https://www.w3.org/TR/css-cascade-5/#cascading) **（英文）**。
+
+### 2.2 优先级怎么算分
+
+> 这一段 W3C 规范里写得简洁：把选择器按"id 数 / class 数 / 标签数"
+> **分别**计数，得到一组三个数字。比的时候**像比较电话区号**——
+> 先比第一位，相同再比第二位，最后比第三位。任何一位高就赢，
+> **不会"低位累加翻盘"**。
+
+先看四个具体例子，找规律：
+
+| 选择器            | id 数 | class/属性/伪类 数 | 标签 / 伪元素 数 | 分数      |
+| ----------------- | ----- | ------------------ | ---------------- | --------- |
+| `p`               | 0     | 0                  | 1                | (0, 0, 1) |
+| `.title`          | 0     | 1                  | 0                | (0, 1, 0) |
+| `nav .item:hover` | 0     | 2                  | 1                | (0, 2, 1) |
+| `#main .item`     | 1     | 1                  | 0                | (1, 1, 0) |
+
+**比较规则**：把分数当三位数（不是十进制——任意一位的差就定胜负）。
+
+- `(1, 0, 0)` 永远赢 `(0, 99, 99)`——id 一票顶天，多少个 class / 标签
+  都翻不过去
+- `(0, 2, 1)` 赢 `(0, 1, 50)`——同样 id 数为 0 时先比 class 数；
+  2 > 1 已经胜负已分，标签数不再看
+
+每种选择器加哪一档？只需要记住 4 条：
+
+| 选择器类型                                      | 加哪一档                                  |
+| ----------------------------------------------- | ----------------------------------------- |
+| `#id`                                           | id 那一位 +1                              |
+| `.class` / `[attr=...]` / `:hover` 等伪类       | class 那一位 +1                           |
+| 标签名（`div` / `p`）/ 伪元素（`::before`）     | 标签那一位 +1                             |
+| `*` / 组合符（`>` `+` `~` 空格）/ `:where(...)` | **不加分**（很重要——`:where()` 永远是 0） |
+
+**两个特殊规则单独记**：
+
+- **inline `style="..."`**：比所有选择器都高一档——可以理解为加了一个
+  额外的"第 0 位"
+- **`!important`**：跳出 specificity，直接到 cascade 第 1 档参与比较
+  （见 §2.1）；这是为什么它"超级强"
+
+> **新人最常被坑的两点**：
+>
+> 1. **"具体选择器一定赢"是错的**——`#a` 永远赢 `.x.y.z.w.v`，
+>    因为 id 那位 `1 > 0`，后面再多 class 也不翻盘
+> 2. **`:where(...)` 不加分**——这是**特意设计**的，让组件库可以写
+>    "默认样式但不抢用户的优先级"。详见 §4.3
+
+把选择器按"id / class / 标签"三档计数后的对应一手参考：[MDN · 优先级](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Specificity)。
+
+### 2.3 DevTools 里读 cascade
+
+§3.1 §12.4 已经讲过 Styles 面板的"被划线 = 被覆盖"——现在补一个
+更精准的工具：
+
+- **Chrome（实验功能）**：选中元素 → 右键属性 → `Copy specificity`
+  （Settings → Experiments 里开启）：直接给出当前规则的优先级三位数
+  分数（id 数 / class 数 / 标签数）
+- **Firefox：Inspector → Styles 面板**：每条规则旁边直接显示优先级
+  分数，不用开实验功能
+
+**调试节奏**：
+
+1. 打开"赢家规则"——看它的来源（layer / 选择器 / 是否 `!important`）
+2. 打开"被划掉的规则"——看它输在 cascade 的哪一档
+3. 修改方向 = **抬高被划掉那条的某一档分数**，或**降低赢家**——
+   不要一上来就 `!important`
+
+`!important` 是 cascade 第 1 档——一旦用，几乎只能再用 `!important`
+覆盖，**项目里的 `!important` 数量会指数增长**。这就是 §3 `@layer`
+要解决的问题。
+
+---
+
+## 3. `@layer`：替代 `!important` 互砍的现代答案
+
+> **本节核心：分层控制（layered specificity）**——`@layer` 把样式
+> 优先级从"谁的选择器更长"改成"谁在哪一层"。这是 §3.1 引入的设计
+> 暗线在 CSS 层的具体形态。
+
+### 3.1 `@layer` 解决的问题
+
+下面这段对话每个用过组件库的人都听过：
+
+> "我引了 Ant Design / element-plus / Bootstrap 当基础样式，自己想
+> 改一下按钮颜色，结果改不动——加 class 不够、加 id 不够、最后只
+> 能写 `!important`。"
+
+根因：第三方组件库的选择器（`.ant-btn-primary`）和你的覆盖样式
+（`.my-btn`）按 specificity 比分，前者 `(0, 1, 0)`、后者 `(0, 1, 0)`
+——同分按声明顺序，库的 CSS 通常**比你的先 import**，所以你写在
+后面、本应该赢——但一旦库自己有更具体的选择器（`.ant-btn-primary:hover`
+是 `(0, 2, 0)`），你就要往上叠 `.my-app .my-btn:hover`。**这条
+路没有终点**。
+
+### 3.2 `@layer` 的写法
+
+把样式分成几层、按"靠后的层赢"的规则比较：
+
+```css
+/* 1. 先声明顺序——这定义了胜负优先级 */
+@layer reset, base, components, utilities;
+
+/* 2. 把每段样式归位 */
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+}
+
+@layer base {
+  body {
+    font-family: system-ui;
+    line-height: 1.6;
+  }
+}
+
+@layer components {
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+  }
+}
+
+@layer utilities {
+  .text-center {
+    text-align: center;
+  }
+}
+```
+
+**关键规则**：
+
+1. **后声明的层赢**（普通规则）——`utilities` > `components` >
+   `base` > `reset`，与各自选择器分数无关
+2. **未分层的样式 > 任何 `@layer` 里的样式**（普通规则）——这是
+   逃生通道；让你能临时盖一层但不破坏分层
+3. **`!important` 时第 2 档反过来**——前面声明的层赢，无层的
+   `!important` 输给最早层的 `!important`。这是设计意图——让基础
+   层的"硬约束"不会被后层的 `!important` 推翻
+
+> **新人最常被坑的地方**：第 2 条很反直觉——"我没分层的样式反而
+> 赢得过分层的"。这是给现有项目逐步迁移留的口子：\*\*新代码进 layer
+>
+> - 老代码暂时不动\*\*也能跑。
+
+### 3.3 引第三方库的标准接法
+
+这是 `@layer` 最现代也最值得学的姿势：
+
+```css
+/* 把 Bootstrap / Reset.css / 第三方库塞进低优先级层 */
+@import url("https://cdn.../bootstrap.css") layer(vendor);
+@import url("./reset.css") layer(reset);
+
+/* 自己的代码声明在高优先级层——天然赢 */
+@layer reset, vendor, base, components, utilities;
+
+@layer components {
+  /* 这里的 .btn 一定赢过 vendor 的 .btn——不再需要 !important */
+  .btn {
+    background: var(--color-primary);
+  }
+}
+```
+
+**`@import url(...) layer(name)` 是这套用法的核心**——一行就把整个
+第三方库塞进低优先级层。一手参考：
+[MDN · `@import` 的 layer 参数](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@import#layered_imports)。
+
+### 3.4 已被业界采纳的现状
+
+`@layer` 不只是规范——已经成为现代生态的事实标准：
+
+- **Tailwind CSS v4**（2024）默认把 `@tailwind base / components /
+utilities` 改成 `@layer` 语法
+- **shadcn/ui** 的样式按 `@layer base / components` 分层
+- **Open Props / Pico CSS** 等"无类样式库"全部走 layer 接入
+- **Bootstrap 5.3+** 在文档里官方推荐用 `@layer` 引入
+
+> 一手参考：[MDN · Cascade layers（学习模块）](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Core/Styling_basics/Cascade_layers)
+> ——按例子从零讲 `@layer` 的写法、第三方库整合、`!important` 反转规则。
+
+### 3.5 何时**不要**用 `@layer`
+
+`@layer` 的代价是**调试时多一层心智**——DevTools 里要看清"哪条规则
+属于哪一层"。所以：
+
+- **小型项目（< 1000 行 CSS）**：不必引入；命名规范 + 文件顺序
+  够用
+- **没有第三方组件库**：引入收益小
+- **完全用 Tailwind / 完全用 CSS-in-JS**：底层样式由工具链管，
+  应用层不必再分
+
+**业务规模 + 多个第三方库 + 自己写组件**——这三件齐全才是 `@layer`
+的最佳生态位。
+
+---
+
+## 4. `:has()` / `:is()` / `:where()`：选择器的现代答案
+
+> **本节核心**：`:has()` 是 CSS 22 年来**最重大的语义升级**——在它
+> 之前，CSS 是"父决定子"的单向流；它让"子状态影响父样式"原生可表达。
+
+### 4.1 `:has()`：父选子选择器
+
+业务里反复出现的需求：**容器要随子元素状态变样式**。比如：
+
+- 表单组里**含 `.error` 输入**时整组高亮红边框
+- 卡片**有 `<img>`** 时切两栏布局，没图时纯文本
+- 菜单**有 `[aria-current="page"]` 项**时高亮整组
+
+过去这些只能靠 JS 监听 DOM、动态加 class——**`:has()` 让 CSS 直接表达**：
+
+```css
+/* ❌ 旧：要 JS 监听子项 error 状态 + 动 .has-error class */
+.form-group.has-error {
+  border-color: var(--color-danger);
+}
+
+/* ✅ 新：父级直接根据"子里有没有 .error"决定样式 */
+.form-group:has(.error) {
+  border-color: var(--color-danger);
+}
+
+/* 卡片有图就切两栏 */
+.card:has(img) {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+}
+
+/* 含选中项的菜单组高亮 */
+.menu:has([aria-current="page"]) {
+  background: var(--color-bg-elevated);
+}
+```
+
+**读法**：`X:has(Y)` = "X 内部含有 Y 的情况下"。`:has()` 内部
+可以是任意复杂选择器，包括兄弟符（`+` / `~`）和伪类。
+
+```css
+/* label 后面紧跟必填 input 的——给 label 加红色星号 */
+label:has(+ input[required])::after {
+  content: "*";
+  color: var(--color-danger);
+}
+
+/* 禁用所有"被勾选"的卡片父容器的 hover 效果 */
+.card:has(input:checked) {
+  outline: 2px solid var(--color-accent);
+}
+```
+
+### 4.2 `:is()`：合并多个选择器
+
+```css
+/* ❌ 旧：每个嵌套都要重写 */
+header h1,
+header h2,
+header h3,
+main h1,
+main h2,
+main h3 {
+  font-family: var(--font-display);
+}
+
+/* ✅ 新：用 :is() 合并 */
+:is(header, main) :is(h1, h2, h3) {
+  font-family: var(--font-display);
+}
+```
+
+**`:is()` 取参数里最高的 specificity**——`:is(h1, #title)` 算 id
+分（一票）。这点和下面的 `:where()` 关键不同。
+
+### 4.3 `:where()`：specificity 永远为 0
+
+`:where()` 语义和 `:is()` 一样，**但选择器分数永远算 0**——这是
+"低优先级规则"的现代写法：
+
+```css
+/* :where() 让默认样式不会"压制"用户的覆盖 */
+:where(article) :where(h2) {
+  color: var(--color-fg);
+  /* 这条永远是 (0, 0, 0)——任何 article h2 都能轻松覆盖 */
+}
+
+/* 用户写一句简单的 .my-heading 就能赢 */
+.my-heading {
+  color: red;
+}
+```
+
+**典型用法**：写组件库默认样式时全部用 `:where()` 包起来，让用户
+覆盖时不必和你打 specificity 战。Tailwind CSS / Bootstrap 5 / Open
+Props 都在用这个套路。
+
+### 4.4 `:has()` 的性能注意
+
+`:has()` 已在主流浏览器稳定（具体版本查 [MDN · `:has()`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/:has) 顶部 Baseline 徽章）。
+**性能上 99% 场景不必担心**——浏览器已经做了反向遍历优化。
+但有几条经验：
+
+- **避免 `:has()` 套全局选择器**：`*:has(.foo)` 会让浏览器每个
+  元素都检查；改成 `body:has(.foo)` 或更精确的根更稳
+- **避免深嵌套 `:has(:has(...))`**：能写但极其难调试
+- **大型表单实时校验**：表单结构频繁变化时，用 `:has()` 表达"含
+  错误时整组样式"在 1000+ 节点的表单里可能能感知到延迟——实测后
+  再决定要不要换 JS
+
+一手参考：[CSS Selectors Level 4 §:has()](https://drafts.csswg.org/selectors-4/#has-pseudo) **（英文）** ——
+`:has()` 的规范定义。浏览器性能优化实现细节参考各浏览器发布博客
+（Chrome / Safari / Firefox 的 release notes）。
+
+---
+
+## 5. CSS 变量 + `@property`：运行时变量与"加类型"
+
+### 5.1 CSS 变量（custom properties）的本质
+
+CSS 变量（也叫**自定义属性 / custom properties**）和 SCSS 变量看
+着像、本质完全不同：
+
+| 维度             | SCSS 变量（`$color: red;`） | CSS 变量（`--color: red;`）         |
+| ---------------- | --------------------------- | ----------------------------------- |
+| 何时算值         | 编译时                      | **运行时**                          |
+| 作用域           | 文件 / 块作用域             | **DOM 树作用域**（按继承）          |
+| 能否被 JS 改     | ❌                          | ✅ `element.style.setProperty(...)` |
+| 媒体查询里能改吗 | ❌（编译时已固定）          | ✅                                  |
+| 主题切换         | 重新编译两套 CSS            | 改一个 `--theme-*` 变量即可         |
+
+**最关键的区别**："运行时 + DOM 作用域"让 CSS 变量能做 SCSS 变量
+做不了的事——**根据 DOM 状态动态改变量值**：
+
+```css
+/* 父节点定义变量；所有子节点继承 */
+.theme {
+  --color-primary: #3b82f6;
+  --space: 1rem;
+}
+
+/* 暗色模式下重定义同名变量——子节点自动跟着变 */
+.theme[data-theme="dark"] {
+  --color-primary: #60a5fa;
+}
+
+/* 用变量的地方不用动 */
+.btn {
+  background: var(--color-primary);
+  padding: var(--space);
+}
+```
+
+### 5.2 `var()` 的 fallback 机制
+
+`var()` 第二个参数是兜底值——**必学**：
+
+```css
+.card {
+  /* 如果 --space-card 没定义，用 1rem */
+  padding: var(--space-card, 1rem);
+
+  /* 多级 fallback */
+  color: var(--color-text, var(--color-fg, black));
+}
+```
+
+业务里用得最多的是"组件给变量留口、调用方按需覆盖"：
+
+```css
+.btn {
+  background: var(--btn-bg, var(--color-primary));
+}
+
+/* 用的时候：要么用默认、要么 inline 覆盖 */
+<button style="--btn-bg: red">特殊按钮</button>
+```
+
+这是组件**对外暴露 token**的现代标准接法——shadcn/ui、Radix UI、
+Material You 都在用。
+
+### 5.3 `@property`：给变量加类型
+
+CSS 变量默认**没有类型**——`--space: 1rem` 和 `--space: red` 在
+解析时一样合法（直到用错地方才报错）。`@property` 给变量声明类型
+
+- 默认值 + 是否继承：
+
+```css
+@property --gradient-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.card {
+  background: linear-gradient(var(--gradient-angle), red, blue);
+  transition: --gradient-angle 0.5s;
+}
+
+.card:hover {
+  --gradient-angle: 180deg;
+}
+```
+
+**`@property` 解锁了一件以前不可能的事**：**给 `--xxx` 加 transition
+能真的过渡**。没有 `@property` 时，变量值变化是"瞬间跳变"——浏览器
+不知道这个变量是 angle、color 还是 length，没法做插值。声明类型后
+浏览器知道怎么插值，动画就能跑。
+
+支持类型：`<color>` / `<length>` / `<angle>` / `<percentage>` /
+`<number>` / `<integer>` / `<image>` / `<url>` 等，详见
+[MDN · `@property`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@property)。
+
+> **何时必须用 `@property`**：变量参与动画 / transition 时——
+> 否则它就是"瞬间跳变"。其他场景按需。
+
+---
+
+## 6. 现代色彩：`oklch()` / `color-mix()` / `light-dark()`
+
+> **本节核心**：`oklch()` 替代 `hsl()` / `hex`，让"调色"贴近人眼感受；
+> `color-mix()` 让运行时混色原生可表达；`light-dark()` 一行搞定深浅
+> 模式切换。
+
+### 6.1 为什么需要 `oklch()`
+
+传统色彩表示（`hex` / `rgb()` / `hsl()`）有个隐藏问题：**视觉
+上等亮度的颜色在 `lightness` 值上不一致**。
+
+举例：`hsl(210, 100%, 50%)` 蓝色和 `hsl(60, 100%, 50%)` 黄色
+在 HSL 里都是 `L=50%`，但**人眼看黄色显著更亮**——这是 RGB/HSL
+色彩空间本身的问题（它们不是"感知均匀"的）。
+
+`oklch()` 是 **OKLCH 色彩空间**——CSS Color Level 4 引入的"感知
+均匀"空间：
+
+```css
+/* oklch(亮度 色度 色相 / 透明度) */
+.btn-primary {
+  background: oklch(60% 0.15 250); /* 蓝色 */
+}
+
+.btn-warning {
+  background: oklch(60% 0.15 90); /* 黄色 */
+}
+```
+
+**同一亮度值（60%）的两个颜色在人眼看来亮度一致**——这是 OKLCH
+设计的核心。设计令牌系统里"主色 / 辅助色 / 成功 / 警告 / 危险"
+要保持视觉一致性时，OKLCH 是现代答案。
+
+> **词源 + 原理**：OKLCH 的 **OK** 来自 **Oklab**（由 Björn Ottosson
+> 2020 年发表的感知均匀色彩空间）；**LCH** = Lightness（亮度）、
+> Chroma（色度）、Hue（色相）——和 HSL 的 H/S/L 概念类似但数学
+> 模型完全不同。一手参考：
+> [Oklab color space](https://bottosson.github.io/posts/oklab/) **（英文）**。
+
+### 6.2 `oklch()` vs `hsl()`：何时用哪个
+
+> **先约定一个词**：**色域（gamut）** = "一种色彩空间能表达的颜色
+> 范围"。**sRGB** 是 1996 年定的"网页通用色域"，所有屏幕都能显示；
+> **Display P3** 是 2015 年苹果在 iPhone / Mac 屏幕上推的更宽色域
+> （比 sRGB 多约 25% 的颜色空间，红 / 绿尤其鲜艳）。**Rec.2020**
+> 更宽，主要给电视 / 视频；网页用得少。
+
+| 维度             | `hsl()`                        | `oklch()`                             |
+| ---------------- | ------------------------------ | ------------------------------------- |
+| 感知均匀性       | ❌ 不同色相在同 L 下亮度不一致 | ✅ 同 L 值人眼亮度一致                |
+| 色域             | sRGB                           | Display P3 / 更宽色域（需浏览器支持） |
+| 浏览器支持       | 全部                           | 主流均支持（查 MDN 顶部 Baseline）    |
+| 读写人类可读性   | ✅ `hsl(210, 80%, 50%)` 直观   | ⚠️ 需要习惯 `oklch(0.6 0.15 250)`     |
+| 设计令牌系统     | ✅ 能用                        | ✅ 更优（等亮度更稳）                 |
+| 暗色模式自动推导 | ❌ `L` 值改了视觉不一致        | ✅ 统一改 `L` 即可                    |
+
+**实战建议**：
+
+- **新项目 2024 起**：默认 `oklch()`，设计令牌按 LCH 三档定义
+- **需兼容老浏览器**：`hsl()` 兜底 + `oklch()` 渐进增强
+- **手动调色**：`oklch()` 更快——调亮度只动第一个数
+
+### 6.3 `color-mix()`：运行时混色
+
+```css
+.btn {
+  --color-base: oklch(60% 0.15 250);
+
+  /* 把 base 和白色按 80%:20% 混合 */
+  background: color-mix(in oklch, var(--color-base) 80%, white);
+}
+
+.btn:hover {
+  /* hover 时混入 10% 黑 */
+  background: color-mix(in oklch, var(--color-base) 90%, black);
+}
+```
+
+**`color-mix()` 替代了 SCSS 的 `lighten()` / `darken()` / `mix()`**——
+过去要在编译时算、现在运行时浏览器接管。好处：
+
+1. 暗色模式时**同一条规则**自动跟随——`var(--color-base)` 变了，
+   混色结果自动变
+2. 不需要预生成"浅 10% / 深 10%"的全套变量——一个 base + 多条
+   `color-mix()` 即可
+
+语法：`color-mix(in <colorspace>, <color1> <percentage>, <color2>)`。
+`in oklch` 指定在 OKLCH 空间里插值——这是关键，不写会回退到 sRGB
+插值（不够均匀）。
+
+一手参考：[MDN · `color-mix()`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/color_value/color-mix)。
+
+### 6.4 `light-dark()`：暗色模式一行解决
+
+```css
+:root {
+  color-scheme: light dark; /* 声明支持深浅两套 */
+}
+
+.card {
+  /* 浅色模式用白、暗色模式用灰 */
+  background: light-dark(white, oklch(20% 0 0));
+  color: light-dark(black, white);
+}
+```
+
+**`light-dark(浅色值, 暗色值)` 根据 `color-scheme` 自动选值**——
+不需要写两套规则、不需要媒体查询、不需要 `[data-theme]` class。
+
+> **何时用 `light-dark()` vs 变量切换**：
+>
+> - **简单场景**（几个颜色）：`light-dark()` 最快
+> - **复杂主题**（多套变量）：还是 CSS 变量 + `[data-theme]` 覆盖
+>   更灵活——`light-dark()` 只能二选一，变量能做"蓝主题 / 绿主题 /
+>   暗蓝 / 暗绿"多套
+
+浏览器支持：写本节时 `light-dark()` 已是 Baseline Newly available；
+具体版本查 [MDN · `light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark) **（英文，MDN 中文版尚未翻译此页）** 顶部徽章。
+
+---
+
+## 7. 原生嵌套：和 SCSS 几乎一样的写法
+
+CSS 现在原生支持了嵌套（已是主流浏览器 Baseline；具体版本查
+[MDN · CSS 嵌套](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_nesting)）：
+
+```css
+.card {
+  padding: 1rem;
+  border-radius: 0.5rem;
+
+  /* 嵌套选择器 */
+  .title {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  /* & 代表父选择器 */
+  &:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* BEM 修饰符（BEM = Block-Element-Modifier，社区里
+     `.block__element--modifier` 这套类名约定） */
+  &--primary {
+    background: var(--color-primary);
+  }
+
+  /* 媒体查询也能嵌套 */
+  @media (min-width: 768px) {
+    padding: 2rem;
+  }
+}
+```
+
+### 7.1 与 SCSS 的差异
+
+| 写法                     | SCSS                    | CSS 原生嵌套                          |
+| ------------------------ | ----------------------- | ------------------------------------- |
+| `.parent .child {}`      | ✅                      | ✅                                    |
+| `.parent { .child {} }`  | ✅                      | ✅                                    |
+| `&:hover`                | ✅                      | ✅                                    |
+| `&--modifier`            | ✅                      | ✅                                    |
+| `.parent { div {} }`     | ✅ 解析为 `.parent div` | ⚠️ **必须写 `& div`**（CSS 原生要求） |
+| `@media` / `@layer` 嵌套 | ✅                      | ✅                                    |
+
+**最大差异**：CSS 原生嵌套里，**标签选择器必须用 `&` 开头**——
+`.parent { div {} }` 不合法，要写 `.parent { & div {} }`。这是
+规范设计（避免歧义）。
+
+SCSS 项目迁移到原生嵌套时 grep 搜一遍 `.xxx { [a-z] {` 模式，
+全部改成 `& 标签`。
+
+### 7.2 何时用原生嵌套、何时仍用 SCSS
+
+| 场景                              | 推荐                    |
+| --------------------------------- | ----------------------- |
+| **纯 CSS 项目**                   | 原生嵌套                |
+| **组件库（不想强依赖构建）**      | 原生嵌套                |
+| **需要 SCSS 函数 / mixin**        | SCSS（嵌套只是附带）    |
+| **已有 SCSS 项目**                | 继续 SCSS（迁移成本高） |
+| **新项目 + Tailwind / CSS-in-JS** | 不需要嵌套              |
+
+一手参考：[MDN · CSS 嵌套](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_nesting)。
+
+---
+
+## 8. `@scope` / `@starting-style`：作用域与进入态
+
+### 8.1 `@scope`：限定样式作用范围
+
+`@scope` 是"限定样式只在某个子树生效"的原生答案——Vue / Svelte 的
+`<style scoped>` 做的就是这件事，现在 CSS 原生有了：
+
+```css
+@scope (.card) {
+  /* 只在 .card 内部生效 */
+  h2 {
+    font-size: 1.25rem;
+    margin-top: 0;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* 等价于：把所有规则都加 .card 前缀 */
+.card h2 {
+  font-size: 1.25rem;
+}
+.card .btn {
+  padding: 0.5rem 1rem;
+}
+```
+
+**更强大的是 `@scope` 支持"作用域上限 + 下限"**：
+
+```css
+/* 从 .article 到 .code-block 之间的所有 p */
+@scope (.article) to (.code-block) {
+  p {
+    line-height: 1.8;
+  }
+}
+```
+
+这读作"在 `.article` 内部、但**不穿透** `.code-block` 的 `p`"——
+`.code-block` 里的 `p` 不受影响。
+
+**何时用**：组件库 / 设计系统要隔离样式时；不想污染全局时。但
+**2024 年浏览器支持还不够全**（Firefox 仍在路上），生产项目慎用。
+
+一手参考：[MDN · `@scope`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@scope) +
+[CSS Cascade Level 6 §@scope](https://www.w3.org/TR/css-cascade-6/#scope-atrule) **（英文）**。
+
+### 8.2 `@starting-style`：进入态动画
+
+过去 `display: none → block` 切换时**无法做 transition**——因为
+浏览器不知道"从哪个状态过渡"。`@starting-style` 声明"进入前的初始
+状态"：
+
+```css
+.dialog {
+  display: block;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+.dialog[hidden] {
+  display: none;
+}
+
+/* 进入态：从 opacity: 0 过渡到 1 */
+@starting-style {
+  .dialog {
+    opacity: 0;
+  }
+}
+```
+
+JS 切换 `hidden` 属性时，`opacity` 会从 0 平滑过渡到 1——过去要靠
+`requestAnimationFrame` + 延迟去掉 `hidden`，现在 CSS 原生接管。
+
+**与 §3.6 View Transitions 联动**：`@starting-style` 是"单元素
+进入 / 离开"动画；View Transitions 是"跨页面 / 跨状态"动画——
+两者配合覆盖全套场景。
+
+浏览器支持：Chrome 117+ / Safari 17.5+ / Firefox 129+。
+
+---
+
+## 9. 复杂面回链：继承 / 包含块
+
+这两个概念在 §3.1 已经点过，这里从 CSS 变量 / 嵌套的视角补一遍。
+
+### 9.1 继承（inheritance）
+
+CSS 有一批属性会**自动从父元素继承**给子元素：
+
+| 会继承的属性                                        | 不会继承的属性                           |
+| --------------------------------------------------- | ---------------------------------------- |
+| 字体（`font-*` / `line-height` / `letter-spacing`） | 盒模型（`width` / `margin` / `padding`） |
+| 颜色（`color`）                                     | 布局（`display` / `position`）           |
+| 文本（`text-align` / `text-indent`）                | 背景（`background`）                     |
+| **CSS 变量（`--xxx`）**                             | 边框（`border`）                         |
+
+**CSS 变量默认继承**——这是它和 SCSS 变量最大的区别。所以：
+
+```css
+:root {
+  --color-primary: blue;
+}
+
+.card {
+  /* 子元素自动能访问到 --color-primary */
+  color: var(--color-primary);
+}
+```
+
+**用 `@property` 可以改继承行为**：
+
+```css
+@property --local-var {
+  syntax: "<color>";
+  inherits: false; /* 不继承 */
+  initial-value: red;
+}
+```
+
+### 9.2 包含块（containing block）回顾
+
+§3.1 §11.3 已讲——`position: absolute` 的元素相对"最近的非 static
+定位祖先"定位。嵌套选择器里常见的坑：
+
+```css
+.parent {
+  position: relative; /* 父容器要声明定位 */
+
+  .child {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}
+```
+
+忘了 `position: relative` → `.child` 跑到 viewport 右上角。
+
+---
+
+## 10. 兼容性怎么判断 + 何时用原生何时用库
+
+> **本节核心**：业务里能不能"今天就放心用"某个 CSS 特性，不靠"我觉得
+> 应该可以"——靠 **Baseline** 这套官方互通状态标识，配合 `Browserslist`
+> 自动卡住兼容性。
+
+### 10.1 Baseline：现代浏览器互通状态的官方标识
+
+[Baseline](https://web.dev/baseline) 是 W3C / Google / 浏览器厂商
+2023 年共建的标识体系——告诉你**一个 Web 平台特性当前在主流浏览器里
+处于什么状态**。读懂这套就知道能不能放心用。三档：
+
+| 状态                     | 意思                                                             | 业务能用吗                        |
+| ------------------------ | ---------------------------------------------------------------- | --------------------------------- |
+| **Limited availability** | 还有核心浏览器没实现 / 实现不一致                                | ❌ 实验性，仅做技术调研用         |
+| **Newly available**      | 全部核心浏览器（Chrome / Edge / Safari / Firefox）都支持的那一刻 | ⚠️ 新项目可用；老项目要看用户分布 |
+| **Widely available**     | Newly available 之后**满 30 个月**——业务里默认放心用             | ✅ 包括需要兼容老用户的 B2C 项目  |
+
+> 30 个月这个数字不是拍脑袋——它是"两个 LTS Android 版本 + 一个 iOS
+> 大版本周期"的覆盖区间，意味着**绝大多数还在用的设备这个时候也都
+> 跟上了**。一手参考：
+> [web.dev · How to choose your Baseline target](https://web.dev/articles/how-to-choose-your-baseline-target) **（英文）**。
+
+### 10.2 本节特性的当前 Baseline 档次（写于 2026-06）
+
+> ⚠️ 下表只标 Baseline **档次**（Widely / Newly / Limited），**不写
+> 具体进入日期**——因为日期会随浏览器发布滚动变化，写定后必然过期。
+> 实际查询去 MDN 文档页顶部的 Baseline 徽章（写本节时已核实的当前
+> 档次如下，**生产前请以 MDN / Can I Use 实时数据为准**）。
+
+| 特性                            | Baseline 档次 | 业务建议                              |
+| ------------------------------- | ------------- | ------------------------------------- |
+| CSS 变量 (`--xxx`)              | Widely        | 放心用                                |
+| `@layer`                        | Widely        | 放心用                                |
+| `:has()` / `:is()` / `:where()` | Widely        | 放心用                                |
+| 原生嵌套                        | Widely        | 放心用                                |
+| `oklch()` / `color-mix()`       | Widely        | 放心用 + 给宽色域屏幕做 sRGB 兜底     |
+| `@property`                     | Newly         | 新项目可用；老项目用 `@supports` 兜底 |
+| `light-dark()`                  | Newly         | 同上                                  |
+| `@starting-style`               | Newly         | 同上                                  |
+| `@scope`                        | Limited       | ⚠️ 暂缓（等核心浏览器互通）           |
+
+> **怎么自己查最新状态**：
+>
+> - **MDN 文档页**：每个特性顶部都有 Baseline 徽章 + 时间戳，
+>   例如 [`@layer` 文档](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@layer)
+>   顶部直接写 "Baseline · Widely available"
+> - **Can I Use**：`https://caniuse.com/<feature>`——给具体浏览器
+>   版本号 + 用户份额估算
+
+### 10.3 用 `Browserslist` 把"我支持哪些浏览器"配置化
+
+[`Browserslist`](https://github.com/browserslist/browserslist)
+是前端项目里**事实标准**的"目标浏览器声明"——业务里大多数构建
+工具（Babel / PostCSS / Autoprefixer / Tailwind 等）都会读它，
+按这份声明决定要不要给某条 CSS 加前缀 / 转译。`package.json` 里加：
+
+```json
+{
+  "browserslist": ["> 0.5%", "last 2 versions", "not dead"]
+}
+```
+
+2024 起 Browserslist [原生支持 Baseline targets](https://web.dev/articles/use-baseline-with-browserslist)
+**（英文）**——直接写：
+
+```json
+{
+  "browserslist": ["baseline widely available"]
+}
+```
+
+构建工具会**自动**对比你用的 CSS 特性是否落在目标集合内、要不要
+polyfill / fallback / vendor prefix。**不要再凭印象写"应该能跑"**。
+
+### 10.4 用 `@supports` 做特性渐进增强
+
+知道某特性是 Newly available（不是 Widely）时，写**渐进增强**——
+有的浏览器用新写法、不行就回退：
+
+```css
+/* 默认所有浏览器：用 hsl 兜底 */
+.btn {
+  background: hsl(210, 80%, 50%);
+}
+
+/* 支持 oklch 的浏览器：升级到更准的色值 */
+@supports (color: oklch(50% 0.1 250)) {
+  .btn {
+    background: oklch(60% 0.15 250);
+  }
+}
+```
+
+`@supports` 让浏览器自己测能不能解析这条 CSS——这是**唯一**官方
+的 CSS 特性检测方式（不要用 JS 检测 CSS）。
+
+### 10.5 何时用原生 CSS、何时用库？
+
+写代码时的判断顺序：
+
+1. **能用原生 CSS 解决吗**？查 §10.2 表 + MDN——能就用，少一个
+   依赖少一份风险
+2. **原生 CSS Newly available 但需要兼容老用户**？用 `@supports`
+   做渐进增强——新用户拿好的、老用户不爆掉
+3. **原生 CSS 还是 Limited（多个浏览器没实现）**？用库 **polyfill**
+   （在不支持的浏览器里"用 JS 模拟新特性"的兼容代码包）或换方案
+4. **要写一整套设计系统**？库 + 原生**配合用**——见下表
+
+什么时候用库 / 框架更划算：
+
+| 需求                                        | 选哪个                                                                                                           |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 一个 utility 系统 + 设计令牌生态            | **Tailwind CSS v4**（原生 `@layer` / `oklch` / `@property` / `color-mix`）                                       |
+| 行为 + a11y 但不带样式（dropdown / dialog） | **Radix UI** / **React Aria** / **Headless UI**——见 §3.2 §4.4                                                    |
+| 复制粘贴的可定制组件                        | **shadcn/ui**——见第 5 章 React                                                                                   |
+| 完整设计系统（中后台）                      | **Ant Design** / **Element Plus** / **Material UI**                                                              |
+| `@scope` 还没全平台支持时的样式隔离         | CSS Modules / Vue scoped / styled-components                                                                     |
+| 老浏览器的 `:has()` polyfill                | [`css-has-pseudo`](https://github.com/csstools/postcss-plugins/tree/main/plugins/css-has-pseudo)（PostCSS 插件） |
+| 老浏览器的原生嵌套 polyfill                 | [`postcss-nesting`](https://github.com/csstools/postcss-plugins/tree/main/plugins/postcss-nesting)               |
+
+### 10.6 现实印证：Tailwind v4 怎么就成了"现代 CSS 的样板"
+
+Tailwind 2017 年起步、v3（2021）一直靠 **PostCSS**（一种"用 JS 把
+源 CSS 转成另一种 CSS"的构建工具，详见第 6 章工程化）把 utility
+class **编译**成 CSS。**v4（2025-01-22 stable）的核心定位就是"原生
+CSS 接管 PostCSS 时代的 polyfill"**——[Tailwind 官方 v4 博客](https://tailwindcss.com/blog/tailwindcss-v4) **（英文）** 原文：
+
+> Designed for the modern web — built on cutting-edge CSS features
+> like cascade layers, registered custom properties with `@property`,
+> and `color-mix()`.
+
+v4 vs v3 破坏性更新里**直接对应本节特性**的：
+
+| v3 旧办法                                          | v4 新办法                                              | 对应本节 |
+| -------------------------------------------------- | ------------------------------------------------------ | -------- |
+| 纯靠 PostCSS 编译时分组                            | 原生 `@layer theme, base, components, utilities`       | §3       |
+| `tailwind.config.js`（JS 配置）                    | `@theme { --color-*: ... }`（CSS 变量配置）            | §5       |
+| 默认 RGB 色板                                      | 默认 OKLCH 色板（更鲜艳，P3 色域）                     | §6       |
+| 透明度修饰符靠 `rgba()` 编译展开                   | `color-mix(in oklab, var(--color-*) 50%, transparent)` | §6       |
+| 容器查询要装 `@tailwindcss/container-queries` 插件 | 内置（用原生容器查询）                                 | §3.1     |
+| `@property` 注册自定义属性靠 PostCSS 模拟          | 原生 `@property`（带类型）                             | §5.3     |
+
+**结论**：Tailwind 不是这一节内容的"衍生"——它**早于这批 CSS 能力**。
+但 v4 的"重写"主要不是炫技，是**"现代 CSS 已经把 PostCSS 时代要做的
+事原生化了，框架顺势下移一层"**——这正好印证：本节讲的不是冷知识，
+**业界最广用的样式方案已经按这一节的特性重写了一遍**。
+
+> **设计判断（信息隐藏 + 抽象代价）**：v4 把 v3 时代用 JS 配置 +
+> PostCSS 编译"藏起来"的细节，**重新暴露**为 CSS 原生概念
+> （`@theme` 直接是 CSS、`@layer` 直接是 CSS）。这不是退步——
+> 是因为浏览器已经把这些原语都接管好了，**不再需要工具链做翻译**。
+> 抽象层次一旦能下降，框架就该下降——这是 §3.5 样式方案选型的伏笔。
+
+### 10.7 三句话总结判断流程
+
+1. **查 Baseline**——MDN 顶部徽章是最快的来源
+2. **Widely available 直接用；Newly 用 `@supports` 渐进增强；Limited 等等**
+3. **原生能干就别引库**——除非库提供"行为 + a11y"这种纯 CSS 给不了的事
+
+---
+
+## 11. AI 时代写现代 CSS 的最小集：人到底该看什么
+
+> **本节核心**：AI 对 `@layer` / `:has()` / `oklch()` 这批 2022+ 的
+> 新语法**训练覆盖不如旧语法**——它能写，但经常选不对场景。
+
+| 你想做                              | AI 帮得上吗                                      |
+| ----------------------------------- | ------------------------------------------------ |
+| 写一段 `:has()` 选择器              | ✅ 语法写得对                                    |
+| 判断该用 `:has()` 还是 JS 动 class  | ⚠️ AI 倾向旧解法；**你得主动提 `:has()`**        |
+| 设计 `@layer` 分层策略              | ❌ 业务上下文 AI 拿不到；让它列方案、你拍板      |
+| 写 `oklch()` 色值                   | ⚠️ 能写但经常写成 `hsl()`；**提示它用 oklch**    |
+| 决定用 `color-mix()` 还是预生成变量 | ❌ 这是架构决策，不是语法选择                    |
+| 把 SCSS 迁移到原生嵌套              | ✅ 改标签选择器加 `&` 这类机械替换               |
+| 写 `@property` 声明                 | ⚠️ 能写但常漏 `syntax` / `inherits`；必须 review |
+
+**三步法**：
+
+1. **你先判断用哪个特性**——`:has()` / `@layer` / `oklch()` / 原生嵌套
+2. **在 prompt 里明确写出来**："用 `:has()` 实现⋯" / "用 `@layer`
+   组织样式"
+3. **review 两件事**：语法对不对（AI 通常对）、有没有用反模式
+   （如 `*:has()`）
+
+不主动提，AI 会给你 2018 年的写法——能跑，但你学了一节"现代 CSS"
+就白学了。
+
+---
+
+## 12. 经典翻车：现代 CSS 的 5 个高频坑
+
+### 翻车 1：`!important` 在 `@layer` 里反着赢
+
+```css
+@layer base, components;
+
+@layer base {
+  .btn {
+    background: blue !important;
+  }
+}
+
+@layer components {
+  .btn {
+    background: red;
+  }
+}
+
+/* 结果：base 的 !important 赢——因为 !important 让层级反转 */
+```
+
+**修复**：不要在 layer 里用 `!important`——layer 本身就是为了替代它。
+
+### 翻车 2：`:has()` 套全局选择器性能炸裂
+
+```css
+/* ❌ 每个元素都检查子树有没有 .error */
+*:has(.error) {
+  outline: 2px solid red;
+}
+
+/* ✅ 限定根 */
+body:has(.error) .container {
+  outline: 2px solid red;
+}
+```
+
+### 翻车 3：`oklch()` 色域裁剪
+
+`oklch()` 支持 Display P3 / Rec.2020 等宽色域，但**用户屏幕不支持
+时会被裁剪回 sRGB**——视觉上可能"颜色变灰了"。
+
+```css
+/* 这个色值在 sRGB 屏幕上会被裁 */
+.btn {
+  background: oklch(60% 0.25 250);
+}
+
+/* 兜底写法：先 sRGB、再 oklch 渐进增强 */
+.btn {
+  background: hsl(210, 80%, 50%);
+  background: oklch(60% 0.15 250);
+}
+```
+
+### 翻车 4：原生嵌套忘了标签选择器要 `&`
+
+```css
+/* ❌ CSS 原生不认 */
+.card {
+  div {
+    padding: 1rem;
+  }
+}
+
+/* ✅ */
+.card {
+  & div {
+    padding: 1rem;
+  }
+}
+```
+
+### 翻车 5：`@property` 漏 `syntax` 导致 transition 失效
+
+```css
+/* ❌ 浏览器不知道这是 angle，transition 不工作 */
+@property --angle {
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ✅ 必须写 syntax */
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+```
+
+---
+
+## 13. 最小练习清单
+
+写代码时遇到下面任意一项，停 5-10 分钟把它做对：
+
+1. 用 `@layer` 组织一个项目的样式（reset / base / components /
+   utilities 四层）
+2. 用 `:has()` 写一个"表单组含错误时整组红边框"的规则
+3. 把一个 `hsl()` 色值改成 `oklch()`，调整到视觉一致
+4. 用 `color-mix()` 实现一个"hover 时颜色混入 10% 黑"的按钮
+5. 用 `@property` + transition 让一个 `--angle` 变量平滑过渡
+6. 把一段 SCSS 嵌套代码改成 CSS 原生嵌套（注意标签选择器加 `&`）
+7. 用 `light-dark()` 写一个深浅模式自适应的卡片
+
+每题 ≤ 15 行 CSS。写不出来回到对应节再读一遍。
+
+---
+
+## 延伸阅读
+
+- [MDN: CSS Cascade（层叠）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascade/Cascade) —
+  中文一手；cascade 算法的完整解释
+- [MDN: 使用 CSS 自定义属性（变量）](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_cascading_variables/Using_CSS_custom_properties) —
+  CSS 变量的中文参考
+- [MDN: Cascade layers（学习模块）](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Core/Styling_basics/Cascade_layers) —
+  `@layer` 的中文教程，覆盖第三方库整合与 `!important` 反转
+- [CSS Color Module Level 4](https://www.w3.org/TR/css-color-4/) **（英文）** —
+  `oklch()` / `color-mix()` 的规范源头
+- [Oklab color space](https://bottosson.github.io/posts/oklab/) **（英文）** —
+  OKLCH 色彩空间的原始论文（非常易读）
+- [Baseline · web.dev](https://web.dev/baseline) **（英文）** —
+  CSS / Web 平台特性兼容性的官方判断标准
+- [How to choose your Baseline target](https://web.dev/articles/how-to-choose-your-baseline-target) **（英文）** —
+  业务里"该选哪一档"的官方建议
+- [Tailwind CSS v4.0 发布博客](https://tailwindcss.com/blog/tailwindcss-v4) **（英文）** —
+  现代 CSS 落地框架的现实印证
+- [State of CSS 2024](https://2024.stateofcss.com/zh-Hans/) —
+  社区在现代 CSS 特性上的使用率与满意度
+
+> 访问性说明：MDN 中文版 + State of CSS 中文版可直接访问；
+> web.dev / W3C 规范 / Oklab 论文 / Tailwind 博客英文站偶有访问波动，
+> 但绝大多数 ISP 可达。
+
+---
+
+下一节：§3.4 响应式与中文 Web _（待写）_ —— 移动优先、CJK 排版、暗色模式。

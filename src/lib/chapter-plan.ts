@@ -24,7 +24,7 @@ export const chapterPlan: PlannedChapter[] = [
     type: "chapter",
     published: true,
     url: "/chapter-03",
-    partial: { released: 1, total: 6 },
+    partial: { released: 3, total: 6 },
   },
   { id: "04", title: "JavaScript 与 TypeScript", type: "chapter", published: false },
   { id: "05", title: "React 与 Next.js", type: "chapter", published: false },
