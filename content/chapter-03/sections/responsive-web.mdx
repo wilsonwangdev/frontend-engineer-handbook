@@ -1,0 +1,1227 @@
+---
+title: 响应式与中文 Web
+chapter: 3
+section: 4
+description: 移动优先、CJK 排版、暗色模式——三件常被忽略的设计基础
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 14
+---
+
+> 这一节讲**多视口 + 多语言 + 多偏好**——响应式在 2026 年不只是"手机和电脑两套断点"，而是让页面在**不同屏幕尺寸、不同语言排版规则、不同用户偏好（光暗 / 减动效 / 高对比）** 下都可用。
+
+§3.1 把布局讲清楚了，§3.2 讲了语义，§3.3 讲了现代 CSS 特性。这一节往"真实用户环境"再推一层：**你写的页面会在 iPhone SE（375px 宽）、iPad（1024px）、4K 显示器（3840px）上被打开；会被中文、英文、阿拉伯文读者看到；会在亮色、暗色、高对比模式下显示**。这些不是边缘场景——它们是你上线第一天就会遇到的现实。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                     | 直接读                                                  |
+> | ---------------------------------------- | ------------------------------------------------------- |
+> | **新人 / 转行者**                        | §0 简史 → §1 移动优先 → §3 中文排版（前 1/3） → §4 暗色 |
+> | **写过几年响应式但只用过媒体查询**       | §1.4 dvh 系列 → §2 媒体 vs 容器查询 → §3 中文排版整节   |
+> | **被产品 / 法务要求做暗色 / a11y**       | §4 暗色模式（含 SSR FOUC） → §5 prefers-\* 全家桶       |
+> | **中文站排版翻车（行宽 / 折行 / 字体）** | §3 中文排版整节 → §9 翻车库                             |
+> | **要带 AI 写响应式样式**                 | §8 AI 时代写响应式的最小集                              |
+>
+> 整节读完约 50-70 分钟；按上面挑读 15-20 分钟。**中文排版那一节强烈建议每个写中文站点的人都读完**——这是国内手册和英文资料的最大差异化价值。
+
+---
+
+## 0. 一段必要的回顾：响应式是怎么"长成现在这样"的
+
+> 跟前几节一样，先看演进——**今天每一个被推荐的现代写法，都在替换某个 2010 年代的旧解法**。串起来看，新写法就不再是"凭空记忆"。
+
+| 年代  | 主流手段                                                                                               | 解决了什么                        | 留下了什么                                    |
+| ----- | ------------------------------------------------------------------------------------------------------ | --------------------------------- | --------------------------------------------- |
+| ~2007 | 固定宽度 960px 网格                                                                                    | 桌面端排版统一                    | 移动设备来了完全失配                          |
+| 2010  | [响应式 Web 设计](https://alistapart.com/article/responsive-web-design/)（Ethan Marcotte 论文）        | 一套代码适配多视口                | 媒体查询断点泛滥，写到后面满屏 `@media`       |
+| 2011  | [移动优先](https://www.lukew.com/ff/entry.asp?933)（Luke Wroblewski 提出）                             | 设计起点反过来——先小屏再桌面      | 桌面端体验被低估的争议                        |
+| 2017  | Flex / Grid 全支持                                                                                     | 一维 / 二维布局原生可表达         | 仍依赖视口断点判断"该不该折叠"                |
+| 2020  | iOS 安全区域 + `env(safe-area-inset-*)`                                                                | 刘海屏不再遮挡内容                | 历史遗留的 `100vh` 在移动端不准               |
+| 2023  | 容器查询稳定                                                                                           | 组件按"自身宽度"响应              | 心智需要切换：何时按视口、何时按容器          |
+| 2024+ | [`dvh` / `lvh` / `svh`](https://drafts.csswg.org/css-values-4/#viewport-variants) + `prefers-*` 全家桶 | 视口高度的精确表达 + 用户偏好查询 | 暗色模式 / 减动效 / 高对比 / 流量节省成为标配 |
+
+读这张表能感受到一件事：**响应式的演进方向从"按视口数值切换"逐步走向"按上下文 / 按用户偏好声明意图"**——同样符合 §3.1 §3.3 反复点出的"声明式取代命令式"主线。
+
+> **写给新人**：如果你只学过媒体查询（`@media (max-width: 768px)`），不要慌——这套写法到今天仍然是地基。但**只懂媒体查询就上 2026 的项目会处处别扭**：iOS 视口高度量不准、组件复用时没办法按容器宽度响应、暗色模式需要硬编码一套替代色。这一节就是给你升级的。
+
+---
+
+## 1. 移动优先：不是 CSS 写法的问题
+
+"移动优先"被很多人理解成"先写 `min-width` 媒体查询"——这是把战术当战略。**真正的移动优先是设计起点反过来**：信息密度先按 375px 屏幕想清楚，然后桌面端是"加宽 + 加多"，不是反过来"塞满桌面再塌缩"。
+
+### 1.1 为什么从小屏开始
+
+| 视角     | 桌面优先（旧）                     | 移动优先（现代）                       |
+| -------- | ---------------------------------- | -------------------------------------- |
+| 设计起点 | 1440px 屏幕塞满后再考虑塌缩        | 375px 屏幕能装下的核心信息先放         |
+| 内容取舍 | "桌面装得下就都装"，移动端再砍     | 移动端逼你做减法，桌面端是"加法"       |
+| 性能     | 默认大图 + 大字体包，移动端要替换  | 默认小资源，桌面端按需加载更精细的版本 |
+| CSS      | 默认样式 + `max-width: 768px` 覆盖 | 默认样式 + `min-width: 768px` 增强     |
+
+**为什么移动优先是减法练习**：375px 屏幕宽度只够放约 18 个汉字。把核心信息塞进去，多余的全部取舍——这是设计纪律。桌面端有 1440px 可用，但**多余空间不等于必须填满**。Apple、Stripe、Linear 这些站点桌面端留白都是大手笔，因为桌面端的奢侈是"留白权"。
+
+### 1.2 viewport meta 标签：上线第一行 HTML 写错的最高频地方
+
+每个 HTML 页面 `<head>` 里都该有这一行：
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+```
+
+含义：**视口宽度等于设备宽度，初始缩放比 1**。少了这行，移动端浏览器会假装自己是 980px 宽桌面屏，然后把整页"等比缩小"——文字小到看不清，用户必须双指放大。
+
+**反例**（曾经流行，现在禁用）：
+
+```html
+<!-- ❌ 禁止用户缩放 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+```
+
+`user-scalable=no` 和 `maximum-scale=1` 都阻止用户双指放大——这对低视力用户是**严重 a11y 违规**（[WCAG 1.4.4 Resize text](https://www.w3.org/WAI/WCAG21/Understanding/resize-text.html)）。除非你在做地图 / 游戏这种确实需要禁用浏览器缩放的特殊页面，**永远不要禁用缩放**。
+
+> 一手：[MDN: Viewport meta tag](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Viewport_meta_tag)。
+
+### 1.3 触摸目标尺寸：44×44pt 不是建议是底线
+
+按钮、链接、表单控件在移动端的**最小可点击尺寸应 ≥ 44×44pt**（[Apple HIG](https://developer.apple.com/design/human-interface-guidelines/) 标准；Material Design 推荐 48×48dp，更宽松）。
+
+**为什么是 44pt**：人手指接触屏幕的平均接触面积约 7-10mm，44pt（在 iPhone 上约 7-9mm）是**单手操作误触率可接受的最小值**。
+
+```css
+button,
+a.button,
+[role="button"] {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  /* 老属性等价：min-height + min-width */
+}
+```
+
+> **`min-block-size` / `min-inline-size` 是什么**：CSS 逻辑属性（logical properties）——按"书写流"而非"物理方向"声明尺寸。中文 / 英文（横排 LTR）下 `block` = 垂直、`inline` = 水平；阿拉伯文（横排 RTL）下方向自动反过来；竖排日文方向再不同。**新代码默认用逻辑属性**——同一份样式适配多语言。详见 [MDN: CSS 逻辑属性](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_logical_properties_and_values)。
+
+### 1.4 安全区域：刘海、灵动岛、底部 Home 指示条
+
+iPhone X（2017 年）之后所有"全面屏"机型都有非矩形显示区域——顶部刘海或灵动岛、底部 Home 指示条、四角圆弧。如果页面背景色或操作区域不避开这些，**内容会被遮挡**。
+
+iOS 给了一组 CSS 环境变量：
+
+```css
+/* 1. 启用安全区域机制（必须） */
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+```
+
+```css
+/* 2. CSS 里读取安全区域 */
+.app-container {
+  padding-block-start: env(safe-area-inset-top); /* 顶部刘海高度 */
+  padding-block-end: env(safe-area-inset-bottom); /* 底部指示条高度 */
+  padding-inline-start: env(safe-area-inset-left); /* 左侧（横屏时刘海方向）*/
+  padding-inline-end: env(safe-area-inset-right);
+}
+
+/* 3. 与原有 padding 叠加用 max() */
+.bottom-toolbar {
+  padding-block-end: max(16px, env(safe-area-inset-bottom));
+}
+```
+
+`env()` 在不支持的环境（桌面端 / 旧浏览器）会被忽略，等价于 0——所以**安全用，不需要降级判断**。
+
+> 一手：[WebKit Blog: Designing Websites for iPhone X](https://webkit.org/blog/7929/designing-websites-for-iphone-x/)（最早提出 `env()` 的官方说明）；[MDN: env()](https://developer.mozilla.org/zh-CN/docs/Web/CSS/env)。
+
+### 1.5 视口高度：`100vh` 翻车 + `dvh` / `lvh` / `svh` 现代解
+
+**经典翻车**：移动端 Safari 的 URL 栏在滚动时会自动隐藏 / 显示——`100vh` 在不同状态下指向不同高度。常见症状：登录页 `height: 100vh` 在 iPhone 上显示时**底部按钮被工具栏遮挡**。
+
+CSS Values Level 4 在 2023-2024 年推出了**视口高度变体**，2024 年起主流浏览器全支持：
+
+| 单位          | 全称                    | 含义                             | 何时用                   |
+| ------------- | ----------------------- | -------------------------------- | ------------------------ |
+| `vh` / `vw`   | viewport height / width | 历史单位；移动端不稳             | 兼容旧浏览器降级时       |
+| `svh` / `svw` | **s**mall viewport      | 工具栏**展开时**的视口（最小值） | 关键内容必须可见时       |
+| `lvh` / `lvw` | **l**arge viewport      | 工具栏**收起时**的视口（最大值） | 背景图、装饰元素         |
+| `dvh` / `dvw` | **d**ynamic viewport    | 跟随工具栏动态变化（实时值）     | **默认选这个**——平滑过渡 |
+
+**实战写法**：
+
+```css
+/* ❌ 老写法：iOS 上底部按钮可能被工具栏盖住 */
+.full-screen {
+  block-size: 100vh;
+}
+
+/* ✅ 新写法：动态适配 */
+.full-screen {
+  block-size: 100dvh;
+}
+
+/* ✅ 兼容写法：旧浏览器降级到 vh */
+.full-screen {
+  block-size: 100vh; /* 兜底 */
+  block-size: 100dvh; /* 现代浏览器覆盖 */
+}
+```
+
+> 一手：[CSS Values 4 §视口变体](https://drafts.csswg.org/css-values-4/#viewport-variants)；[Can I Use: viewport-unit-variants](https://caniuse.com/viewport-unit-variants)。
+
+---
+
+## 2. 媒体查询 vs 容器查询：什么时候用哪个
+
+§3.1 已经讲过容器查询的**语法**。这里补**选型判断**——为什么有两套查询机制？
+
+### 2.1 一张决策图
+
+```text
+我想根据什么来调整样式？
+
+├─ 整个页面的视口尺寸（浏览器窗口宽高）
+│  └─ 媒体查询（@media）
+│     示例：顶部导航在手机端折叠成汉堡菜单、整页布局从单栏变三栏
+│
+└─ 某个组件自己的容器宽度
+   └─ 容器查询（@container）
+      示例：卡片组件在侧边栏（窄）时图标堆叠、在主区域（宽）时图标横排
+```
+
+**核心差异**：
+
+- **媒体查询**看的是"浏览器窗口多宽"——用来调整**页面级骨架**（导航 / 侧边栏 / 栅格列数）
+- **容器查询**看的是"这个组件的父容器多宽"——用来让**可复用组件自适应**（不管被放在哪里都能按自己宽度响应）
+
+### 2.2 实例对比：卡片组件在两种场景的表现
+
+假设你写了一个卡片组件 `<Card />`，要求：
+
+- 宽度 < 400px 时：图标 + 文字纵向堆叠
+- 宽度 ≥ 400px 时：图标 + 文字横向排列
+
+**场景 1**：卡片在主区域（宽 800px）
+**场景 2**：同一张卡片在侧边栏（宽 300px）
+
+如果用**媒体查询**：
+
+```css
+/* ❌ 只看视口宽度——无法区分主区域 vs 侧边栏 */
+@media (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+```
+
+视口 1024px 时，两张卡片都会横向排列——但侧边栏那张卡片自己只有 300px 宽，横向排列会挤爆。
+
+如果用**容器查询**：
+
+```css
+/* ✅ 看容器宽度——主区域卡片横向、侧边栏卡片纵向 */
+.card-container {
+  container-type: inline-size;
+  container-name: card;
+}
+
+@container card (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+```
+
+每张卡片根据**自己父容器**的宽度独立决定是横还是竖——可复用了。
+
+> 详细语法 §3.1 已经讲过，这里不重复。回链：[§3.1 容器查询](/chapter-03/modern-layout#6-容器查询container-queries组件按自身宽度响应)。
+
+### 2.3 一条经验法则
+
+| 写的是什么         | 用哪个                       |
+| ------------------ | ---------------------------- |
+| 页面整体骨架样式   | 媒体查询（@media）           |
+| 可复用的 UI 组件   | 容器查询（@container）       |
+| "只在移动端"的交互 | 媒体查询 + 触摸事件判断      |
+| 用户偏好（暗色等） | 媒体查询（`prefers-*` 系列） |
+
+---
+
+## 3. CJK Web 排版：被忽视的本地化
+
+> **这一节是本手册和国外英文教程的最大差异化价值**——MDN / web.dev / CSS-Tricks 都是按英文场景写的，**CSS Text Module 几乎所有"美化"特性的设计目标都是英文排版**。中文站点照搬会翻车。
+
+### 3.1 中文字体栈：不是"随便指定微软雅黑"就够了
+
+英文站点常见字体栈：`system-ui, -apple-system, sans-serif`——苹果设备用 San Francisco、Windows 用 Segoe UI，一行搞定。
+
+中文站点如果只写 `font-family: sans-serif`，**各平台会选不同的默认字**：
+
+- macOS / iOS：苹方（PingFang SC），质量高
+- Windows：中易宋体（SimSun，点阵风格），**屏幕显示质量低**
+- Android：Noto Sans CJK / 思源黑体，质量可以
+
+**推荐中文字体栈**（横排简体中文）：
+
+```css
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    sans-serif;
+}
+```
+
+**逐项解释**：
+
+1. `system-ui` / `-apple-system`：苹果设备直接用系统字（iOS ≥ 9、macOS ≥ 10.11）
+2. `'PingFang SC'`：苹方简体中文——苹果设备显式声明（Safari 老版本不支持 `system-ui`）
+3. `'Microsoft YaHei'`：微软雅黑——Windows Vista 后预装，比宋体在屏幕上清晰
+4. `'Noto Sans CJK SC'`：思源黑体简体——Android / Linux 常见
+5. `sans-serif`：兜底
+
+**字体名要不要加引号**：含空格的字体名**必须加引号**——`'Microsoft YaHei'` 不加引号会被解析成三个单独的标识符，失效。`PingFang SC` 同理。
+
+> **繁体 / 日文 / 韩文字体栈**不在本节展开——简体中文站点用上面这套已够。需要多语言站点适配时参考 [W3C CLREQ（中文排版需求）](https://w3c.github.io/clreq/)、[JLREQ（日文）](https://www.w3.org/TR/jlreq/)、[KLREQ（韩文）](https://www.w3.org/TR/klreq/)。
+
+### 3.2 行高：中文要比英文宽
+
+英文段落常见 `line-height: 1.5`，中文同样数值会**显得拥挤**——汉字的视觉密度比拉丁字母高，行间距需要更宽才舒适。
+
+| 内容类型             | 推荐 `line-height` | 理由                                 |
+| -------------------- | ------------------ | ------------------------------------ |
+| 英文正文             | 1.5-1.6            | 西文阅读习惯                         |
+| **中文正文**         | **1.7-1.8**        | 汉字密度高，间距要宽                 |
+| 中英混排正文         | 1.7                | 取中文偏好                           |
+| 标题（H1-H3）        | 1.2-1.4            | 字号大本身已经"撑开"，不需要额外间距 |
+| 代码块（等宽字体）   | 1.5                | 等宽字体本身字符间距均匀             |
+| 长段落（如博客正文） | 1.75-1.85          | 阅读时间长，间距宽减轻视觉疲劳       |
+
+**经验数字**：本手册的 `prose-cn` 样式用 `line-height: 1.75`——长段中文阅读舒适度的折中值。
+
+### 3.3 行宽：每行多少字最好读
+
+阅读学研究表明**英文每行 50-75 字符（含空格）最舒适**，超出后读者跳行困难、低于则节奏被打断。中文场景：
+
+| 行宽         | 中文体感               |
+| ------------ | ---------------------- |
+| 30 字以下    | 太窄，频繁换行打断思路 |
+| **35-40 字** | **舒适区**             |
+| 45 字以上    | 偏宽，眼球横扫吃力     |
+
+CSS 实现：
+
+```css
+.prose-cn {
+  /* ❌ ch 单位是英文 "0" 字符宽度，中文场景不准 */
+  /* max-width: 72ch; */
+
+  /* ✅ 直接给 em 数值（按当前字号倍数），更可控 */
+  max-inline-size: 38em;
+
+  /* 或者：给具体 px / rem，按设计稿出 */
+  max-inline-size: 640px;
+}
+```
+
+> **`ch` 单位为什么不准**：`ch` = 字体里 "0" 字符的宽度。中文字体里 "0" 字符是英文宽度，但中文是全角——`72ch` 在中文段落里实际显示远超 72 字。**中文场景用 `em` 或 px 更准**。
+
+### 3.4 折行控制：CSS Text Module 的"美化"陷阱
+
+这是中文站点踩坑最多的地方——也是 [journal 2026-05-21](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/journal/2026-05-21-css-text-wrap-pretty-cjk-anomaly.md) 记录的真实事故。
+
+**先看四个相关属性，全是 CSS Text Module Level 4 推出的**：
+
+| 属性            | 含义                                                     | 中文场景表现                            |
+| --------------- | -------------------------------------------------------- | --------------------------------------- |
+| `text-wrap`     | 整体折行策略（`wrap` / `nowrap` / `pretty` / `balance`） | 见下                                    |
+| `word-break`    | 单词内允许断开吗                                         | `keep-all` 适合中文，`break-all` 太激进 |
+| `overflow-wrap` | 防止溢出时是否在任意位置断开                             | `break-word` 温和、`anywhere` 激进      |
+| `line-break`    | CJK 标点禁则规则强度                                     | `auto` / `loose` / `normal` / `strict`  |
+
+**几个组合的体感对比**（中文段落里）：
+
+```css
+/* ❌ 反例：三个属性叠加冲突，"无规律换行" */
+p {
+  text-wrap: pretty;
+  word-break: break-word; /* 非标准属性 */
+  overflow-wrap: anywhere; /* 最激进 */
+}
+```
+
+实际表现：浏览器在中文段落里**主动调整上一行的字往下挪**（`pretty` 设计目标是英文末行避免孤儿字），叠加 `anywhere` 后在非自然位置断行——用户看到的是"有些行明显提前换行"。
+
+```css
+/* ✅ 正例：温和默认，让浏览器按 CJK 规则自然换行 */
+p,
+li {
+  overflow-wrap: break-word;
+  /* 长 URL / 长英文单词溢出时断开，中文按默认全字符换行 */
+}
+```
+
+**几条经验**：
+
+1. **`text-wrap: pretty` / `balance` 在中文段落默认不要开**——它们的算法面向英文。如果确实需要"标题平衡换行"，单独给标题加，并且**真机看效果**再决定保留
+2. **`word-break: break-all` 不要在正文用**——它在中文场景下会破坏自然词组（比如把"前端工程师"切成"前端工 / 程师"）
+3. **`hyphens`（连字符断词）对中文无效**——这是英文 / 德文场景属性，中文不需要管
+4. **避免 `letter-spacing`**——汉字本身有视觉间距，加了反而稀疏怪异；中英混排可以小幅加（`0.025em`）让英文不挤压中文
+
+> 一手参考：
+>
+> - [MDN: text-wrap](https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap)（**英文版**——中文版尚未跟进）
+> - [MDN: word-break](https://developer.mozilla.org/zh-CN/docs/Web/CSS/word-break)
+> - [MDN: overflow-wrap](https://developer.mozilla.org/zh-CN/docs/Web/CSS/overflow-wrap)
+> - [W3C: CSS Text Module Level 4](https://www.w3.org/TR/css-text-4/)
+
+> **写给老 CSS 用户**：你可能用过 `word-wrap: break-word`——这是 IE 时代非标准属性，**`overflow-wrap: break-word` 是它的标准化版本**。新代码统一用 `overflow-wrap`。
+
+### 3.5 标点挤压：OpenType 特性在中文场景的应用
+
+中文标点（如引号 `「」`、顿号 `、`、逗号 `，`）在某些字体里默认占全角宽度——但在句尾时会显得"离字太远"。OpenType 提供了 **`palt`（比例标点）** 特性，让标点根据上下文自动挤压。
+
+```css
+p {
+  font-feature-settings: "palt";
+}
+```
+
+**效果对比**：
+
+```
+未开 palt：
+引用文字「这是一段话」，然后继续。
+
+开启 palt：
+引用文字「这是一段话」，然后继续。
+             ↑ 引号与字的距离缩小，视觉更紧凑
+```
+
+**兼容性注意**：不是所有中文字体都支持 `palt`——苹方（PingFang）支持，微软雅黑不支持。开启后不支持的字体会忽略，所以**安全启用**。
+
+> 一手：[MDN: font-feature-settings](https://developer.mozilla.org/zh-CN/docs/Web/CSS/font-feature-settings)。
+
+### 3.6 标点禁则：`line-break` 控制行首行尾标点规则
+
+中文排版有**标点禁则**——某些标点不能出现在行首（如句号 `。`、逗号 `，`），某些不能出现在行尾（如前引号 `「`）。浏览器默认实现了，但可以通过 `line-break` 调整强度：
+
+| 值       | 含义                               | 何时用                     |
+| -------- | ---------------------------------- | -------------------------- |
+| `auto`   | 浏览器决定                         | 默认，大部分场景够         |
+| `loose`  | 最宽松——CJK 标点可以出现在行首行尾 | 窄容器（如 300px）挤不下时 |
+| `normal` | 标准禁则                           | 正常阅读场景，**推荐**     |
+| `strict` | 严格禁则——连顿号 `、` 也不能在行首 | 严肃排版（如出版物样式）   |
+
+```css
+.prose-cn {
+  line-break: normal; /* 标准禁则 */
+}
+
+.narrow-sidebar {
+  line-break: loose; /* 窄容器宽松一点 */
+}
+```
+
+> 一手：[MDN: line-break](https://developer.mozilla.org/zh-CN/docs/Web/CSS/line-break)；[Unicode Line Breaking Algorithm (UAX #14)](https://www.unicode.org/reports/tr14/)（技术规范，专业向）。
+
+### 3.7 中英混排：不要随便加 `letter-spacing`
+
+中文段落里常有英文单词、数字混排——**不要给这种段落加 `letter-spacing`**，汉字本身有视觉间距，加了反而稀疏。
+
+```css
+/* ❌ 中文段落加字间距，显得稀疏怪异 */
+p {
+  letter-spacing: 0.05em;
+}
+
+/* ✅ 纯英文段落可以小幅加 */
+p:lang(en) {
+  letter-spacing: 0.025em;
+}
+
+/* ✅ 中英混排时，只给英文单词加小幅间距（进阶技巧，可选）*/
+p {
+  letter-spacing: normal;
+}
+p > span:lang(en),
+p > code {
+  letter-spacing: 0.01em;
+}
+```
+
+> **本手册没有加字间距**——你看到的行距舒适感来自 `line-height: 1.75` 和字体选型，不是靠 `letter-spacing` 拉开。
+
+### 3.8 竖排（vertical writing mode）简提
+
+中文、日文有竖排传统——`writing-mode: vertical-rl`（从右往左竖排）或 `vertical-lr`（从左往右）。
+
+```css
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright; /* 字符直立，不旋转 */
+}
+```
+
+竖排涉及的细节非常多（标点位置、拉丁字母旋转、行高变行宽等），**不在 v1 展开**——现代中文 Web 绝大多数场景是横排。需要时参考 [W3C CLREQ §竖排](https://w3c.github.io/clreq/#vertical_writing_mode)。
+
+### 3.9 RTL（right-to-left）简提：阿拉伯文 / 希伯来文
+
+阿拉伯文 / 希伯来文是从右往左书写——HTML 用 `dir="rtl"` 声明，CSS 用逻辑属性自动适配：
+
+```html
+<html dir="rtl" lang="ar"></html>
+```
+
+```css
+/* ✅ 逻辑属性——自动在 RTL 下反向 */
+.button {
+  margin-inline-start: 16px; /* LTR: margin-left, RTL: margin-right */
+}
+
+/* ❌ 物理属性——RTL 下方向不对 */
+.button {
+  margin-left: 16px; /* RTL 下仍然是左边距，错了 */
+}
+```
+
+**本手册面向简体中文站点，RTL 不展开**——但如果你写多语言应用，**默认用逻辑属性**是必备习惯。回链：[MDN: CSS 逻辑属性](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_logical_properties_and_values)。
+
+---
+
+## 4. 暗色模式与用户偏好查询
+
+"暗色模式"是 2019 年 iOS 13 / macOS Catalina 推出系统级暗色后迅速成为标配的特性。2026 年，**不支持暗色的站点会被用户认为"不现代"**——尤其是长阅读内容（文档 / 博客 / 手册）。
+
+### 4.1 最简实现：跟随系统
+
+CSS 提供了媒体查询 `prefers-color-scheme`：
+
+```css
+/* 默认（亮色） */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+}
+
+/* 跟随系统切换到暗色 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1a1a1a;
+    --color-text: #e5e5e5;
+  }
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+```
+
+这样用户在系统设置里切换亮/暗色，网页会**自动跟随**——零 JavaScript。
+
+> 一手：[MDN: prefers-color-scheme](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@media/prefers-color-scheme)。
+
+### 4.2 用户手动切换：`[data-theme]` + localStorage
+
+更好的体验是**让用户在页面上直接切换**（不用去系统设置里改）——存到 `localStorage`，下次访问保持。
+
+**HTML 结构**：
+
+```html
+<html data-theme="light">
+  <!-- 用户点按钮时切换 data-theme="dark" -->
+</html>
+```
+
+**CSS**：
+
+```css
+/* 默认亮色 */
+[data-theme="light"] {
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+}
+
+/* 手动暗色 */
+[data-theme="dark"] {
+  --color-bg: #1a1a1a;
+  --color-text: #e5e5e5;
+}
+
+/* 降级：跟随系统（未设置 data-theme 时） */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg: #1a1a1a;
+    --color-text: #e5e5e5;
+  }
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+```
+
+**JavaScript**（加在 `<head>` 里，尽早执行）：
+
+```html
+<script>
+  // 读取存储 → 设置 data-theme
+  const stored = localStorage.getItem("theme");
+  if (stored) {
+    document.documentElement.dataset.theme = stored;
+  } else {
+    // 未存储时跟随系统
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
+  }
+</script>
+```
+
+**切换按钮**（React 示例）：
+
+```tsx
+function ThemeToggle() {
+  const [theme, setTheme] = useState("light");
+
+  const toggle = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("theme", next);
+  };
+
+  return <button onClick={toggle}>切换到{theme === "light" ? "暗色" : "亮色"}</button>;
+}
+```
+
+### 4.3 SSR FOUC 问题：首次加载闪白
+
+**症状**：用户设置了暗色偏好，但页面首次加载时先显示白色背景、然后"闪"成黑色——这叫 **FOUC（Flash of Unstyled Content）**。
+
+**原因**：服务端渲染（SSR）时不知道用户偏好（`localStorage` 只在浏览器里），生成的 HTML 默认亮色 → 浏览器加载后 JS 读取偏好切换 → 视觉上"闪一下"。
+
+**解法**：在 `<head>` 里**同步内联脚本**，在任何内容渲染前就设置 `data-theme`：
+
+```html
+<head>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("theme");
+      if (stored) {
+        document.documentElement.dataset.theme = stored;
+      } else {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
+      }
+    })();
+  </script>
+  <!-- 之后才是 CSS / React 渲染 -->
+</head>
+```
+
+**关键点**：
+
+1. **同步执行**（不能 `defer` / `async`）——必须在首次绘制前跑完
+2. **内联在 `<head>`**（不能外部脚本）——避免额外网络请求
+3. **尽量短**——这段代码会阻塞渲染，超过 10 行就值得优化
+
+> Next.js / Remix 等框架有现成的暗色模式库（如 `next-themes`），会处理 SSR FOUC——但**原理就是上面这套**。第 5 章会从 React 视角再讲一次。
+
+### 4.4 色彩令牌：用 `oklch()` 让明暗对应有规律
+
+手动给每个颜色写"亮色版"和"暗色版"很累——**设计令牌（design tokens）** 的思路是用算法生成对应色。
+
+[CSS Color Module Level 4](https://www.w3.org/TR/css-color-4/) 推出了 `oklch()` 色彩空间——比 `hsl()` 更符合人眼感知：
+
+```css
+:root {
+  /* 主色：蓝色 */
+  --hue: 250;
+
+  /* 亮色模式：亮度高、饱和度中 */
+  --color-primary: oklch(60% 0.15 var(--hue));
+  --color-bg: oklch(98% 0 var(--hue));
+  --color-text: oklch(20% 0 var(--hue));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 暗色模式：亮度低、饱和度降 */
+    --color-primary: oklch(70% 0.12 var(--hue));
+    --color-bg: oklch(15% 0 var(--hue));
+    --color-text: oklch(90% 0 var(--hue));
+  }
+}
+```
+
+**好处**：
+
+- 只改 `--hue` 变量，整套颜色跟着变
+- 明暗对应有规律（亮色背景 98% 亮度 → 暗色背景 15% 亮度）
+- `oklch()` 比 `hsl()` 在不同亮度下**视觉一致性更好**（人眼对蓝色 / 黄色的感知亮度不同，`hsl()` 不补偿，`oklch()` 补偿了）
+
+> 兼容性：`oklch()` 2023 年起主流浏览器全支持（Can I Use: [css-color-function](https://caniuse.com/?search=oklch)）。旧浏览器降级可以用 PostCSS 插件编译成 `rgb()`。
+
+> 深入：§3.3 已经讲过 `oklch()` / `color-mix()` 语法，这里不重复。回链：[§3.3 现代 CSS 特性 §6 色彩](/chapter-03/modern-css#6-色彩现代表达oklch--color-mix--相对颜色)。
+
+### 4.5 `prefers-*` 全家桶：暗色只是偏好查询的一种
+
+`prefers-color-scheme` 只是 `prefers-*` 媒体查询家族的一员——CSS 提供了一整套"用户偏好查询"：
+
+| 媒体查询                 | 含义                           | 何时用                                    | 一手参考                                                                                 |
+| ------------------------ | ------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `prefers-color-scheme`   | 亮色 / 暗色                    | 所有现代站点标配                          | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@media/prefers-color-scheme)      |
+| `prefers-reduced-motion` | 用户是否要求**减少动画**       | **a11y 必备**——前庭功能障碍者必须关闭动画 | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@media/prefers-reduced-motion)    |
+| `prefers-contrast`       | 高对比度 / 标准 / 低对比       | 视力障碍者高对比；设计师预览低对比效果    | [MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/@media/prefers-contrast)          |
+| `prefers-reduced-data`   | 用户是否开启了**节省流量模式** | 图片 / 视频按需加载                       | [MDN (en)](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-data) |
+
+**实战：`prefers-reduced-motion`**（最重要的 a11y 偏好）：
+
+```css
+/* 默认：有动画 */
+.card {
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+/* 用户设置"减少动画"时：关闭所有过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+**为什么是 `0.01ms` 而非 `0s`**：某些 JS 动画库监听 `transitionend` 事件——设成 `0s` 事件不会触发，库会卡死；`0.01ms` 是"瞬间完成但仍触发事件"的折中。
+
+> **这是 WCAG 2.1 Success Criterion 2.3.3（强制项）**——前庭功能障碍者（如眩晕症）遇到大幅度动画会恶心、头痛。忽略这条的站点在美国 / 欧盟可能被诉讼。回链：§3.2 可访问性。
+
+**`prefers-reduced-data` 示例**（节省流量）：
+
+```css
+/* 默认：加载背景图 */
+.hero {
+  background-image: url("/hero-4k.jpg");
+}
+
+/* 节省流量模式：不加载，用纯色 */
+@media (prefers-reduced-data: reduce) {
+  .hero {
+    background-image: none;
+    background-color: var(--color-primary);
+  }
+}
+```
+
+配合 HTTP 头 `Save-Data: on`（浏览器发给服务器）可以让服务端返回低分辨率图片。
+
+> 一手：[MDN: Save-Data](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Save-Data)。
+
+---
+
+## 5. 响应式图片：`srcset` / `<picture>` / 艺术指导
+
+不同屏幕尺寸 / 分辨率下，加载相同尺寸的图片是浪费——移动端 375px 宽屏幕加载 1920px 宽图片，白白消耗流量。**响应式图片**就是让浏览器根据视口 / 分辨率选合适的图片资源。
+
+### 5.1 `srcset` + `sizes`：让浏览器自己选
+
+最常用场景：**同一张图，提供多个分辨率版本**。
+
+```html
+<img
+  src="image-800w.jpg"
+  srcset="image-400w.jpg 400w, image-800w.jpg 800w, image-1200w.jpg 1200w, image-1600w.jpg 1600w"
+  sizes="
+    (max-width: 600px) 100vw,
+    (max-width: 1200px) 50vw,
+    33vw
+  "
+  alt="示例图片"
+/>
+```
+
+**逐项解释**：
+
+- `srcset`：列出所有候选图片，每个后面跟 `宽度描述符`（如 `400w` = 这张图原始宽度 400px）
+- `sizes`：告诉浏览器"在不同视口下，这张图占多宽"
+  - `(max-width: 600px) 100vw`：视口 ≤ 600px 时，图片占满整屏（100vw）
+  - `(max-width: 1200px) 50vw`：视口 600-1200px 时，图片占半屏（50vw）
+  - `33vw`：默认（视口 > 1200px）占 1/3 屏
+- `src`：兜底——旧浏览器不支持 `srcset` 时加载这张
+
+**浏览器行为**：
+
+1. 读取 `sizes`，算出"当前视口下图片实际显示宽度"
+2. 结合设备像素比（如 iPhone 是 2x、3x），算出"需要多宽的图片"
+3. 从 `srcset` 里选最接近的那张
+
+**例**：iPhone 13（375px 视口 × 3x = 1125px 物理像素），视口 ≤ 600px → `sizes` 匹配 `100vw` → 需要 375px × 3 = 1125px 宽图片 → 浏览器选 `image-1200w.jpg`。
+
+> 一手：[MDN: `<img>` srcset](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/img#srcset)。
+
+### 5.2 `<picture>`：艺术指导（不同视口用不同构图）
+
+`srcset` 只是换分辨率，**构图不变**。有些场景需要**不同视口用完全不同的图**——比如：
+
+- 桌面端：横向全景图（16:9）
+- 移动端：竖向裁剪版（4:3），主体居中
+
+这叫 **艺术指导（art direction）**——用 `<picture>` 实现：
+
+```html
+<picture>
+  <!-- 视口 ≥ 1024px：用横向图 -->
+  <source
+    media="(min-width: 1024px)"
+    srcset="landscape-1920w.jpg 1920w, landscape-1280w.jpg 1280w"
+    sizes="100vw"
+  />
+
+  <!-- 视口 < 1024px：用竖向裁剪版 -->
+  <source
+    media="(max-width: 1023px)"
+    srcset="portrait-800w.jpg 800w, portrait-600w.jpg 600w"
+    sizes="100vw"
+  />
+
+  <!-- 兜底 */
+  <img src="landscape-1280w.jpg" alt="示例图片" />
+</picture>
+```
+
+浏览器从上往下匹配 `media`，第一个匹配的 `<source>` 就用它的 `srcset`。
+
+### 5.3 现代图片格式：WebP / AVIF
+
+WebP（Google）、AVIF（AV1）是比 JPEG / PNG 体积更小、质量相当的现代格式——2024 年起主流浏览器全支持。
+
+```html
+<picture>
+  <!-- 现代浏览器：用 AVIF（最小）-->
+  <source type="image/avif" srcset="image.avif" />
+
+  <!-- 降级：WebP -->
+  <source type="image/webp" srcset="image.webp" />
+
+  <!-- 兜底：JPEG -->
+  <img src="image.jpg" alt="示例图片" />
+</picture>
+```
+
+浏览器按顺序找第一个"支持的格式"加载——Safari 不支持 AVIF（截至 2024 年）会跳到 WebP，IE 11 会跳到 JPEG。
+
+> 一手：[MDN: `<picture>`](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/picture)；[Can I Use: avif](https://caniuse.com/avif) / [webp](https://caniuse.com/webp)。
+
+### 5.4 懒加载：`loading="lazy"`
+
+图片默认是"浏览器解析到就立刻加载"——首屏下方的图片会拖慢首屏速度。`loading="lazy"` 让浏览器**只在图片快进入视口时才加载**：
+
+```html
+<img src="below-fold.jpg" alt="..." loading="lazy" />
+```
+
+**何时用**：
+
+- 首屏以下的图片：加 `loading="lazy"`
+- 首屏内的图片：**不要加**——会延迟关键内容加载
+
+**降级**：旧浏览器不支持时会忽略属性，立刻加载——这是渐进增强，安全用。
+
+> 一手：[MDN: loading](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/img#loading)。
+
+---
+
+## 6. 三档归位
+
+| 知识点                                            | 归位         | 理由                                                   |
+| ------------------------------------------------- | ------------ | ------------------------------------------------------ |
+| viewport meta 标签正确写法                        | **必学**     | 第一行 HTML 写错移动端体验崩掉                         |
+| 媒体查询（`@media`）基础语法                      | **必学**     | 响应式地基                                             |
+| 移动优先思维（从小屏开始设计）                    | **必学**     | 设计起点决定内容取舍质量                               |
+| 触摸目标 ≥ 44pt                                   | **必学**     | a11y 和真实可用性底线                                  |
+| `dvh` / `lvh` / `svh` 视口高度变体                | **必学**     | 2024 后替代 `100vh` 的标准写法                         |
+| 安全区域（`env(safe-area-inset-*)`）              | **必学**     | iPhone / iPad 刘海 / 指示条不遮挡内容                  |
+| 容器查询 vs 媒体查询选型判断                      | **必学**     | 可复用组件 = 容器查询；页面骨架 = 媒体查询             |
+| 中文字体栈写法                                    | **必学**     | 避免 Windows 下显示宋体                                |
+| 中文 `line-height: 1.7-1.8`                       | **必学**     | 比英文需要更宽行距                                     |
+| `text-wrap: pretty` 中文场景不默认开              | **必学**     | CSS Text Module 默认面向英文，中文会反常               |
+| `overflow-wrap: break-word` 温和断词              | **必学**     | 中文场景默认选它，不选 `break-all` / `anywhere`        |
+| 暗色模式（跟随系统 + 手动切换）                   | **必学**     | 2024 后用户预期标配                                    |
+| SSR FOUC 防闪方案（head 内联脚本）                | **必学**     | Next.js / Remix 等 SSR 框架必遇                        |
+| `prefers-reduced-motion`                          | **必学**     | WCAG 2.1 强制项，a11y 不能绕过                         |
+| 响应式图片（`srcset` + `sizes`）                  | **必学**     | 移动端流量节省、性能优化必备                           |
+| `loading="lazy"`                                  | **必学**     | 首屏以下图片懒加载，零配置渐进增强                     |
+| `<picture>` 艺术指导                              | **仍需理解** | 不同视口用不同构图时用；普通换分辨率用 `srcset` 够     |
+| `oklch()` 色彩空间                                | **仍需理解** | 暗色模式设计令牌生成会用；记住存在即可                 |
+| `prefers-contrast` / `prefers-reduced-data`       | **仍需理解** | 高对比 / 流量节省场景；知道存在、会查文档              |
+| 标点挤压（`font-feature-settings: 'palt'`）       | **仍需理解** | 中文排版美化；不是所有字体支持                         |
+| `line-break` 标点禁则强度                         | **仍需理解** | 窄容器时可能需要 `loose`；默认 `normal` 够             |
+| 竖排（`writing-mode: vertical-rl`）               | **仍需理解** | 中文 / 日文传统场景；现代 Web 极少                     |
+| RTL（`dir="rtl"` + 逻辑属性）                     | **仍需理解** | 多语言站点面向阿拉伯 / 希伯来文时必备；中文站不展开    |
+| WebP / AVIF 格式 + `<picture>` 降级               | **仍需理解** | 性能优化手段；构建工具（Next.js / Vite）可能自动处理   |
+| `word-break: break-all` / `letter-spacing` 在中文 | **可委托**   | 知道"不要在中文正文用"即可；AI 可能误给，review 时删掉 |
+
+---
+
+## 7. 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破以下设计判断：
+
+### 可访问性 = 对多元偏好的尊重
+
+`prefers-*` 系列媒体查询背后的统一心智：**用户的系统设置是明确信号，不是"边缘场景"**。
+
+- `prefers-reduced-motion: reduce` → 用户明确告诉你"我会眩晕"，你还放大幅度动画 = 主动伤害
+- `prefers-color-scheme: dark` → 用户深夜阅读选了暗色，你强制白底黑字 = 刺眼 + 耗电
+- `prefers-reduced-data: reduce` → 用户流量有限，你仍然加载 4K 背景图 = 浪费钱
+
+**这不是锦上添花的"高级特性"，是对用户真实需求的基本尊重**——符合 §3.2 点出的"可访问性不是检查项，是设计起点"。
+
+### 本地化 ≠ 翻译
+
+中文站点不是"把英文翻译一遍"就够了——**排版规则本身就不同**：
+
+- 英文：`line-height: 1.5` / `text-wrap: pretty` / `hyphens: auto` 天然适配
+- 中文：同样数值会拥挤 / `pretty` 反常 / `hyphens` 无效
+
+本地化包含**语言、排版、字体、断点文案、文化符号**——这是 [SPEC-0001 §语言](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0001-scope-and-audience/spec.md) 划定的边界：手册面向简体中文读者，不只是"中文翻译英文教程"，而是**从中文 Web 场景出发写的原生内容**。
+
+### 响应式 = 自适应而非穷举断点
+
+**命令式**响应式（旧）：硬编码 6 个断点，每个断点手写一套样式——维护地狱。
+
+```css
+/* ❌ 命令式：穷举所有可能 */
+@media (max-width: 375px) {
+  /* iPhone SE */
+}
+@media (min-width: 376px) and (max-width: 414px) {
+  /* iPhone 12 */
+}
+@media (min-width: 415px) and (max-width: 768px) {
+  /* iPad mini */
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* iPad */
+}
+@media (min-width: 1025px) and (max-width: 1440px) {
+  /* 笔记本 */
+}
+@media (min-width: 1441px) {
+  /* 桌面 */
+}
+```
+
+**声明式**响应式（现代）：让浏览器 / 系统告诉你"我的环境"，你按意图响应。
+
+```css
+/* ✅ 声明式：意图驱动 */
+
+/* 容器查询：组件根据自己宽度决定 */
+@container (min-width: 400px) {
+}
+
+/* 视口变体：浏览器告诉你"工具栏状态" */
+block-size: 100dvh;
+
+/* 偏好查询：系统告诉你"用户设置" */
+@media (prefers-reduced-motion: reduce) {
+}
+
+/* 逻辑属性：自动适配书写方向 */
+margin-inline-start: 1rem;
+```
+
+符合 §3.1 点出的"声明式取代命令式"主线——**你声明意图，浏览器做调度**。AI 也更容易写声明式代码（输入输出明确），命令式需要人工推理所有分支。
+
+---
+
+## 8. AI 时代写响应式的最小集
+
+| 你想做                                    | AI 帮得上吗                                                    |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| 写媒体查询断点                            | ✅ 现代 AI 写得熟                                              |
+| 写 `srcset` + `sizes`                     | ✅ 给图片尺寸 AI 能算                                          |
+| 选媒体查询还是容器查询                    | ⚠️ 心智模型在你脑子里——AI 会按惯例给默认答案（通常是媒体查询） |
+| 设计响应式断点（几个、在哪）              | ❌ 业务上下文 AI 拿不到——列方案、你拍板                        |
+| 中文排版调参（行高 / 字体栈 / 折行）      | **❌ 这是 AI 输出最容易"看似对实则错"的领域**                  |
+| 写暗色模式色彩令牌                        | ⚠️ AI 能写基础版，但"明暗对应规律"需要你 review                |
+| 写 `prefers-reduced-motion` 降级          | ✅ 标准写法 AI 熟                                              |
+| 判断某图片该不该用艺术指导（`<picture>`） | ❌ 设计意图 AI 不知道——你决定                                  |
+
+**重点强调**：**CJK 排版是 AI 输出最容易"看似对实则错"的领域之一**。原因：
+
+1. AI 训练数据以英文为主——它"知道" `line-height: 1.5` 是常见值，但不知道中文需要 1.7-1.8
+2. CSS Text Module Level 4 的新特性（`text-wrap: pretty` / `balance` / `hyphens`）文档和示例全是英文场景——AI 默认推荐它们，不会告诉你"中文下会反常"
+3. `word-break: break-all` 在英文场景是"激进但有时必须"，中文场景是"破坏词组的错误选择"——AI 不区分
+
+**实战建议**：
+
+- **让 AI 写骨架**（媒体查询断点、`srcset` 结构、暗色模式框架）
+- **你自己调中文参数**（字体栈、行高、折行规则）
+- **验证 AI 输出时重点看**：
+  - 有没有给中文段落加 `text-wrap: pretty` / `balance`
+  - 有没有用 `word-break: break-all`
+  - 有没有给中文加 `letter-spacing`
+  - 字体栈里有没有 `'PingFang SC'` / `'Microsoft YaHei'`
+  - `line-height` 是不是 1.5 以下（太挤）
+
+---
+
+## 9. 翻车库
+
+### 9.1 iOS `100vh` 不等于视口高度
+
+**症状**：登录页 `height: 100vh` 在 iPhone 上底部按钮被工具栏遮挡。
+
+**原因**：移动 Safari 工具栏滚动时会隐藏 / 显示——`100vh` 在不同状态指向不同高度。
+
+**修复**：
+
+```css
+/* ❌ 老写法 */
+.full-screen {
+  block-size: 100vh;
+}
+
+/* ✅ 新写法 */
+.full-screen {
+  block-size: 100dvh; /* 动态适配 */
+}
+```
+
+> 回链：§1.5 视口高度变体。
+
+### 9.2 `text-wrap: pretty` 中文段落反常
+
+**症状**：段落有些行明显提前换行，宽度"无规律"。
+
+**原因**：`pretty` 算法面向英文（避免末行孤儿字），在中文段落里**主动把上一行的字往下挪**——叠加 `overflow-wrap: anywhere` 后在非自然位置断行。
+
+**修复**：
+
+```css
+/* ❌ 反例 */
+p {
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* ✅ 正例 */
+p {
+  overflow-wrap: break-word; /* 温和断词 */
+  /* 不开 text-wrap: pretty */
+}
+```
+
+> 完整事故链：[journal 2026-05-21](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/journal/2026-05-21-css-text-wrap-pretty-cjk-anomaly.md)；回链：§3.4 折行控制。
+
+### 9.3 暗色模式 SSR 首次加载闪白
+
+**症状**：用户设置了暗色偏好，页面首次加载先白色、然后"闪"成黑色。
+
+**原因**：服务端渲染时不知道用户偏好（`localStorage` 只在浏览器），生成的 HTML 默认亮色 → JS 加载后读取偏好切换 → 闪。
+
+**修复**：`<head>` 里**同步内联脚本**，在渲染前设置 `data-theme`：
+
+```html
+<head>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("theme");
+      if (stored) {
+        document.documentElement.dataset.theme = stored;
+      } else {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
+      }
+    })();
+  </script>
+</head>
+```
+
+> 回链：§4.3 SSR FOUC 问题。
+
+### 9.4 viewport meta 写错，用户能缩放
+
+**症状**：移动端用户双指放大后页面布局错位。
+
+**原因**：禁用了缩放——
+
+```html
+<!-- ❌ 这是 a11y 违规 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+```
+
+**修复**：**不要禁用缩放**——让低视力用户能放大：
+
+```html
+<!-- ✅ 正确写法 */
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+```
+
+> 回链：§1.2 viewport meta 标签。
+
+### 9.5 中文字体名没加引号
+
+**症状**：Windows 下中文显示宋体（丑），macOS 下正常。
+
+**原因**：字体名含空格但没加引号——`Microsoft YaHei` 被解析成三个标识符，失效。
+
+**修复**：
+
+```css
+/* ❌ 没加引号 */
+font-family:
+  PingFang SC,
+  Microsoft YaHei,
+  sans-serif;
+
+/* ✅ 加引号 */
+font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+```
+
+> 回链：§3.1 中文字体栈。
+
+### 9.6 `prefers-reduced-motion` 没接入
+
+**症状**：用户开启"减少动画"后，页面动画仍然全速播放——前庭功能障碍者眩晕。
+
+**原因**：没写降级 CSS。
+
+**修复**：
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+> 这是 **WCAG 2.1 强制项**——不接入在某些司法管辖区可能被诉讼。回链：§4.5 prefers-\* 全家桶。
+
+### 9.7 容器查询写在组件上而非父容器
+
+**症状**：容器查询不生效。
+
+**原因**：`container-type` 要写在**父容器**上，查询写在**子元素**上。
+
+**修复**：
+
+```css
+/* ❌ 错误：写在组件自己 */
+.card {
+  container-type: inline-size;
+}
+@container (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+
+/* ✅ 正确：父容器声明、子元素查询 */
+.card-container {
+  container-type: inline-size;
+}
+@container (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+```
+
+> 回链：§2 媒体查询 vs 容器查询。
+
+### 9.8 `dvh` 兼容性：忘了兜底
+
+**症状**：Safari 15（2021 年前）页面高度显示错误。
+
+**原因**：`dvh` 是 2022-2023 年才稳定的——旧浏览器不认。
+
+**修复**：
+
+```css
+/* ✅ 兼容写法：先写兜底 vh，再写 dvh 覆盖 */
+.full-screen {
+  block-size: 100vh; /* 兜底 */
+  block-size: 100dvh; /* 现代浏览器覆盖 */
+}
+```
+
+> 回链：§1.5 视口高度变体。
+
+---
+
+## 10. 读完本节你应该能
+
+### 移动优先与视口
+
+- [ ] 不查文档写出正确的 viewport meta 标签
+- [ ] 看到 `user-scalable=no` 能识别这是 a11y 违规
+- [ ] 解释为什么移动端用 `100dvh` 而不是 `100vh`
+- [ ] 看到 `env(safe-area-inset-bottom)` 知道这是适配 iPhone 底部指示条
+
+### 媒体查询 vs 容器查询
+
+- [ ] 给一个布局需求，能说出该用媒体查询还是容器查询，理由是什么
+- [ ] 写出一个容器查询完整示例（含父容器 `container-type` + 子元素 `@container`）
+
+### 中文排版
+
+- [ ] 写出推荐的中文字体栈，并解释每一项为什么在那里
+- [ ] 知道中文 `line-height` 该比英文宽（1.7-1.8），并能说出原因
+- [ ] 看到 `text-wrap: pretty` 用在中文段落，能识别这是反例
+- [ ] 区分 `word-break` / `overflow-wrap` / `line-break` 三个属性
+- [ ] 知道 `letter-spacing` 不该用在中文正文
+
+### 暗色模式
+
+- [ ] 写出 `prefers-color-scheme` 跟随系统的最简实现
+- [ ] 解释 SSR FOUC 是什么、怎么避免（head 内联脚本）
+- [ ] 知道 `oklch()` 比 `hsl()` 在明暗对应上更自然，能说出"视觉一致性"原因
+
+### 用户偏好查询
+
+- [ ] 写出 `prefers-reduced-motion` 的标准降级 CSS
+- [ ] 解释为什么是 `0.01ms` 而非 `0s`
+- [ ] 知道 `prefers-contrast` / `prefers-reduced-data` 存在，能查文档使用
+
+### 响应式图片
+
+- [ ] 写出 `srcset` + `sizes` 的完整示例
+- [ ] 区分 `srcset` 和 `<picture>`——什么时候用哪个
+- [ ] 知道 `loading="lazy"` 不该用在首屏内的图片
+
+---
+
+## 延伸阅读
+
+- [MDN: 响应式设计基础](https://developer.mozilla.org/zh-CN/docs/Learn/CSS/CSS_layout/Responsive_Design) — 中文版基础教程
+- [响应式 Web 设计](https://alistapart.com/article/responsive-web-design/) **（英文）** — Ethan Marcotte 2010 年原论文，"响应式"概念出处
+- [Mobile First](https://www.lukew.com/ff/entry.asp?933) **（英文）** — Luke Wroblewski 提出移动优先的原文
+- [W3C 中文排版需求（CLREQ）](https://w3c.github.io/clreq/) — 中文 / 英文双语；中文 Web 排版的权威参考
+- [WebKit Blog: Designing Websites for iPhone X](https://webkit.org/blog/7929/designing-websites-for-iphone-x/) **（英文）** — 安全区域机制的原始官方说明
+- [CSS Values Module Level 4 §视口变体](https://drafts.csswg.org/css-values-4/#viewport-variants) — `dvh` / `lvh` / `svh` 规范
+- [Unicode UAX #14: Line Breaking Algorithm](https://www.unicode.org/reports/tr14/) **（英文）** — Unicode 折行算法权威规范，中文断行的底层逻辑
+- [Can I Use](https://caniuse.com/) — 查询某特性的浏览器支持情况
+
+> 访问性说明：MDN 中文版直接可访问；A List Apart / Luke Wroblewski 个人站偶有访问波动；W3C CLREQ 是中文母语作者参与编写的双语规范，强烈推荐想深入中文排版的读者通读一遍。
+
+---
+
+下一节：§3.5 样式方案选型与样式系统 _（待写）_——Tailwind / CSS Modules / CSS-in-JS / 无头组件 / shadcn / 设计令牌的判断地图。
