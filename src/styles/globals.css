@@ -616,10 +616,21 @@
   }
 }
 
-/* 移动端：让浮窗占满屏幕宽（除两侧 padding） */
-@media (max-width: 480px) {
-  .term-tooltip {
-    /* 仍然居中触发器，但宽度更宽 */
-    max-width: calc(100vw - 1.5rem);
+/* 移动端：底部弹窗替换浮窗，避免被视口截断 */
+@keyframes term-sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes term-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }

@@ -107,7 +107,7 @@ export function ReadingWidthToggle() {
   const Icon = current.Icon;
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative inline-flex">
       <button
         ref={buttonRef}
         type="button"
@@ -116,7 +116,7 @@ export function ReadingWidthToggle() {
         aria-expanded={open}
         aria-haspopup="true"
         title={`阅读宽度 — ${current.label}`}
-        className="inline-flex items-center justify-center rounded-md p-1.5 text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
+        className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
       >
         <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
@@ -124,7 +124,7 @@ export function ReadingWidthToggle() {
         <div
           role="menu"
           aria-label="阅读宽度"
-          className="absolute right-0 top-full mt-1.5 z-30 min-w-[180px] overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-lg"
+          className="absolute right-0 top-full mt-1.5 z-30 min-w-[220px] overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-lg"
         >
           {opts.map(({ mode: m, label, hint, Icon: OptIcon }) => {
             const active = mode === m;
