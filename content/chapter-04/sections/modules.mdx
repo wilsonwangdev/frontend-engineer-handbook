@@ -1,0 +1,1047 @@
+---
+title: 模块系统
+chapter: 4
+section: 3
+description: ESM / 动态 import / Node.js 互操作——现代模块化的判断参照系
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 19
+---
+
+> 这一节讲 JavaScript 的**模块系统**——ESM（ES Modules）/ 动态 import / Node.js 互操作。模块化不只是"组织代码"，是**让工具链（tree-shaking / 打包器）理解依赖关系的前提**。
+
+§4.1 讲了语言核心，§4.2 讲了异步模型。这一节讲"代码怎么拆成文件"——**模块是工程化的基础单位**。没有模块，就没有 npm / 打包 / tree-shaking / 依赖分析。
+
+**本节核心论点**：
+
+1. **ESM 是唯一现代标准**——CommonJS（`require` / `module.exports`）是 Node.js 历史遗留，浏览器不支持
+2. **静态 import 是静态可分析的**——这是 tree-shaking 的唯一前提
+3. **动态 import 是按需加载的标准写法**——替代老式 `require.ensure` / webpack 魔法注释
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                      | 直接读                                          |
+> | ----------------------------------------- | ----------------------------------------------- |
+> | **新人 / 转行者**                         | §0 简史 → §1 ESM 语法 → §3 动态 import          |
+> | **写过 CommonJS 但没用过 ESM**            | §2 ESM vs CommonJS 对比 → §4 Node.js 互操作     |
+> | **被 Node 报 "Cannot use import" 困扰过** | §4 Node.js 互操作（.mjs / package.json "type"） |
+> | **要配置 tree-shaking**                   | §5 静态可分析性                                 |
+> | **被循环依赖困扰过**                      | §6 循环依赖                                     |
+>
+> 整节读完约 35-45 分钟；按上面挑读 10-15 分钟。**§1 ESM 语法**和**§4 Node.js 互操作**是两个高频卡点。
+
+---
+
+## 0. 演进史：从无模块到 ESM
+
+> JavaScript 最初没有模块系统——浏览器只能靠 `<script>` 标签 + 全局变量协调。模块化标准的演进是**语言从"脚本"变"工程"的关键**。
+
+| 年代  | 方案                                                                             | 解决了什么                                 | 留下了什么                            |
+| ----- | -------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------- |
+| ~2000 | 全局变量 + `<script>` 标签                                                       | 能用                                       | 命名冲突 / 依赖顺序靠手动排列         |
+| 2009  | [CommonJS](https://nodejs.org/api/modules.html)（Node.js）                       | `require` / `module.exports`，服务端模块化 | 只在 Node 可用；浏览器不支持          |
+| 2010  | AMD（Asynchronous Module Definition，RequireJS）                                 | 浏览器异步加载模块                         | 语法复杂；2015 年后被 ESM 替代        |
+| 2015  | [ESM（ES6 Modules）](https://262.ecma-international.org/6.0/#sec-modules) 标准化 | `import` / `export`，浏览器原生支持        | Node.js 需要到 2017+ 才支持（.mjs）   |
+| 2020+ | ESM 在 Node.js 稳定，打包器全面支持                                              | **统一标准**——浏览器 + Node 都用 ESM       | CommonJS 仍大量存在，互操作是长期问题 |
+
+**两个转折点值得记住**：
+
+1. **2009 Node.js 引入 CommonJS**：让 JS 进入服务端，npm 生态爆发。但 CommonJS 是动态的（`require()` 可以在运行时调用），**不适合浏览器 + tree-shaking**。
+
+2. **2015 ES6 引入 ESM**：静态导入语法（`import` / `export` 必须在顶层），让工具能在编译期分析依赖——这是 webpack / Rollup / Vite tree-shaking 的基础。
+
+**现代写法**：**全部 ESM**——`.js` 文件用 `import` / `export`；Node.js 项目配置 `"type": "module"`。CommonJS 只在维护老项目时见到。
+
+---
+
+## 1. ESM 语法
+
+### 1.1 基础导入导出
+
+```js
+// math.js —— 导出
+export const PI = 3.14159;
+
+export function add(a, b) {
+  return a + b;
+}
+
+export default function multiply(a, b) {
+  return a * b;
+}
+
+// app.js —— 导入
+import multiply, { PI, add } from "./math.js";
+
+console.log(PI); // 3.14159
+console.log(add(1, 2)); // 3
+console.log(multiply(2, 3)); // 6
+```
+
+**命名导出 vs 默认导出**：
+
+| 类型         | 导出语法                       | 导入语法                        | 何时用             |
+| ------------ | ------------------------------ | ------------------------------- | ------------------ |
+| **命名导出** | `export const x = 1;`          | `import { x } from './mod.js';` | 模块有多个导出项   |
+| **默认导出** | `export default function() {}` | `import fn from './mod.js';`    | 模块只有一个主导出 |
+
+**经验法则**：
+
+- 一个模块**可以同时有命名导出和默认导出**（如 React 组件 + 内部类型）
+- **工具库优先用命名导出**（明确名字，tree-shaking 友好）
+- **React 组件优先用默认导出**（与文件名对应，一目了然）
+
+### 1.2 重命名导入导出
+
+```js
+// 导出时重命名
+const internalName = 42;
+export { internalName as publicName };
+
+// 导入时重命名
+import { publicName as myName } from "./mod.js";
+
+// 导入所有命名导出
+import * as math from "./math.js";
+console.log(math.PI);
+console.log(math.add(1, 2));
+```
+
+**`import * as` 何时用**：
+
+- 模块导出项很多，逐个列举太长
+- 想明确"这些函数来自哪个模块"（如 `lodash` 风格）
+
+**何时不用**：
+
+- 会把整个模块导入，tree-shaking 难优化——优先按需导入
+
+### 1.3 转发导出（re-export）
+
+```js
+// components/index.js —— 统一入口
+export { Button } from "./Button.js";
+export { Input } from "./Input.js";
+export { default as Card } from "./Card.js";
+
+// 使用方
+import { Button, Input, Card } from "./components/index.js";
+```
+
+**何时用**：构建"桶文件"（barrel file）——让外部只需 import 一个入口。
+
+**注意**：过度使用会让打包器难以 tree-shake——只在"公共 API 入口"用，不在每层都套一个 index.js。
+
+### 1.4 只导入副作用（side-effect import）
+
+```js
+// polyfill.js
+if (!Array.prototype.includes) {
+  Array.prototype.includes = function () {
+    /* ... */
+  };
+}
+
+// app.js
+import "./polyfill.js"; // 只执行，不导入任何值
+```
+
+**何时用**：
+
+- 导入 polyfill / 全局样式 / 初始化代码
+- 不需要导入值，只要执行代码
+
+> 一手：[MDN: JavaScript 模块](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)；[MDN: import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/import)；[MDN: export](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/export)。
+
+---
+
+## 2. ESM vs CommonJS：核心差异
+
+CommonJS（Node.js 历史方案）和 ESM（标准方案）有四个根本差异——理解了这些差异，就理解了"为什么现代项目应该全 ESM"。
+
+### 2.1 四个核心差异
+
+| 维度                 | CommonJS（旧）                       | ESM（新）                           |
+| -------------------- | ------------------------------------ | ----------------------------------- |
+| **导入语法**         | `const x = require('./mod')`         | `import x from './mod.js'`          |
+| **导出语法**         | `module.exports = ...` / `exports.x` | `export default` / `export const x` |
+| **加载时机**         | 运行时（动态）                       | 编译期（静态）                      |
+| **导入位置**         | 任何地方（条件 require）             | 必须顶层（少数例外：动态 import）   |
+| **导入是值还是引用** | 值（拷贝）                           | 引用（绑定）                        |
+| **tree-shaking**     | 难（动态依赖无法分析）               | 易（静态依赖可分析）                |
+| **浏览器支持**       | 否                                   | 是（2018+ 全支持）                  |
+
+### 2.2 静态 vs 动态：核心差异
+
+**CommonJS 是动态的**——`require()` 是函数调用：
+
+```js
+// CommonJS：可以条件 require
+if (process.env.NODE_ENV === "development") {
+  const debug = require("./debug"); // 运行时决定加载
+}
+
+// 工具不知道这个 require 会不会执行
+// 所以不能 tree-shake
+```
+
+**ESM 是静态的**——`import` 是语法构造：
+
+```js
+// ESM：必须顶层，编译期就知道依赖
+import debug from "./debug.js"; // ✅ 编译期已知
+
+if (process.env.NODE_ENV === "development") {
+  import debug from "./debug.js"; // ❌ 语法错误：import 不能在 if 里
+}
+```
+
+**为什么这个差异重要**：
+
+- 静态 import → 工具能在打包前完整分析依赖图 → 能 tree-shake、能打包成单文件
+- 动态 require → 工具必须保留所有可能的依赖 → bundle 大、无法 tree-shake
+
+### 2.3 引用 vs 拷贝
+
+**CommonJS 导入是值的拷贝**：
+
+```js
+// counter.js (CommonJS)
+let count = 0;
+function increment() {
+  count++;
+}
+module.exports = { count, increment };
+
+// app.js (CommonJS)
+const { count, increment } = require("./counter");
+console.log(count); // 0
+increment();
+console.log(count); // 0 —— 仍是 0！(只是初始值的拷贝)
+```
+
+**ESM 导入是引用绑定**：
+
+```js
+// counter.js (ESM)
+export let count = 0;
+export function increment() {
+  count++;
+}
+
+// app.js (ESM)
+import { count, increment } from "./counter.js";
+console.log(count); // 0
+increment();
+console.log(count); // 1 —— 实时反映！(导入的是 binding，不是值)
+```
+
+**实战影响**：
+
+- ESM 让"模块状态"能跨文件共享（如 store / config）
+- CommonJS 需要导出函数 getter 才能拿到最新值
+
+### 2.4 兼容性现状
+
+| 环境            | ESM 支持                                          | CommonJS 支持         |
+| --------------- | ------------------------------------------------- | --------------------- |
+| **现代浏览器**  | ✅ 原生（`<script type="module">`）               | ❌ 不支持             |
+| **Node.js 14+** | ✅ 通过 `.mjs` 或 `package.json "type": "module"` | ✅ 默认（向后兼容）   |
+| **TypeScript**  | ✅ 编译目标可选                                   | ✅ 编译目标可选       |
+| **打包器**      | ✅ Vite / Rollup / esbuild 默认                   | ✅ 需要 CommonJS 插件 |
+
+**经验**：新项目全 ESM；老项目维护时遇到 CommonJS 不要花精力迁移（除非有强需求），但**不写新的 CommonJS**。
+
+> 一手：[Node.js: ECMAScript 模块](https://nodejs.org/api/esm.html)（英文，Node 官方对 ESM 支持的说明）；[Node.js: package.json](https://nodejs.org/api/packages.html)（package.json `"type"` 字段说明）。
+
+---
+
+## 3. 动态 import：按需加载的标准答案
+
+普通 `import` 语句是**静态的**（必须在顶层、必须是字符串字面量）。但有时你需要**条件加载**或**懒加载**——这时用**动态 import**。
+
+### 3.1 语法
+
+动态 import 是函数调用形式，**返回一个 Promise**：
+
+```js
+// 静态 import（同步，顶层）
+import { sum } from "./math.js";
+
+// 动态 import（异步，可在任何地方）
+const { sum } = await import("./math.js");
+```
+
+### 3.2 三个典型用途
+
+#### 用途 1：条件加载
+
+```js
+async function loadFeature(featureName) {
+  if (featureName === "editor") {
+    const { Editor } = await import("./Editor.js");
+    return new Editor();
+  } else if (featureName === "viewer") {
+    const { Viewer } = await import("./Viewer.js");
+    return new Viewer();
+  }
+}
+```
+
+**好处**：用户只用编辑器，浏览器只下载编辑器代码——节省初始 bundle 大小。
+
+#### 用途 2：路由懒加载
+
+React 的 `lazy` + `Suspense` 内部就用动态 import：
+
+```jsx
+import { lazy, Suspense } from "react";
+
+const Dashboard = lazy(() => import("./Dashboard.js"));
+const Settings = lazy(() => import("./Settings.js"));
+
+function App() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Suspense>
+  );
+}
+```
+
+**效果**：用户访问 `/dashboard` 才下载 Dashboard 代码；访问 `/settings` 时下载 Settings——首屏 bundle 极小。
+
+#### 用途 3：用户触发的功能
+
+```js
+async function exportToPDF(data) {
+  // 用户点了"导出 PDF"按钮才加载这个 ~500KB 的库
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF();
+  doc.text(JSON.stringify(data), 10, 10);
+  doc.save("export.pdf");
+}
+```
+
+### 3.3 动态 import 的几个规则
+
+```js
+// ✅ 字符串字面量（最常见）
+const mod = await import('./math.js');
+
+// ✅ 模板字符串（可拼接）
+const lang = 'zh-CN';
+const messages = await import(`./locales/${lang}.json`, { with: { type: 'json' } });
+
+// ✅ 任何返回字符串的表达式
+const path = getModulePath();
+const mod = await import(path);
+
+// ❌ import 是关键字，不能赋值给变量后再调用
+const myImport = import; // SyntaxError
+```
+
+### 3.4 import 属性（Import Attributes，2024）
+
+ES2024 引入了 [Import Attributes](https://github.com/tc39/proposal-import-attributes)——告诉运行时"这个模块该怎么解释"：
+
+```js
+// 导入 JSON 模块（明确告诉运行时是 JSON）
+import config from "./config.json" with { type: "json" };
+
+// 动态 import 时也可以
+const config = await import("./config.json", { with: { type: "json" } });
+```
+
+**为什么需要**：浏览器和 Node 默认只支持 JS 模块——导入 JSON / CSS / Wasm 需要明确声明类型。
+
+> 旧语法 `assert { type: 'json' }` 已被 `with { type: 'json' }` 替代——**用 `with`，不用 `assert`**。
+
+> 一手：[MDN: 动态 import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/import)。
+
+---
+
+## 4. Node.js 互操作：ESM 和 CommonJS 共存
+
+Node.js 同时支持两种模块系统——这是**最容易踩坑的地方**。
+
+### 4.1 怎么告诉 Node 用哪种
+
+Node.js 通过两个机制决定一个文件是 ESM 还是 CommonJS：
+
+#### 机制 1：文件扩展名
+
+| 扩展名 | 模块系统                      |
+| ------ | ----------------------------- |
+| `.mjs` | **强制 ESM**                  |
+| `.cjs` | **强制 CommonJS**             |
+| `.js`  | 由 `package.json "type"` 决定 |
+
+#### 机制 2：`package.json "type"` 字段
+
+```json
+{
+  "type": "module"
+}
+```
+
+这个字段告诉 Node：**该 package 内所有 `.js` 文件都是 ESM**。
+
+```json
+{
+  "type": "commonjs"
+}
+```
+
+或不写 `"type"` 字段（默认）—— `.js` 是 CommonJS。
+
+### 4.2 现代项目推荐配置
+
+```json
+{
+  "name": "my-app",
+  "type": "module",
+  "main": "./dist/index.js"
+}
+```
+
+**经验**：
+
+- **新 Node.js 项目都加 `"type": "module"`**——和现代前端一致
+- **老项目想用 ESM 但不能改 `"type"`**——把 ESM 文件命名为 `.mjs`
+
+### 4.3 ESM 和 CommonJS 互相调用
+
+#### ESM 导入 CommonJS
+
+```js
+// ESM 文件
+import legacyLib from "old-commonjs-package";
+// CommonJS 的 module.exports = X 会被当作默认导出
+
+import { someExport } from "old-commonjs-package";
+// ⚠️ 命名导入可能不工作——Node 试图分析 module.exports 但有时失败
+```
+
+**保险写法**：
+
+```js
+import legacyLib from "old-commonjs-package";
+const { someExport } = legacyLib; // 取属性
+```
+
+#### CommonJS 导入 ESM
+
+CommonJS 的 `require()` **不能同步加载 ESM**——只能用动态 import：
+
+```js
+// CommonJS 文件
+async function loadESM() {
+  const { sum } = await import("./esm-module.mjs");
+  return sum;
+}
+
+// ❌ 反例
+const { sum } = require("./esm-module.mjs"); // ERR_REQUIRE_ESM
+```
+
+> Node.js 22+ 支持有限的 `require(esm)`（同步加载 ESM），但有约束（如不能含顶层 await）。**新代码不依赖这个特性**——直接用 ESM 项目。
+
+### 4.4 常见报错
+
+| 报错信息                                       | 原因                                   | 修复                                          |
+| ---------------------------------------------- | -------------------------------------- | --------------------------------------------- |
+| `Cannot use import statement outside a module` | `.js` 文件用 import，但项目是 CommonJS | 加 `"type": "module"` 或改文件扩展名为 `.mjs` |
+| `require() of ES Module ... not supported`     | CommonJS 用 require 导入 ESM           | 用 `await import()` 或改调用方为 ESM          |
+| `Cannot find module ... imported from ...`     | ESM 不允许省略 `.js` 扩展名            | 显式写 `import x from './x.js'`               |
+| `[ERR_UNKNOWN_FILE_EXTENSION]`                 | 试图用 Node 跑 `.ts` 文件              | 用 `tsx` / `ts-node` 或先编译                 |
+
+**ESM 必须写完整文件扩展名**（`./x.js`），CommonJS 可以省略——这是 Node ESM 最容易卡住新人的点。
+
+### 4.5 包的双重导出（dual package）
+
+库作者经常需要同时支持 ESM 和 CommonJS——`package.json` 的 `"exports"` 字段帮助：
+
+```json
+{
+  "name": "my-lib",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}
+```
+
+**效果**：
+
+- ESM 用户 `import x from 'my-lib'` 加载 `./dist/esm/index.js`
+- CommonJS 用户 `require('my-lib')` 加载 `./dist/cjs/index.cjs`
+
+> 业务项目通常不需要做"双重导出"——只在写**给别人用的库**时需要。
+
+> 一手：[Node.js: 包入口配置](https://nodejs.org/api/packages.html)。
+
+---
+
+## 5. Tree-shaking 与静态可分析性
+
+**Tree-shaking** 是打包器去除未使用代码的优化——它依赖 ESM 的**静态可分析性**。
+
+### 5.1 什么是 tree-shaking
+
+```js
+// utils.js
+export function add(a, b) {
+  return a + b;
+}
+export function multiply(a, b) {
+  return a * b;
+} // 未被使用
+export function divide(a, b) {
+  return a / b;
+} // 未被使用
+
+// app.js
+import { add } from "./utils.js";
+console.log(add(1, 2));
+```
+
+打包后理想结果：**只包含 `add` 函数**——`multiply` / `divide` 被"摇掉"。
+
+### 5.2 Tree-shaking 的前提：静态可分析
+
+Tree-shaking 需要打包器**在编译期确定**：
+
+1. 哪些导出被导入了？
+2. 哪些没被导入？
+
+ESM 的语法约束让这个分析可行：
+
+```js
+// ✅ 静态可分析
+import { add } from "./utils.js"; // 编译期就知道用了 add
+
+// ❌ 不可静态分析
+const { add } = require("./utils.js"); // 运行时才知道
+const fn = process.env.NODE_ENV === "dev" ? require("./dev") : require("./prod"); // 完全动态
+```
+
+**关键约束**：
+
+- ESM `import` / `export` 必须在顶层
+- `import` 路径必须是字符串字面量（动态 import 是例外，但作为单独的 chunk 处理）
+- 不能在条件分支里 import
+
+**这就是为什么 ESM 比 CommonJS 适合现代打包**——静态分析能力是 tree-shaking 的根。
+
+### 5.3 让 tree-shaking 真正工作的几条经验
+
+#### 经验 1：用命名导出，不用默认导出"导出对象"
+
+```js
+// ❌ 反例：默认导出一个大对象
+export default {
+  add,
+  multiply,
+  divide,
+};
+
+// 用户：
+import utils from "./utils.js";
+console.log(utils.add(1, 2));
+// 打包器看到 utils 整体被导入，无法 tree-shake utils 内的方法
+```
+
+```js
+// ✅ 正例：每个函数独立命名导出
+export function add(a, b) {
+  return a + b;
+}
+export function multiply(a, b) {
+  return a * b;
+}
+
+// 用户：
+import { add } from "./utils.js";
+// 打包器知道只用了 add，可以 tree-shake 其他
+```
+
+#### 经验 2：`package.json` 标记 `"sideEffects": false`
+
+```json
+{
+  "name": "my-lib",
+  "sideEffects": false
+}
+```
+
+告诉打包器："这个 package 没有副作用——未使用的导入可以安全删除"。
+
+**何时不能加**：库里有副作用模块（如 polyfill、注入全局样式）—— 否则副作用被删除，运行报错。
+
+```json
+{
+  "sideEffects": ["*.css", "./src/polyfill.js"]
+}
+```
+
+#### 经验 3：避免桶文件（barrel file）的过度嵌套
+
+```js
+// components/index.js
+export * from "./Button";
+export * from "./Input";
+export * from "./Card";
+// ... 100 个组件
+```
+
+**问题**：用户 `import { Button } from './components'`——打包器要分析 100 个文件才能 tree-shake。在大型项目里这会拖慢编译。
+
+**经验**：
+
+- 应用代码：直接 `import { Button } from './components/Button'`
+- 库的对外入口：可以用桶文件（库通常会预编译）
+
+> 一手：[webpack: Tree Shaking](https://webpack.js.org/guides/tree-shaking/)（英文，权威指南）。
+
+---
+
+## 6. 循环依赖（circular dependencies）
+
+A 导入 B，B 导入 A——这就是**循环依赖**。能跑，但容易出隐藏问题。
+
+### 6.1 表现
+
+```js
+// a.js
+import { b } from "./b.js";
+export const a = 1;
+console.log("a.js:", b);
+
+// b.js
+import { a } from "./a.js";
+export const b = 2;
+console.log("b.js:", a);
+
+// app.js
+import "./a.js";
+```
+
+**ESM 表现**：因为 import 是引用绑定，**第一次加载时未初始化的导出是 `undefined`**。
+
+```text
+b.js: undefined  ← b.js 加载时 a.js 还没执行完，a 还没初始化
+a.js: 2
+```
+
+### 6.2 为什么会循环依赖
+
+通常是**模块边界划得不清**：
+
+```text
+service-user.js     → 导入 service-team.js
+service-team.js     → 导入 service-user.js
+```
+
+业务逻辑互相耦合——"团队需要用户"且"用户需要团队"——划成两个模块就开始循环。
+
+### 6.3 怎么避免
+
+#### 方法 1：抽取公共依赖
+
+```text
+service-user.js     → 导入 shared.js
+service-team.js     → 导入 shared.js
+shared.js           → 共用工具
+```
+
+**经验**：循环依赖几乎总意味着**有第三个模块没抽出来**——找出来抽走。
+
+#### 方法 2：合并到同一个模块
+
+如果两个模块紧密耦合，**或许它们就该是一个模块**：
+
+```js
+// services.js（合并两个紧耦合的服务）
+export const userService = {
+  /* ... */
+};
+export const teamService = {
+  /* ... */
+};
+```
+
+#### 方法 3：用依赖注入（dependency injection）
+
+让模块通过参数接收依赖，而不是直接导入：
+
+```js
+// service-user.js
+export function createUserService(teamService) {
+  return {
+    getUserTeam(userId) {
+      return teamService.findByUserId(userId);
+    },
+  };
+}
+
+// service-team.js（独立，不依赖 user）
+export const teamService = {
+  /* ... */
+};
+
+// composer.js（组装）
+import { teamService } from "./service-team.js";
+import { createUserService } from "./service-user.js";
+
+export const userService = createUserService(teamService);
+```
+
+### 6.4 检测工具
+
+打包器 / lint 工具能检测循环依赖：
+
+- ESLint 规则：[`import/no-cycle`](https://github.com/import-js/eslint-plugin-import)
+- Webpack 插件：`circular-dependency-plugin`
+- Madge（独立工具）：`npx madge --circular src`
+
+**经验**：CI 阶段用 `import/no-cycle` 拦截——循环依赖在新增时拦截最便宜，已存在的循环依赖修复成本很高。
+
+---
+
+## 7. 三档归位
+
+| 知识点                                       | 归位         | 理由                                  |
+| -------------------------------------------- | ------------ | ------------------------------------- |
+| ESM 基础语法（import / export）              | **必学**     | 现代项目的事实标准                    |
+| 命名导出 vs 默认导出选型                     | **必学**     | AI 易混用                             |
+| ESM vs CommonJS 核心差异                     | **必学**     | Node.js 项目必懂                      |
+| 静态 vs 动态：tree-shaking 的前提            | **必学**     | 配置打包器、写库代码时必懂            |
+| 动态 import（路由懒加载 / 条件加载）         | **必学**     | React lazy / 性能优化的基础           |
+| `package.json "type": "module"`              | **必学**     | Node.js 现代项目必配                  |
+| `.mjs` / `.cjs` 扩展名作用                   | **必学**     | 调试 Node 模块报错时必懂              |
+| ESM 必须写完整文件扩展名                     | **必学**     | Node ESM 高频卡点                     |
+| Import Attributes（`with { type: 'json' }`） | **必学**     | 2024 后的 JSON 模块标准写法           |
+| 包的双重导出（dual package）                 | **仍需理解** | 写库时需要；业务项目不需要            |
+| 循环依赖检测 + 解决方案                      | **仍需理解** | 业务项目偶尔遇到；CI 加 lint 规则即可 |
+| 转发导出（re-export / barrel file）          | **仍需理解** | 知道何时用、何时避免                  |
+| `sideEffects: false` 配置                    | **仍需理解** | 写库时需要；用户端无关                |
+| `import * as` 命名空间导入                   | **仍需理解** | 业务很少用，AI 偶尔生成               |
+| AMD / RequireJS 语法                         | **不学**     | 已被 ESM 替代                         |
+| CommonJS 详尽内幕（`module.children` 等）    | **不学**     | 维护老代码时再查文档                  |
+| Webpack 5 模块联邦（Module Federation）      | **不学**     | 微前端话题；留给第 8 章前沿话题       |
+
+---
+
+## 8. AI 时代写模块的最小集
+
+| 你想做                               | AI 帮得上吗                                                       |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| 写 ESM import / export 语法          | ✅ AI 写得熟                                                      |
+| 把 CommonJS 改写成 ESM               | ✅ 委托 AI（标准重构）                                            |
+| 配置 `package.json "type": "module"` | ✅ AI 知道                                                        |
+| 写 React lazy + 动态 import          | ✅ 标准模式 AI 熟                                                 |
+| 决定该用命名导出还是默认导出         | ⚠️ AI 给默认（可能是 default 也可能是 named），你要按项目风格统一 |
+| 设计模块边界 / 拆分                  | ❌ 业务上下文 AI 拿不到——你要根据领域划分                         |
+| 排查 "Cannot use import statement"   | ⚠️ AI 能列可能性（type 没设 / 扩展名不对），定位需要你看配置      |
+| 排查循环依赖                         | ⚠️ AI 能给三种修复方案，选哪种是设计决策                          |
+| 解决 ESM 找不到模块（缺 `.js` 后缀） | ✅ AI 知道 ESM 必须写后缀                                         |
+
+**重点强调**：
+
+### AI 写模块时最容易错的两件事
+
+1. **混用默认导出和命名导出**：AI 在同一项目里有时用 `export default`，有时用 `export const`——不一致。**review 时按项目规约统一**。
+2. **省略文件扩展名**：AI 训练数据里大量 webpack 时代代码省略 `.js` 后缀——**Node ESM 必须写完整后缀**，CI 上跑会报 "Cannot find module"。
+
+### 你必须把握的 review 要点
+
+**模块设计**：
+
+- 命名导出 vs 默认导出符合项目风格吗？
+- 公共入口（barrel file）是否过度嵌套（影响 tree-shaking）？
+- 模块边界是否合理（无循环依赖）？
+
+**Node 互操作**：
+
+- `package.json "type"` 配对了吗？
+- 文件扩展名（`.mjs` / `.cjs`）符合预期吗？
+- ESM 文件 import 路径都带了 `.js` 后缀吗？
+
+**性能**：
+
+- 大型组件 / 库是否用了动态 import 懒加载？
+- 是否有不必要的 `import *`（影响 tree-shaking）？
+
+---
+
+## 9. 翻车库
+
+### 9.1 `Cannot use import statement outside a module`
+
+**症状**：Node 跑 `.js` 文件时报这个错。
+
+**原因**：`package.json` 没设 `"type": "module"`，Node 把 `.js` 当作 CommonJS。
+
+**修复**：
+
+```json
+{
+  "type": "module"
+}
+```
+
+或者文件扩展名改成 `.mjs`。
+
+### 9.2 ESM 找不到模块（`Cannot find module './x'`）
+
+**症状**：在 ESM 项目里 `import x from './x'`，Node 报找不到模块。
+
+**原因**：ESM 不允许省略扩展名。
+
+**修复**：
+
+```js
+// ❌ 反例
+import x from "./x";
+
+// ✅ 正例
+import x from "./x.js";
+```
+
+> 在 TypeScript 项目里，**源码写 `import x from './x.js'` 即使物理文件是 `.ts`**——TypeScript 编译输出 `.js`，运行时找的是 `.js` 文件。这是反直觉但正确的写法。
+
+### 9.3 默认导出和命名导出混淆
+
+**症状**：`import x from './mod'`，但拿到 `undefined` 或解构失败。
+
+**原因**：默认导出和命名导出语法不一致。
+
+**修复**：
+
+```js
+// 模块用了 export default
+export default function add(a, b) {
+  return a + b;
+}
+
+// ✅ 正确导入
+import add from "./mod.js";
+
+// ❌ 错误（试图用命名导入）
+import { add } from "./mod.js"; // undefined
+```
+
+```js
+// 模块用了命名导出
+export function add(a, b) {
+  return a + b;
+}
+
+// ✅ 正确导入
+import { add } from "./mod.js";
+
+// ❌ 错误（试图用默认导入）
+import add from "./mod.js"; // undefined
+```
+
+### 9.4 CommonJS 不能 require ESM
+
+**症状**：CommonJS 文件 `require('./esm-mod.mjs')`，报 `ERR_REQUIRE_ESM`。
+
+**原因**：CommonJS 是同步的，ESM 是异步的——`require()` 不支持加载 ESM。
+
+**修复**：
+
+```js
+// CommonJS 文件
+async function load() {
+  const { sum } = await import("./esm-mod.mjs");
+  return sum;
+}
+```
+
+> Node.js 22+ 有限支持 `require(esm)`，但有约束。**最佳方案是把整个项目升级到 ESM**。
+
+### 9.5 桶文件破坏 tree-shaking
+
+**症状**：bundle 里包含了大量未使用的代码——明明只用了一个组件。
+
+**原因**：桶文件（barrel file）让打包器难分析。
+
+**修复**：直接 import 具体文件：
+
+```js
+// ❌ 反例（导致整个 components 都被分析）
+import { Button } from "./components";
+
+// ✅ 正例
+import { Button } from "./components/Button.js";
+```
+
+> 现代打包器（Vite / Rollup / esbuild）对桶文件的 tree-shaking 越来越好，但**直接 import 总是更可靠**。
+
+### 9.6 循环依赖导致 `undefined`
+
+**症状**：明明导出了，导入时拿到 `undefined`。
+
+**原因**：循环依赖导致模块加载顺序错乱。
+
+**修复**：抽取公共依赖，或合并模块：
+
+```js
+// 修复前：a 和 b 互相导入
+// a.js → import { b } from './b.js'
+// b.js → import { a } from './a.js'
+
+// 修复后：抽出共用工具
+// shared.js
+export const shared = ...;
+
+// a.js → import { shared } from './shared.js'
+// b.js → import { shared } from './shared.js'
+```
+
+> 详见 [§6 循环依赖](#6-循环依赖circular-dependencies)。
+
+### 9.7 动态 import 路径写错
+
+**症状**：动态 import 失败，控制台报错。
+
+**原因**：动态 import 也需要正确的路径——相对路径 / 字符串拼接错误。
+
+**修复**：
+
+```js
+// ❌ 反例：路径会被解析为相对于当前页面 URL，不是模块
+const url = "/api/data";
+const mod = await import(url);
+
+// ✅ 正例：相对模块路径
+const lang = "zh-CN";
+const messages = await import(`./locales/${lang}.json`, {
+  with: { type: "json" },
+});
+```
+
+### 9.8 多次导入同一模块的副作用
+
+**症状**：以为模块被加载多次，实际只加载一次（缓存了）。
+
+**原因**：模块缓存机制——同一 URL 的模块只加载一次，多次 import 拿到同一实例。
+
+```js
+// counter.js
+export let count = 0;
+export function increment() {
+  count++;
+}
+
+// a.js
+import { increment } from "./counter.js";
+increment();
+
+// b.js
+import { count } from "./counter.js";
+console.log(count); // 1 —— 不是 0，因为 a.js 已经增加过
+```
+
+**正常情况**：这是**期望行为**，模块就该是单例。但偶尔写测试时会"以为"模块每次都重新加载——**测试时需要 mock 或重置模块状态**。
+
+---
+
+## 10. 设计判断暗线：静态可分析性（static analyzability）
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破一个核心设计判断。
+
+**ESM 的语法约束（必须顶层 / 字符串字面量 / 静态结构）不是"麻烦"，是有意设计的——它让工具能在编译期完整分析依赖图**。这种"静态可分析性"是现代前端工具链的根。
+
+| 维度             | CommonJS（动态）           | ESM（静态）                                |
+| ---------------- | -------------------------- | ------------------------------------------ |
+| **导入时机**     | 运行时调用                 | 编译期解析                                 |
+| **依赖关系**     | 可能在任何代码分支里       | 在文件顶部明确列出                         |
+| **工具能做什么** | 极少（无法预先知道依赖）   | 几乎所有：tree-shake / bundle / type-check |
+| **代价**         | 灵活（运行时条件加载）     | 受限（必须顶层）                           |
+| **何时该选哪个** | 几乎从不（除非维护老代码） | **永远首选**                               |
+
+**这种"静态化"的趋势贯穿现代 JS 生态**：
+
+- TypeScript 的类型检查是静态的（编译期，不影响运行时）
+- React Server Components 是静态的（决定哪些组件在服务端渲染）
+- Tailwind CSS 的类名提取是静态的（编译期扫描代码）
+
+**深层洞察**：**让信息在尽可能早的阶段确定**——编译期 > 启动期 > 运行时——是工具链能做优化的前提。ESM 是这条路线在模块层的体现。
+
+---
+
+## 11. 读完本节你应该能
+
+### ESM 基础
+
+- [ ] 写出 ESM 命名导出 / 默认导出 / 重命名导出三种语法
+- [ ] 区分 `import x from` 和 `import { x } from` 各自对应的导出方式
+- [ ] 解释为什么 ESM 必须写完整文件扩展名
+- [ ] 用 `import * as` 命名空间导入
+
+### ESM vs CommonJS
+
+- [ ] 列出两者四个核心差异（语法 / 时机 / 引用 vs 拷贝 / tree-shaking）
+- [ ] 解释为什么 ESM 是浏览器和现代 Node.js 的标准
+- [ ] 知道何时仍可能需要 CommonJS（维护老项目）
+
+### 动态 import
+
+- [ ] 写出条件加载示例（按用户类型加载不同模块）
+- [ ] 用 React lazy + 动态 import 实现路由懒加载
+- [ ] 区分静态 import 和动态 import 的使用场景
+
+### Node.js 互操作
+
+- [ ] 解释 `package.json "type"` 字段的作用
+- [ ] 区分 `.mjs` / `.cjs` / `.js` 三种扩展名的语义
+- [ ] 解释 ESM 和 CommonJS 互相调用的限制
+- [ ] 写出 ESM 文件正确的 import 路径（带 .js 扩展名）
+
+### Tree-shaking
+
+- [ ] 解释为什么 ESM 比 CommonJS 适合 tree-shaking
+- [ ] 列出让 tree-shaking 真正工作的三条经验
+- [ ] 解释 `package.json "sideEffects"` 字段的作用
+
+### 循环依赖
+
+- [ ] 识别循环依赖的典型症状（导出值是 undefined）
+- [ ] 列出三种修复方案（抽取共用 / 合并模块 / 依赖注入）
+
+### 设计判断
+
+- [ ] 用"静态可分析性"心智解释 ESM 设计选择的代价与回报
+- [ ] 解释为什么 Tailwind / TypeScript / RSC 都基于"编译期确定"
+
+---
+
+## 12. 延伸阅读
+
+- [MDN: JavaScript 模块](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules) — 中文权威文档
+- [MDN: import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/import) — import 语法详解
+- [MDN: 动态 import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/import) — 动态 import 表达式
+- [Node.js: ECMAScript 模块](https://nodejs.org/api/esm.html) **（英文）** — Node.js 对 ESM 支持的官方说明
+- [Node.js: 包入口配置](https://nodejs.org/api/packages.html) **（英文）** — `package.json` 的 `"type"` / `"exports"` / `"imports"` 字段详解
+- [webpack: Tree Shaking](https://webpack.js.org/guides/tree-shaking/) **（英文）** — tree-shaking 权威指南
+- [TC39: Import Attributes 提案](https://github.com/tc39/proposal-import-attributes) **（英文）** — 2024 标准化的 import 属性
+- [TC39: JSON Modules 提案](https://github.com/tc39/proposal-json-modules) **（英文）** — JSON 模块导入标准
+
+> 访问性说明：MDN 中文版直接可访问；Node.js / TC39 / webpack 文档是英文但访问稳定。
+
+---
+
+下一节：[§4.4 ES2020-2025 现代特性](/chapter-04/modern-features) _（待写）_——optional chaining / 顶层 await / 装饰器 / Records / 私有字段。
