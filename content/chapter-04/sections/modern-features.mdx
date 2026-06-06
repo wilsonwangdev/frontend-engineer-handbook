@@ -1,0 +1,966 @@
+---
+title: ES2020-2025 现代特性
+chapter: 4
+section: 4
+description: 可选链 / 私有字段 / 不可变数组方法 / 装饰器——5 年小步迭代里值得吸收的部分
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 20
+---
+
+> 这一节梳理 **ES2020-2025 五年间的语言新特性**——不是 MDN 风格的语法手册，是"每个特性替换了什么旧写法、什么时候该用、什么时候不该用"的判断地图。
+
+§4.1-§4.3 把 JS 语言核心 / 异步模型 / 模块系统讲清楚了。这一节聚焦近 5 年的**增量更新**——很多读者最近一次系统学 JS 是 2017-2018 年（ES6 + ES2017），但 JS 在那之后**每年都在小步迭代**，5 年下来累积的变化已经相当可观。
+
+**本节核心论点**：
+
+1. **ES6（2015）后没有再出现革命性的语法变化**——年度更新都是"补一个常用 API"或"修一个语义陷阱"
+2. **`?.` / `??` / `#field` 是必学三件套**——业务代码每天都在用
+3. **不可变数组方法（`toSorted` / `toReversed`）是 React / 函数式风格的福音**——替代会变异原数组的旧 API
+4. **装饰器、Records & Tuples 等"看似酷"的特性还不该用**——稳定性 / 兼容性 / 工具链支持都不够
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                               | 直接读                                                     |
+> | ---------------------------------- | ---------------------------------------------------------- |
+> | **新人 / 转行者**                  | §1 可选链 + nullish 合并 → §3 私有字段 → §4 不可变数组方法 |
+> | **写过几年 JS 但没跟 2020+ 更新**  | §1 → §3 → §4（按顺序读完）                                 |
+> | **跟过新特性，想知道"哪些不该用"** | §6 ES2025+ → §9 翻车库                                     |
+> | **要带 AI 写现代 JS**              | §8 AI 最小集 → §9 翻车库                                   |
+>
+> 整节读完约 30-40 分钟；按上面挑读 10-15 分钟。**§1 可选链 + nullish 合并**和**§3 私有字段 + 顶层 await**是日常代码最高频的部分。
+
+---
+
+## 0. 演进史：从 ES6 大爆炸到年度小步迭代
+
+> ES6（2015）之后，TC39 改成**每年一个版本号**——大量"看似不起眼"的小改进累积下来，5 年的差异比想象中大。
+
+| 版本             | 重点特性                                                          |
+| ---------------- | ----------------------------------------------------------------- |
+| **ES6 / ES2015** | `let` / `const` / 箭头函数 / Promise / class / 模块（**革命性**） |
+| **ES2017**       | `async` / `await` / `Object.entries` / `Object.values`            |
+| **ES2018**       | 异步迭代（`for await...of`）/ 对象展开（`{...obj}`）              |
+| **ES2019**       | `Array.flat` / `Array.flatMap` / `Object.fromEntries`             |
+| **ES2020**       | **`?.` 可选链** / **`??` nullish 合并** / 动态 import / `BigInt`  |
+| **ES2021**       | 逻辑赋值（`??=`）/ 数字分隔符（`1_000_000`）/ `replaceAll`        |
+| **ES2022**       | **私有字段（`#field`）** / **顶层 await** / `Object.hasOwn`       |
+| **ES2023**       | **不可变数组方法**（`toSorted` / `toReversed` / `findLast`）      |
+| **ES2024**       | `Promise.withResolvers` / `Object.groupBy` / Set 集合操作         |
+| **ES2025+**      | `using` 资源管理 / 装饰器（Stage 3）/ Iterator helpers            |
+
+### TC39 提案流程：理解"什么时候能用"
+
+JavaScript 新特性的标准化经过 TC39 五个阶段：
+
+| Stage | 名称      | 含义                 | 能在生产用吗                     |
+| ----- | --------- | -------------------- | -------------------------------- |
+| 0     | Strawman  | 想法                 | ❌ 完全不能                      |
+| 1     | Proposal  | 提案                 | ❌ 完全不能                      |
+| 2     | Draft     | 草案                 | ❌ 不应该                        |
+| 3     | Candidate | 候选（语法基本定型） | ⚠️ TypeScript / Babel 通常已支持 |
+| 4     | Finished  | 已纳入下一年标准     | ✅ 浏览器陆续实现，可放心用      |
+
+**经验法则**：
+
+- **看到"Stage 4"** → 安全用（确认目标浏览器版本）
+- **看到"Stage 3"** → 工具链已支持，但谨慎（语法可能微调）
+- **Stage 1-2** → **不要用**（提案可能被砍）
+
+> 一手：[TC39 提案列表](https://github.com/tc39/proposals)（英文，所有提案的当前状态）。
+
+---
+
+## 1. ES2020 核心：可选链 + nullish 合并
+
+这两个操作符是 **ES2020 最重要的两个特性**——几乎每段业务代码都用得上。
+
+### 1.1 可选链（`?.`）
+
+**解决了什么**：访问可能不存在的属性时，避免一连串 `&&` 守卫。
+
+```js
+// ❌ 旧写法：层层 && 守卫
+const street = user && user.address && user.address.street;
+
+// ✅ 新写法：可选链
+const street = user?.address?.street;
+```
+
+**规则**：当 `?.` 左侧是 `null` 或 `undefined` 时，整个表达式短路返回 `undefined`（不报错）。
+
+**三种用法**：
+
+```js
+// 1. 属性访问
+obj?.prop;
+obj?.["prop"];
+
+// 2. 函数调用
+func?.(); // func 不存在时返回 undefined，不报错
+arr?.[0]; // 安全访问数组
+
+// 3. 嵌套
+user?.posts?.[0]?.comments?.length;
+```
+
+**经典场景：可选回调**：
+
+```js
+// ❌ 旧写法
+if (callback) {
+  callback(data);
+}
+
+// ✅ 新写法
+callback?.(data);
+```
+
+### 1.2 nullish 合并（`??`）
+
+**解决了什么**：取默认值时，区分"`null` / `undefined`"和"假值"（`0` / `''` / `false`）。
+
+```js
+// ❌ 旧写法：用 ||，假值都被替换
+const port = config.port || 3000; // ❌ port = 0 也会被替换成 3000
+
+// ✅ 新写法：用 ??，只在 null / undefined 时取默认
+const port = config.port ?? 3000; // ✅ port = 0 保留 0
+```
+
+**`??` vs `||` 关键差异**：
+
+| 表达式                   | `           |             | ` 结果 | `??` 结果 |
+| ------------------------ | ----------- | ----------- | ------ | --------- |
+| `0 ?? 'default'`         | `'default'` | `0`         |
+| `'' ?? 'default'`        | `'default'` | `''`        |
+| `false ?? 'default'`     | `'default'` | `false`     |
+| `null ?? 'default'`      | `'default'` | `'default'` |
+| `undefined ?? 'default'` | `'default'` | `'default'` |
+| `NaN ?? 'default'`       | `'default'` | `NaN`       |
+
+**经验法则**：
+
+- **取默认值时默认用 `??`**——除非你**确实想把所有假值替换**（如空字符串当无效）
+- **`||` 仍然有用的场景**：明确想把"falsy 值"全部当空（如 `count || '暂无'`）
+
+> AI 时代踩坑高发：AI 经常写 `||` 默认值，导致 `0` / `''` 被替换。**review 时检查 `||` 是不是该用 `??`**。
+
+### 1.3 ES2020 其他特性简提
+
+```js
+// 1. Promise.allSettled —— 已在 §4.2 详解
+// 2. globalThis —— 跨环境（浏览器 / Node / Worker）的统一全局对象
+// 3. BigInt —— 超过 Number.MAX_SAFE_INTEGER 的整数
+const big = 9007199254740993n; // 末尾加 n
+big + 1n; // 9007199254740994n
+
+// 4. 动态 import —— 已在 §4.3 详解
+// 5. String.matchAll —— 全局正则匹配返回迭代器
+const matches = "aaa".matchAll(/a/g);
+[...matches]; // [['a'], ['a'], ['a']]
+```
+
+> 一手：[MDN: 可选链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Optional_chaining)；[MDN: nullish 合并](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing)。
+
+---
+
+## 2. ES2021：逻辑赋值 + 数字分隔符
+
+ES2021 主要是"小修小补"——四个特性都很实用，但都是"锦上添花"级别。
+
+### 2.1 逻辑赋值（`||=` / `&&=` / `??=`）
+
+**解决了什么**：把"判断 + 赋值"压缩成一个操作符。
+
+```js
+// 旧写法 → 新写法
+a = a || b;
+a ||= b;
+a = a && b;
+a &&= b;
+a = a ?? b;
+a ??= b;
+```
+
+**经典场景：默认值赋值**：
+
+```js
+// ❌ 旧写法
+function init(options) {
+  options = options || {};
+  options.timeout = options.timeout ?? 5000;
+}
+
+// ✅ 新写法
+function init(options) {
+  options ??= {};
+  options.timeout ??= 5000;
+}
+```
+
+### 2.2 数字分隔符（`_`）
+
+**解决了什么**：长数字难读。
+
+```js
+// ❌ 难读
+const billion = 1000000000;
+
+// ✅ 易读
+const billion = 1_000_000_000;
+
+// 适用于所有数字字面量
+const hex = 0xff_ff_ff;
+const binary = 0b1010_0001;
+const float = 3.141_592_65;
+```
+
+**注意**：
+
+- 只是**视觉提示**，不影响解析（`1_000` === `1000`）
+- 不能在小数点旁、字面量首尾、连续两个
+
+### 2.3 `String.prototype.replaceAll`
+
+**解决了什么**：全局替换字符串不再需要正则。
+
+```js
+// ❌ 旧写法：要写正则 + g 标志
+"hello world hello".replace(/hello/g, "hi");
+
+// ✅ 新写法
+"hello world hello".replaceAll("hello", "hi");
+```
+
+> `replace()` 默认只替换第一个——这是早期 JS 的设计选择，现在 `replaceAll()` 补全了。
+
+### 2.4 `Promise.any`
+
+已在 §4.2 详解——**第一个成功**就返回。
+
+---
+
+## 3. ES2022 核心：私有字段 + 顶层 await
+
+ES2022 的几个特性影响深远：私有字段终结了"用闭包模拟私有"的历史，顶层 await 改变了 ESM 模块初始化方式。
+
+### 3.1 私有字段（`#field`）
+
+**解决了什么**：JS 第一次有了**真正的私有成员**——闭包 / TS `private` 都不再是首选。
+
+```js
+class Counter {
+  #count = 0; // # 开头 = 私有字段
+
+  increment() {
+    this.#count++;
+  }
+
+  get value() {
+    return this.#count;
+  }
+}
+
+const c = new Counter();
+c.increment();
+c.value; // 1
+c.#count; // ❌ SyntaxError: Private field '#count' must be declared in an enclosing class
+```
+
+**关键特性**：
+
+- **真正运行时私有**——外部访问会**直接语法错误**
+- 与 TypeScript 的 `private` 不同（TS 的 `private` 只在编译期检查，运行时仍可访问）
+- 可以用 `#` 命名方法、static、accessors
+
+```js
+class Foo {
+  #privateField = 1;
+  #privateMethod() {
+    return "private";
+  }
+  static #privateStatic = "static";
+  get #computed() {
+    return this.#privateField * 2;
+  }
+}
+```
+
+**与三种"私有"方案对比**：
+
+| 方案                   | 真正私有？     | 代码可读性 | 何时用                             |
+| ---------------------- | -------------- | ---------- | ---------------------------------- |
+| 命名约定（`_field`）   | ❌（仅约定）   | 高         | 老代码 / 不在乎运行时安全          |
+| 闭包（IIFE）           | ✅             | 低         | ES6 之前 / 函数式风格              |
+| TypeScript `private`   | ❌（只编译期） | 高         | 只用 TS 的项目（不需要运行时保护） |
+| **`#field`（ES2022）** | ✅             | 高         | **现代标准**——首选                 |
+
+### 3.2 顶层 await（top-level await）
+
+已在 §4.2 详解——ESM 模块顶层可以直接 `await`，不需要包在 IIFE 里。
+
+```js
+// ✅ ESM 模块顶层
+const config = await fetch("/config.json").then((r) => r.json());
+export default config;
+```
+
+### 3.3 `Object.hasOwn()`
+
+**解决了什么**：替代 `Object.prototype.hasOwnProperty.call(obj, key)` 的繁琐写法。
+
+```js
+// ❌ 旧写法：要防原型污染
+if (Object.prototype.hasOwnProperty.call(obj, "key")) {
+  /* ... */
+}
+
+// ❌ 反例：直接调 obj.hasOwnProperty 不安全（对象可能没有原型）
+if (obj.hasOwnProperty("key")) {
+  /* ... */
+} // 如果 obj = Object.create(null) 会报错
+
+// ✅ 新写法
+if (Object.hasOwn(obj, "key")) {
+  /* ... */
+}
+```
+
+**经验**：检查"对象自身是否有某属性"时，**默认用 `Object.hasOwn`**——更短、更安全。
+
+### 3.4 Error cause（错误链）
+
+**解决了什么**：包装错误时保留原始错误信息。
+
+```js
+async function fetchUser(id) {
+  try {
+    return await fetch(`/api/user/${id}`);
+  } catch (err) {
+    // ❌ 旧写法：原始错误信息丢失
+    throw new Error(`Failed to fetch user ${id}`);
+
+    // ✅ 新写法：保留原始错误链
+    throw new Error(`Failed to fetch user ${id}`, { cause: err });
+  }
+}
+
+// 调用方
+try {
+  await fetchUser(123);
+} catch (err) {
+  console.error(err); // 主错误
+  console.error(err.cause); // 原始 fetch 错误
+}
+```
+
+**何时用**：分层错误处理——业务层包装底层错误时用 `cause` 保留原始信息，方便 debug。
+
+### 3.5 `at()` 数组方法（负索引）
+
+**解决了什么**：取数组最后一个元素更优雅。
+
+```js
+const arr = [1, 2, 3, 4, 5];
+
+// ❌ 旧写法
+arr[arr.length - 1]; // 5
+
+// ✅ 新写法
+arr.at(-1); // 5
+arr.at(-2); // 4
+```
+
+**也支持字符串**：
+
+```js
+"hello".at(-1); // 'o'
+```
+
+### 3.6 类静态块
+
+**解决了什么**：类内部的初始化逻辑（特别是涉及 await / 复杂分支时）。
+
+```js
+class Service {
+  static #config;
+
+  static {
+    // 类静态块：类定义时执行一次
+    if (typeof window !== "undefined") {
+      this.#config = { env: "browser" };
+    } else {
+      this.#config = { env: "node" };
+    }
+  }
+
+  static getConfig() {
+    return this.#config;
+  }
+}
+```
+
+**何时用**：复杂的类静态初始化逻辑——简单赋值仍然用 `static field = value`。
+
+> 一手：[MDN: 私有属性](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Classes/Private_properties)；[MDN: Object.hasOwn](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn)；[MDN: Error cause](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Error/cause)；[MDN: Array.prototype.at](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Array/at)。
+
+---
+
+## 4. ES2023：不可变数组方法
+
+ES2023 引入了一组**不变异原数组**的新方法——这是 React / 函数式风格的重大福音。
+
+### 4.1 老 API 的问题：会变异原数组
+
+```js
+const arr = [3, 1, 2];
+
+// ❌ 老 API：直接修改原数组
+arr.sort(); // arr 变成 [1, 2, 3]
+arr.reverse(); // arr 变成 [3, 2, 1]
+arr.splice(0, 1); // arr 变成 [2, 1]
+```
+
+**问题**：在 React 里**不能直接 setState**——React 通过引用比较判断是否变化，原数组被修改但引用不变，**React 不会重新渲染**。
+
+```jsx
+// ❌ React 反例
+const [items, setItems] = useState([3, 1, 2]);
+
+function handleSort() {
+  items.sort(); // 改了原数组，但引用没变
+  setItems(items); // React 看引用相同，不渲染
+}
+```
+
+### 4.2 新 API：返回新数组
+
+ES2023 给四个变异方法都提供了"返回新数组"的版本：
+
+| 老 API（变异）  | 新 API（不变异）   | 含义         |
+| --------------- | ------------------ | ------------ |
+| `arr.sort()`    | `arr.toSorted()`   | 排序         |
+| `arr.reverse()` | `arr.toReversed()` | 反转         |
+| `arr.splice()`  | `arr.toSpliced()`  | 删除 / 插入  |
+| `arr[i] = x`    | `arr.with(i, x)`   | 修改某个索引 |
+
+**实战示例**：
+
+```js
+const arr = [3, 1, 2];
+
+// ✅ 新 API
+const sorted = arr.toSorted(); // [1, 2, 3]，arr 仍是 [3, 1, 2]
+const reversed = arr.toReversed(); // [2, 1, 3]，arr 仍是 [3, 1, 2]
+const removed = arr.toSpliced(0, 1); // [1, 2]，arr 仍是 [3, 1, 2]
+const replaced = arr.with(0, 99); // [99, 1, 2]，arr 仍是 [3, 1, 2]
+```
+
+**React 友好的写法**：
+
+```jsx
+// ✅ React 正例
+const [items, setItems] = useState([3, 1, 2]);
+
+function handleSort() {
+  setItems(items.toSorted()); // 新数组，引用变了，React 渲染
+}
+```
+
+### 4.3 `findLast` / `findLastIndex`
+
+**解决了什么**：从后往前找元素。
+
+```js
+const arr = [1, 2, 3, 4, 5];
+
+// 找最后一个偶数
+arr.findLast((n) => n % 2 === 0); // 4
+arr.findLastIndex((n) => n % 2 === 0); // 3
+
+// ❌ 老写法：先反转再找
+[...arr].reverse().find((n) => n % 2 === 0);
+```
+
+**何时用**：日志 / 时间序列从后往前找。
+
+### 4.4 兼容性
+
+- Node.js 20+ 全支持
+- 主流浏览器 2023 年起全支持
+- 旧浏览器需要 polyfill（[core-js](https://github.com/zloirock/core-js)）
+
+> 一手：[MDN: Array.toSorted](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted)；[MDN: Array.toReversed](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Array/toReversed)；[MDN: Array.findLast](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Array/findLast)。
+
+---
+
+## 5. ES2024：分组 + 集合操作 + Promise.withResolvers
+
+ES2024 加了几个"早就该有"的标准 API。
+
+### 5.1 `Promise.withResolvers`
+
+**解决了什么**：手动构造可外部 resolve / reject 的 Promise。
+
+```js
+// ❌ 旧写法：要把 resolver 函数赋值到外部变量
+let resolveFn, rejectFn;
+const promise = new Promise((resolve, reject) => {
+  resolveFn = resolve;
+  rejectFn = reject;
+});
+
+// 在另一个地方
+resolveFn("done");
+
+// ✅ 新写法
+const { promise, resolve, reject } = Promise.withResolvers();
+
+// 在另一个地方
+resolve("done");
+```
+
+**何时用**：异步事件等待 / 自定义 Promise 控制流——比 `new Promise(...)` 更简洁。
+
+### 5.2 `Object.groupBy` / `Map.groupBy`
+
+**解决了什么**：数组按某属性分组——之前要手写 reduce。
+
+```js
+const users = [
+  { name: "Alice", role: "admin" },
+  { name: "Bob", role: "user" },
+  { name: "Carol", role: "admin" },
+];
+
+// ❌ 旧写法：手写 reduce
+const grouped = users.reduce((acc, user) => {
+  acc[user.role] = acc[user.role] || [];
+  acc[user.role].push(user);
+  return acc;
+}, {});
+
+// ✅ 新写法
+const grouped = Object.groupBy(users, (user) => user.role);
+// {
+//   admin: [{ name: 'Alice', ... }, { name: 'Carol', ... }],
+//   user: [{ name: 'Bob', ... }],
+// }
+```
+
+**Map.groupBy**：分组键是对象 / Symbol 时用。
+
+**兼容性**：Node 21+ / Chrome 117+ / Safari 17.4+——较新，旧环境需要 polyfill 或 lodash `groupBy`。
+
+### 5.3 Set 集合操作
+
+新加了七个集合操作方法：
+
+```js
+const a = new Set([1, 2, 3]);
+const b = new Set([2, 3, 4]);
+
+a.union(b); // {1, 2, 3, 4}
+a.intersection(b); // {2, 3}
+a.difference(b); // {1}
+a.symmetricDifference(b); // {1, 4}
+a.isSubsetOf(b); // false
+a.isSupersetOf(b); // false
+a.isDisjointFrom(b); // false
+```
+
+**何时用**：替代之前的 `[...new Set([...a, ...b])]` 等丑陋写法。
+
+### 5.4 `Array.fromAsync`
+
+**解决了什么**：从异步迭代器构建数组。
+
+```js
+// ❌ 旧写法
+async function load() {
+  const result = [];
+  for await (const item of fetchStream()) {
+    result.push(item);
+  }
+  return result;
+}
+
+// ✅ 新写法
+const result = await Array.fromAsync(fetchStream());
+```
+
+> 一手：[MDN: Promise.withResolvers](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers)（英文）；[MDN: Object.groupBy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy)（英文）。
+
+---
+
+## 6. ES2025+：还在路上的特性
+
+下面这些特性大多是 Stage 3，**TypeScript / 现代 Node 支持**，但**生产代码请谨慎**——语法可能微调，工具链支持不齐。
+
+### 6.1 显式资源管理（`using` / `await using`）
+
+**解决了什么**：资源（文件句柄 / 数据库连接 / 锁）的自动释放。
+
+```js
+// 文件句柄会在作用域结束时自动 dispose
+{
+  using file = openFile("data.txt"); // 类似 RAII
+  // ... 使用 file
+} // 离开块作用域时自动调用 file[Symbol.dispose]()
+
+// 异步版本
+{
+  await using db = await connectDB();
+  // ... 使用 db
+} // 自动调用 await db[Symbol.asyncDispose]()
+```
+
+**何时用**：需要确定性资源释放的场景（替代 `try/finally` 模板代码）。
+
+**兼容性**：TypeScript 5.2+ / Node 20.11+。**业务代码暂时还不是首选**——除非你的目标环境完全支持。
+
+> 一手：[MDN: using](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using)（英文）；[TC39 提案](https://github.com/tc39/proposal-explicit-resource-management)。
+
+### 6.2 装饰器（Decorators，Stage 3）
+
+**解决了什么**：声明式给类 / 方法 / 字段附加行为。
+
+```ts
+function logged(originalMethod, context) {
+  return function (...args) {
+    console.log(`Calling ${context.name}`);
+    return originalMethod.apply(this, args);
+  };
+}
+
+class Service {
+  @logged
+  fetch() {
+    // ...
+  }
+}
+```
+
+**关键提醒**：
+
+- ES2024+ / TS 5.0+ 用的是**新装饰器（Stage 3）**——和老的 TypeScript 实验装饰器**不兼容**
+- NestJS / MobX 等流行库还在用老的 Stage 2 装饰器
+- **维护老库时不要混用**——配置 `experimentalDecorators` 即用老的，不配置就是新的
+
+**生产采用建议**：
+
+- **新项目可以用 Stage 3 装饰器**（如果你的工具链支持）
+- **维护用了 NestJS 等老装饰器库的项目，继续用老装饰器**
+
+> 一手：[TC39 装饰器提案](https://github.com/tc39/proposal-decorators)。
+
+### 6.3 Iterator helpers（迭代器助手）
+
+**解决了什么**：让 iterator 支持链式 map / filter / reduce。
+
+```js
+function* naturals() {
+  let n = 1;
+  while (true) yield n++;
+}
+
+const result = naturals()
+  .filter((n) => n % 2 === 0)
+  .take(3)
+  .toArray();
+// [2, 4, 6]
+```
+
+**为什么有用**：处理无限序列 / 流式数据（之前要手写 generator）。
+
+**兼容性**：Stage 3，Node 22+ 实验性支持。
+
+> 一手：[TC39 提案](https://github.com/tc39/proposal-iterator-helpers)。
+
+### 6.4 Records & Tuples（**Stage 2，不要用**）
+
+**目标**：原生不可变数据结构（深度不可变的对象 / 数组）。
+
+```js
+// ❌ 还不能用！只是提案
+const record = #{ x: 1, y: 2 };
+const tuple = #[1, 2, 3];
+
+record === #{ x: 1, y: 2 }; // true（值相等）
+```
+
+**关键提醒**：
+
+- **只是 Stage 2 提案**——还在讨论，可能被砍
+- **不要在生产代码里用**——即使有 polyfill 也不建议
+- 如果需要不可变数据结构，**用 [Immer](https://immerjs.github.io/immer/)**
+
+> 一手：[TC39 Records & Tuples 提案](https://github.com/tc39/proposal-record-tuple)。
+
+---
+
+## 7. 三档归位
+
+| 知识点                                      | 归位         | 理由                                                |
+| ------------------------------------------- | ------------ | --------------------------------------------------- | -------- | --------------------- |
+| 可选链（`?.`）                              | **必学**     | 业务代码每天都用                                    |
+| nullish 合并（`??`）                        | **必学**     | 取默认值的现代标准；与 `                            |          | ` 区分                |
+| 逻辑赋值（`                                 |              | =`/`??=`）                                          | **必学** | 简化"判断 + 赋值"模式 |
+| 数字分隔符（`1_000_000`）                   | **必学**     | 长数字必加，提高可读性                              |
+| `String.replaceAll`                         | **必学**     | 替代正则全局替换                                    |
+| 私有字段（`#field`）                        | **必学**     | 现代 class 的真正私有                               |
+| 顶层 await                                  | **必学**     | ESM 模块初始化标配                                  |
+| `Object.hasOwn`                             | **必学**     | 替代 `hasOwnProperty.call`                          |
+| Error cause（错误链）                       | **必学**     | 分层错误处理                                        |
+| `Array.at(-1)` 负索引                       | **必学**     | 取末尾元素更优雅                                    |
+| 不可变数组方法（`toSorted` 等）             | **必学**     | React / 函数式必备                                  |
+| `findLast` / `findLastIndex`                | **必学**     | 从后往前找元素                                      |
+| `Promise.withResolvers`                     | **仍需理解** | 自定义异步控制流时用                                |
+| `Object.groupBy` / `Map.groupBy`            | **仍需理解** | 兼容性较新（2024+）；老环境用 lodash                |
+| Set 集合操作（`union` / `intersection` 等） | **仍需理解** | 替代之前的展开运算丑陋写法                          |
+| 类静态块                                    | **仍需理解** | 复杂初始化时用，简单赋值不需要                      |
+| `using` / `await using`                     | **仍需理解** | 生产采用还需 1-2 年                                 |
+| 装饰器（Stage 3）                           | **仍需理解** | TS 5.0+ 支持；新老装饰器不要混用                    |
+| Iterator helpers                            | **仍需理解** | 处理流式数据时用                                    |
+| `Promise.allSettled` / `Promise.any`        | **仍需理解** | 已在 §4.2 详解                                      |
+| 异步迭代（`for await...of`）                | **仍需理解** | 已在 §4.2 详解                                      |
+| `Object.entries` / `Object.values` / `flat` | **可委托**   | AI 写得熟，知道存在即可                             |
+| BigInt                                      | **可委托**   | 业务很少用；处理超大整数（加密 / 大数据）时知道存在 |
+| Records & Tuples                            | **不学**     | Stage 2，**不要用**                                 |
+
+---
+
+## 8. AI 时代写现代特性的最小集
+
+**最重要的 review 点**：
+
+### `??` vs `||` 误用
+
+AI 经常默认写 `||` 取默认值——但**业务里 `0` / `''` 通常是合法值**，应该用 `??`：
+
+```js
+// ❌ AI 常生成
+const port = config.port || 3000; // port = 0 被替换
+
+// ✅ 你应改为
+const port = config.port ?? 3000; // port = 0 保留
+```
+
+**判断**：业务里 `0` / `''` / `false` 是不是合法值？是 → 用 `??`。
+
+### 不可变数组方法（React 友好）
+
+AI 在 React 项目里**仍然可能写老的会变异方法**：
+
+```jsx
+// ❌ AI 生成
+function handleSort() {
+  items.sort();
+  setItems(items); // 引用没变，不会渲染
+}
+
+// ✅ 你应改为
+function handleSort() {
+  setItems(items.toSorted());
+}
+```
+
+### 私有字段不要混用 TS `private` 和 `#field`
+
+```ts
+class A {
+  private x = 1; // TS 私有（编译期）
+  #y = 2; // 真正私有（运行时）
+}
+
+// ❌ 同一个项目里随机选，没有原则
+// ✅ 团队约定：要么全用 TS private，要么全用 #field
+```
+
+**经验**：纯 TS 项目可以用 `private`（编辑器报错也够）；需要真正运行时保护时用 `#field`。
+
+---
+
+## 9. 翻车库
+
+### 9.1 `??` 误用为 `||`
+
+**症状**：用户输入 `0` / `''` / `false` 被当成"无效值"替换。
+
+**修复**：取默认值时用 `??`，不用 `||`（除非确实想替换所有假值）。
+
+```js
+// ❌ 反例
+const count = data.count || 10; // count = 0 → 被替换成 10
+
+// ✅ 正例
+const count = data.count ?? 10; // count = 0 → 保留 0
+```
+
+### 9.2 `?.` 链式后做赋值
+
+**症状**：`a?.b = 1` 报语法错误。
+
+**原因**：可选链不能用在赋值左侧——它是**只读**的。
+
+**修复**：用普通条件判断：
+
+```js
+// ❌ 反例
+user?.profile.name = "Alice"; // SyntaxError
+
+// ✅ 正例
+if (user?.profile) {
+  user.profile.name = "Alice";
+}
+```
+
+### 9.3 私有字段 `#x` 不能动态访问
+
+**症状**：想用变量名访问私有字段，报错。
+
+**原因**：`#field` 是**词法绑定**的，不能动态访问。
+
+**修复**：用普通对象 / Map / 公共方法：
+
+```js
+class A {
+  #data = { x: 1 };
+
+  // ❌ 反例：试图动态访问私有字段
+  get(key) {
+    return this.#[key]; // SyntaxError
+  }
+
+  // ✅ 正例：暴露 getter，内部走对象
+  get(key) {
+    return this.#data[key];
+  }
+}
+```
+
+### 9.4 装饰器跨版本不兼容
+
+**症状**：新装饰器（Stage 3）和老装饰器（Stage 2，`experimentalDecorators`）混用导致错误。
+
+**原因**：两套装饰器的运行时签名完全不同。
+
+**修复**：项目级别选一种：
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "experimentalDecorators": false, // 用新装饰器（默认）
+    // 或
+    "experimentalDecorators": true // 用老装饰器（NestJS 等）
+  }
+}
+```
+
+**经验**：**已经用了 NestJS / MobX 的项目继续用老装饰器**；新项目可以从新装饰器开始。
+
+### 9.5 `toSorted` / `toReversed` 与老 `sort` / `reverse` 混用
+
+**症状**：有时变异原数组、有时不变——团队代码风格混乱。
+
+**修复**：**团队约定全用新 API**——不变异原数组是默认。lint 规则可以禁用老的 `sort` / `reverse`。
+
+### 9.6 `Object.groupBy` 兼容性
+
+**症状**：测试通过，生产环境某些用户报 `Object.groupBy is not a function`。
+
+**原因**：兼容性较新（Node 21+ / Chrome 117+），旧浏览器 / 旧 Node 不支持。
+
+**修复**：
+
+- 加 polyfill（`core-js`）
+- 或用 lodash `groupBy` 兜底
+- 或在 `package.json` 限制 Node 版本
+
+```json
+{
+  "engines": {
+    "node": ">=21.0.0"
+  }
+}
+```
+
+### 9.7 顶层 await 阻塞模块加载
+
+**症状**：用了顶层 await 的模块拖慢整个应用启动。
+
+**原因**：顶层 await 会**阻塞依赖该模块的所有模块**——加载链上的所有模块都要等。
+
+**修复**：
+
+- 慎用顶层 await——只在**真正需要**模块初始化时异步等待时用
+- 大部分场景下用 `async function init()` + 在使用方调用更好
+
+```js
+// ❌ 反例：拖慢启动
+const config = await fetch("/config.json").then((r) => r.json());
+export default config;
+
+// ✅ 正例：导出 Promise 让使用方决定何时等
+export const configPromise = fetch("/config.json").then((r) => r.json());
+
+// 使用方
+const config = await configPromise;
+```
+
+---
+
+## 10. 读完本节你应该能
+
+### ES2020 核心
+
+- [ ] 写出可选链（`?.`）的三种用法（属性 / 函数调用 / 数组）
+- [ ] 区分 `??` 和 `||` 的差异，知道何时该用哪个
+- [ ] 给一段用 `||` 取默认值的代码，能识别 `??` 是不是更合适
+
+### ES2022 核心
+
+- [ ] 用 `#field` 写真正的私有成员
+- [ ] 区分 `#field` / TS `private` / `_field` 命名约定的差异
+- [ ] 写顶层 await 加载配置模块
+- [ ] 用 `Object.hasOwn` 替代 `hasOwnProperty.call`
+- [ ] 用 Error cause 包装错误时保留原始错误链
+
+### 不可变数组方法
+
+- [ ] 列出四对会变异 / 不变异方法（sort/toSorted 等）
+- [ ] 在 React 里用新 API 替代老的会变异方法
+
+### ES2024 + 提案
+
+- [ ] 知道 `Promise.withResolvers` / `Object.groupBy` / Set 集合操作存在
+- [ ] 解释为什么 Records & Tuples 还不能用
+- [ ] 知道新装饰器和老装饰器（`experimentalDecorators`）不兼容
+
+### 设计判断
+
+- [ ] 解释为什么不可变数组方法对 React / 函数式风格特别重要
+- [ ] 用"Stage 进度"判断一个特性能否在生产用
+- [ ] 解释为什么顶层 await 应该谨慎用
+
+---
+
+## 11. 延伸阅读
+
+- [TC39 提案列表](https://github.com/tc39/proposals) **（英文）** — 所有 JS 提案的当前阶段，权威信息源
+- [MDN: 可选链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Optional_chaining) — `?.` 中文文档
+- [MDN: nullish 合并](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing) — `??` 中文文档
+- [MDN: 私有属性](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Classes/Private_properties) — `#field` 中文文档
+- [MDN: Array.toSorted](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted) — 不可变数组方法（其他类似 API 在同一索引页能找到）
+- [TC39: 装饰器提案](https://github.com/tc39/proposal-decorators) **（英文）** — 新装饰器规范
+- [TC39: Records & Tuples](https://github.com/tc39/proposal-record-tuple) **（英文）** — Stage 2 提案，仅供了解
+
+> 访问性说明：MDN 中文版直接可访问；TC39 GitHub 仓库英文但访问稳定。
+
+---
+
+下一节：[§4.5 TypeScript 类型系统](/chapter-04/typescript-types) _（待写）_——结构化类型 / 泛型 / 类型收窄 / 工具类型。
