@@ -61,3 +61,6 @@ lychee-report.md
 
 # MCP browser debug output
 .playwright-mcp/
+
+# Claude Code persistent memory (workspace-level, not versioned)
+memory/
