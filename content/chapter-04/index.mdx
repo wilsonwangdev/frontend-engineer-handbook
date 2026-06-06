@@ -7,7 +7,7 @@ prerequisites:
   - /chapter-01
   - /chapter-02
 paths:
-  sequential: 4
+  sequential: 17
 ---
 
 > 这一章讲**语言层**——JavaScript 和 TypeScript 的核心机制。前两章讲"环境"和"视觉层"，这一章讲"代码本身"。
@@ -45,7 +45,7 @@ TypeScript 在 2024 后是**工程标配**——不再是"可选"。但很多人
 | **会 TS 但只会写 `any` 的**            | §4.5 类型收窄 → §4.6 type vs interface                 |
 | **资深，但想补"为什么 AI 会在这翻车"** | §4.1 this 绑定 → §4.2 Promise 错误处理 → §4.6 类型边界 |
 
-全章通读约 90-120 分钟；按上述路径挑读 30-45 分钟。**§4.1 JavaScript 语言核心**和**§4.5 TypeScript 类型系统**是两个核心——前者是机制基础，后者是工程标配。
+全章通读约 90-120 分钟；按上述路径挑读 30-45 分钟。**§4.1 JavaScript 语言核心** 和 **§4.5 TypeScript 类型系统**是两个核心——前者是机制基础，后者是工程标配。
 
 > **本章六节全部已上线**：§4.1 JavaScript 语言核心、§4.2 异步模型、§4.3 模块系统、§4.4 ES2020-2025 现代特性、§4.5 TypeScript 类型系统、§4.6 TypeScript 实战与类型设计。前四节覆盖 JS 语言层（机制 / 异步 / 模块 / 新特性），后两节覆盖 TypeScript（类型系统 / 类型设计）——六节合起来构成 AI 时代写 JS / TS 的完整判断地图。
 
@@ -121,17 +121,17 @@ TypeScript 在 2024 后是**工程标配**——不再是"可选"。但很多人
 
 以下是本章反复出现的**跨节核心概念**——会在多节反复出现，本章每次提到时都会回链回来。
 
-| 概念                                                                                                                     | 一句话定义                                     | 为什么重要                              | 在本章哪里出现        |
-| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------- | --------------------- | ---- |
-| [闭包（closure）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)                                      | 函数 + 它能访问的外部作用域变量                | React Hooks 的基础；AI 写闭包容易丢变量 | §4.1 / §4.2           |
-| [原型链（prototype chain）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain) | 对象查找属性的"继承链"                         | `class` 语法的底层；理解 `instanceof`   | §4.1                  |
-| [this 绑定](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)                            | 函数调用时 `this` 指向谁                       | 箭头函数 vs 普通函数的最大差异          | §4.1                  |
-| [微任务（microtask）](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)                     | Promise / queueMicrotask 的队列                | 执行顺序：微任务 > 宏任务（setTimeout） | §4.2                  |
-| [Promise 链式调用](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)             | `.then()` / `.catch()` 返回新 Promise          | 错误处理 / 异步流水线                   | §4.2                  |
-| [ESM（ES Modules）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)                               | `import` / `export` 的现代模块标准             | 替代 CommonJS；tree-shaking 的基础      | §4.3                  |
-| [结构化类型（structural typing）](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)                  | TS 按"形状"匹配类型，不按名称                  | 为什么 `{ x: number }` 能赋给 `Point`   | §4.5                  |
-| [类型收窄（type narrowing）](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)                              | 用 `if` / `typeof` / `instanceof` 缩小类型范围 | 让 TS 从 `string                        | number`推断出`string` | §4.5 |
-| [工具类型（utility types）](https://www.typescriptlang.org/docs/handbook/utility-types.html)                             | `Partial<T>` / `Pick<T, K>` / `Omit<T, K>` 等  | 从已有类型派生新类型                    | §4.5 / §4.6           |
+| 概念                                                                                                                     | 一句话定义                                     | 为什么重要                              | 在本章哪里出现 |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------- | -------------- |
+| [闭包（closure）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)                                      | 函数 + 它能访问的外部作用域变量                | React Hooks 的基础；AI 写闭包容易丢变量 | §4.1 / §4.2    |
+| [原型链（prototype chain）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain) | 对象查找属性的"继承链"                         | `class` 语法的底层；理解 `instanceof`   | §4.1           |
+| [this 绑定](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)                            | 函数调用时 `this` 指向谁                       | 箭头函数 vs 普通函数的最大差异          | §4.1           |
+| [微任务（microtask）](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)                     | Promise / queueMicrotask 的队列                | 执行顺序：微任务 > 宏任务（setTimeout） | §4.2           |
+| [Promise 链式调用](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)             | `.then()` / `.catch()` 返回新 Promise          | 错误处理 / 异步流水线                   | §4.2           |
+| [ESM（ES Modules）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)                               | `import` / `export` 的现代模块标准             | 替代 CommonJS；tree-shaking 的基础      | §4.3           |
+| [结构化类型（structural typing）](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)                  | TS 按"形状"匹配类型，不按名称                  | 为什么 `{ x: number }` 能赋给 `Point`   | §4.5           |
+| [类型收窄（type narrowing）](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)                              | 用 `if` / `typeof` / `instanceof` 缩小类型范围 | 让 TS 从联合类型自动推断到具体分支      | §4.5           |
+| [工具类型（utility types）](https://www.typescriptlang.org/docs/handbook/utility-types.html)                             | `Partial<T>` / `Pick<T, K>` / `Omit<T, K>` 等  | 从已有类型派生新类型                    | §4.5 / §4.6    |
 
 > 访问性说明：所有 MDN 链接是中文版，直接可访问。TypeScript 官方文档是英文但访问稳定。
 

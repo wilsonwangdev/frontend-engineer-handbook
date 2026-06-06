@@ -55,7 +55,7 @@ paths:
 
 ### 0.2 转折点：2022-2023 RSC 的影响
 
-React 18 引入服务端组件（RSC）后，**styled-components / Emotion 等运行时 CSS-in-JS 库无法在服务端组件里使用**——它们依赖运行时 JS 注入样式，而 RSC 在服务器上完成渲染、不带运行时 JS。这是 2024 年 CSS-in-JS 份额下滑的直接原因。
+React 18 引入服务端组件（<Term k="rsc">RSC</Term>）后，**styled-components / Emotion 等运行时 CSS-in-JS 库无法在服务端组件里使用**——它们依赖运行时 JS 注入样式，而 RSC 在服务器上完成渲染、不带运行时 JS。这是 2024 年 CSS-in-JS 份额下滑的直接原因。
 
 > 权威参考：[Next.js 官方文档：CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)（明确说明运行时 CSS-in-JS **只在客户端组件可用**——服务端组件不支持，且要写 `StyledComponentsRegistry` 等包装器）；[styled-components #4025](https://github.com/styled-components/styled-components/issues/4025)（官方对 RSC 的回应）。
 
@@ -580,7 +580,9 @@ import { Button } from "@/components/ui/button";
 | 增加一个新 variant（如 `variant="brand"`） | 包装组件或 className 覆盖             | 在 `cva()` 里加一行                        |
 | 让 AI 帮你重写整个组件以适配新设计系统     | 几乎不可能（AI 改 node_modules 很难） | AI 直接改 `src/components/ui/*.tsx`        |
 
-**"variant" 就是"变体"**——同一个组件的不同视觉版本（如按钮的 primary / secondary / destructive）。`cva`（Class Variance Authority）让你**用配置而非 if-else** 组织变体的类名映射。
+<Term k="variant">variant</Term>**就是"变体"**——同一个组件的不同视觉版本（如按钮的 primary /
+secondary / destructive）。`cva`（Class Variance Authority）让你**用配置而非 if-else**
+组织变体的类名映射。
 
 下面是 shadcn 复制到你项目里的 Button 组件长什么样（简化版）——**这就是你能改的代码**：
 

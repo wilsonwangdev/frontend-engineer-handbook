@@ -7,7 +7,7 @@ tier: essential
 prerequisites:
   - /chapter-04
 paths:
-  sequential: 22
+  sequential: 23
 ---
 
 > §4.5 讲了**类型系统的机制**——能写出对的类型；这一节讲**类型设计的判断**——能写出"让错误编译不通过"的类型。
@@ -33,7 +33,7 @@ paths:
 > | **被"两个 ID 串用"的 bug 坑过**   | §5 标称类型                                   |
 > | **要带 AI 写 TS 类型**            | §8 AI 最小集 → §9 翻车库                      |
 
-通读约 50-60 分钟；按上述路径挑读 15-20 分钟。**§3 让非法状态无法表示**和**§4 类型边界**是两个核心——它们决定了你的类型设计水平。
+通读约 50-60 分钟；按上述路径挑读 15-20 分钟。**§3 让非法状态无法表示** 和 **§4 类型边界** 是两个核心——它们决定了你的类型设计水平。
 
 ---
 
@@ -741,7 +741,8 @@ getProduct(userId); // ❌ 同样不报
 
 ### 5.2 Brand pattern 模拟标称化
 
-**Brand pattern**：用一个"假属性"区分类型——TS 编译期知道它们不同，但运行时它们就是 string。
+<Term k="brand-pattern">Brand pattern</Term>：用一个"假属性"区分类型——TS
+编译期知道它们不同，但运行时它们就是 string。
 
 ```ts
 type Brand<T, B> = T & { readonly __brand: B };

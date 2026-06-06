@@ -7,7 +7,7 @@ tier: essential
 prerequisites:
   - /chapter-04
 paths:
-  sequential: 18
+  sequential: 19
 ---
 
 > 这一节讲 JavaScript 的**异步模型**——Promise / async-await / 微任务调度。这是 AI 写代码最容易出错的领域之一：错误处理漏掉、async 函数里 forEach 不等待、串行 await 应该并行——这些都需要你看代码逻辑才能识别。
@@ -30,7 +30,7 @@ paths:
 > | **要带 AI 写异步代码**           | §8 AI 最小集 → §9 翻车库                          |
 > | **被异步报错搞崩**               | §9 翻车库（直接搜症状）                           |
 
-通读约 50-60 分钟；按上述路径挑读 15-20 分钟。**§2 Promise**和**§5 微任务 vs 宏任务**是两个核心。
+通读约 50-60 分钟；按上述路径挑读 15-20 分钟。**§2 Promise** 和 **§5 微任务 vs 宏任务**是两个核心。
 
 > **与第 2 章 §2.4 事件循环的边界**：第 2 章讲**浏览器侧**事件循环（task queue / requestAnimationFrame / 渲染时机），本节讲**JavaScript 语言侧**异步原语（Promise / async-await / 微任务）。两者交叉处会回链，不重复。
 
@@ -397,7 +397,7 @@ results.forEach((result, index) => {
 });
 ```
 
-> **何时选 allSettled vs all**：你**关心每个独立结果**且**不希望一个失败影响其他**——选 `allSettled`。否则选 `all`。
+> **何时选 allSettled vs all**：你**关心每个独立结果** 且 **不希望一个失败影响其他**——选 `allSettled`。否则选 `all`。
 
 #### Promise.race：超时控制最常见
 
@@ -871,7 +871,7 @@ const data = await retry(() => fetch("/api/data").then((r) => r.json()), 3);
 
 ### 6.5 异步迭代（for await...of）
 
-ES2018 引入的语法——遍历**异步生成器**或**异步可迭代对象**：
+ES2018 引入的语法——遍历**异步生成器** 或 **异步可迭代对象**：
 
 ```js
 async function* fetchPages(urls) {
