@@ -36,16 +36,16 @@ paths:
 
 ### 0.1 一张时间表
 
-| 年代  | 主流方案                                                            | 解决了什么                        | 留下了什么                                          |
-| ----- | ------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------- |
-| ~2005 | 全局 CSS + 命名约定（[BEM](https://getbem.com/)）                   | 给样式起规则                      | 全局污染、命名地狱、协作冲突                        |
-| ~2010 | Sass / Less 预处理器                                                | 变量、嵌套、mixin                 | 仍是全局样式；增加构建依赖                          |
-| ~2014 | [CSS Modules](https://github.com/css-modules/css-modules)           | **局部作用域**——按文件隔离类名    | 仍要写传统 CSS 文件                                 |
-| ~2016 | CSS-in-JS（[styled-components](https://styled-components.com/) 等） | 组件 + 样式同文件                 | 运行时开销、SSR 复杂、[与 RSC 不兼容](#4-css-in-js) |
-| ~2017 | [Tailwind CSS](https://tailwindcss.com/)                            | **原子化**类名 + 配置驱动         | 类名长；初见"反 CSS"心智                            |
-| ~2020 | 设计令牌（design tokens）成熟                                       | 跨方案的"设计系统单一来源"        | 命名分层是新挑战                                    |
-| ~2023 | [shadcn/ui](https://ui.shadcn.com/) 复制粘贴范式                    | **代码进项目**而非进 node_modules | 维护责任落到项目方                                  |
-| 2024+ | RSC + Tailwind 默认组合（Next.js / Remix）                          | 服务端组件场景的标准答案          | CSS-in-JS 在 RSC 下受限的争议                       |
+| 年代  | 主流方案                                                            | 解决了什么                        | 留下了什么                                     |
+| ----- | ------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------- |
+| ~2005 | 全局 CSS + 命名约定（[BEM](https://getbem.com/)）                   | 给样式起规则                      | 全局污染、命名地狱、协作冲突                   |
+| ~2010 | Sass / Less 预处理器                                                | 变量、嵌套、mixin                 | 仍是全局样式；增加构建依赖                     |
+| ~2014 | [CSS Modules](https://github.com/css-modules/css-modules)           | **局部作用域**——按文件隔离类名    | 仍要写传统 CSS 文件                            |
+| ~2016 | CSS-in-JS（[styled-components](https://styled-components.com/) 等） | 组件 + 样式同文件                 | 运行时开销、SSR 复杂、与 RSC 不兼容（详见 §4） |
+| ~2017 | [Tailwind CSS](https://tailwindcss.com/)                            | **原子化**类名 + 配置驱动         | 类名长；初见"反 CSS"心智                       |
+| ~2020 | 设计令牌（design tokens）成熟                                       | 跨方案的"设计系统单一来源"        | 命名分层是新挑战                               |
+| ~2023 | [shadcn/ui](https://ui.shadcn.com/) 复制粘贴范式                    | **代码进项目**而非进 node_modules | 维护责任落到项目方                             |
+| 2024+ | RSC + Tailwind 默认组合（Next.js / Remix）                          | 服务端组件场景的标准答案          | CSS-in-JS 在 RSC 下受限的争议                  |
 
 **两条主线值得记住**：
 
@@ -55,9 +55,9 @@ paths:
 
 ### 0.2 转折点：2022-2023 RSC 的影响
 
-React 18 引入服务端组件（RSC）后，**styled-components / Emotion 等运行时 CSS-in-JS 库都明确不支持 RSC**——它们依赖运行时 JS 注入样式，而 RSC 在服务器上完成渲染、不带运行时 JS。这是 2024 年 CSS-in-JS 份额下滑的直接原因。
+React 18 引入服务端组件（RSC）后，**styled-components / Emotion 等运行时 CSS-in-JS 库无法在服务端组件里使用**——它们依赖运行时 JS 注入样式，而 RSC 在服务器上完成渲染、不带运行时 JS。这是 2024 年 CSS-in-JS 份额下滑的直接原因。
 
-> 一手参考：[Next.js: CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)（明确列出"App Router 不支持 styled-components / Emotion"）；[styled-components #4025](https://github.com/styled-components/styled-components/issues/4025)（官方对 RSC 的回应）。
+> 权威参考：[Next.js 官方文档：CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)（明确说明运行时 CSS-in-JS **只在客户端组件可用**——服务端组件不支持，且要写 `StyledComponentsRegistry` 等包装器）；[styled-components #4025](https://github.com/styled-components/styled-components/issues/4025)（官方对 RSC 的回应）。
 
 > **写给老前端**：如果你最近一次系统选样式方案是 2018-2020 年的 styled-components 或 SCSS 时代，这一节你需要重读。**不是因为旧方案不能用，是因为生态默认组合换了**——新项目从 Tailwind + shadcn + Radix 开始走，能少一半的"自己造轮子"工作。
 
@@ -309,7 +309,7 @@ const button = cva(
 
 ## 4. CSS-in-JS：曾经流行，现在份额下滑
 
-CSS-in-JS 是 2017-2021 年 React 生态的"最佳实践"推荐——代表库 [styled-components](https://styled-components.com/) / [Emotion](https://emotion.sh/)。但 2022 年起 React 18 引入 RSC（服务端组件）后，**运行时 CSS-in-JS 都明确不支持 RSC**——这是 2024 年份额下滑的直接原因。
+CSS-in-JS 是 2017-2021 年 React 生态的"最佳实践"推荐——代表库 [styled-components](https://styled-components.com/) / [Emotion](https://emotion.sh/)。但 2022 年起 React 18 引入 RSC（服务端组件）后，**运行时 CSS-in-JS 无法在服务端组件里使用**——这是 2024 年份额下滑的直接原因。
 
 ### 4.1 核心机制
 
@@ -354,7 +354,7 @@ React Server Components（RSC）的核心机制：
 
 两者冲突：RSC 在服务端渲染完就输出 HTML，**不带 styled-components 的运行时**——客户端收到的 HTML 里没有样式，加载后"闪白"或"无样式"。
 
-> 技术上可以用"提取关键 CSS 到 SSR"的方案（如 styled-components 的 `ServerStyleSheet`），但这让 SSR 变慢、代码复杂，且 Next.js App Router 明确表示不支持——[Next.js 官方文档：CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)。
+> Next.js 给出了集成方案（用 `StyledComponentsRegistry` 等包装器），但**只能用于客户端组件**——服务端组件这一层完全用不上 CSS-in-JS 的"运行时计算"能力，详见 [Next.js 官方文档：CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)。
 
 ### 4.3 编译时 CSS-in-JS：vanilla-extract
 
@@ -535,7 +535,58 @@ import { Button } from "@/components/ui/button";
 
 **这是范式差异**——shadcn 把组件代码**复制到你的项目**，你拥有完整代码控制权。它内部基于 Radix UI（行为）+ Tailwind（样式）+ cva（变体管理）。
 
-### 6.2 为什么这个范式特别合适 AI 时代
+### 6.2 "灵活修改"具体能做什么
+
+"代码进项目" 听起来抽象。具体到日常开发，shadcn 让你能做这五件传统组件库做不到（或要付出巨大代价）的事：
+
+| 想做什么                                   | 传统组件库（Ant Design）              | shadcn（代码在项目内）                     |
+| ------------------------------------------ | ------------------------------------- | ------------------------------------------ |
+| 改 Button 的圆角默认值                     | 全局主题 token / `:where()` 覆盖      | 直接改 `button.tsx` 里的 `rounded-md`      |
+| 给 Dialog 加一个项目专属的"半透明遮罩"动画 | 写包装组件 + CSS 注入                 | 直接在 `dialog.tsx` 里改 `<DialogOverlay>` |
+| 删掉一个不用的 prop（比如 `loading`）      | 不能删（库的 API 固定）               | 直接删——你的代码你做主                     |
+| 增加一个新 variant（如 `variant="brand"`） | 包装组件或 className 覆盖             | 在 `cva()` 里加一行                        |
+| 让 AI 帮你重写整个组件以适配新设计系统     | 几乎不可能（AI 改 node_modules 很难） | AI 直接改 `src/components/ui/*.tsx`        |
+
+**"variant" 就是"变体"**——同一个组件的不同视觉版本（如按钮的 primary / secondary / destructive）。`cva`（Class Variance Authority）让你**用配置而非 if-else** 组织变体的类名映射。
+
+下面是 shadcn 复制到你项目里的 Button 组件长什么样（简化版）——**这就是你能改的代码**：
+
+```tsx
+// src/components/ui/button.tsx —— 复制到你项目里的代码
+import { cva, type VariantProps } from "class-variance-authority";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md text-sm font-medium",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-white hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent",
+        // 想加新 variant？直接在这里加一行
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 px-3",
+        lg: "h-11 px-8",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
+// 这个文件是你的项目代码——想改什么改什么
+export function Button({ variant, size, ...props }) {
+  return <button className={buttonVariants({ variant, size })} {...props} />;
+}
+```
+
+**关键洞察**：传统组件库把"组件实现"藏在 `node_modules` 里——你只能用提供的 props / theme API。shadcn 把"组件实现"暴露在你项目里——**你拥有的不是组件库，是组件源码**。
+
+### 6.3 为什么这个范式特别合适 AI 时代
 
 **AI 改 node_modules 难，改项目内代码容易**：
 
@@ -549,7 +600,7 @@ import { Button } from "@/components/ui/button";
 
 **AI 协作下 shadcn 范式的真正优势**：你和 AI 在同一份代码上工作——AI 能读懂、改对、不破坏。这是传统组件库做不到的。
 
-### 6.3 工作流示例
+### 6.4 工作流示例
 
 ```bash
 # 1. 初始化（一次）
@@ -570,7 +621,7 @@ src/components/ui/
 └─ form.tsx        ← 你的代码，可以改
 ```
 
-### 6.4 shadcn vs 传统组件库的边界
+### 6.5 shadcn vs 传统组件库的边界
 
 **何时选 shadcn**：
 
@@ -587,7 +638,7 @@ src/components/ui/
 
 **误区：shadcn 不是替代所有组件库**——它在"基础 UI 元素 + 设计系统"层是最优解，但**复杂业务组件（数据表格 / 高级表单）shadcn 没那么齐全**。Ant Design Pro 这种"开箱即中后台"的产品仍有市场。
 
-### 6.5 维护责任的转移
+### 6.6 维护责任的转移
 
 shadcn 范式的**代价**：组件代码在你项目里，**升级和维护都是你的责任**。
 
