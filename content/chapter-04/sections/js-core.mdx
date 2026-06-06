@@ -1,0 +1,1248 @@
+---
+title: JavaScript 语言核心
+chapter: 4
+section: 1
+description: 作用域、闭包、原型链、this 绑定——AI 时代 review 代码的唯一参照系
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 17
+---
+
+> 这一节讲**JS 语言机制**——作用域 / 闭包 / 原型链 / this 绑定。不是"老知识"，是**你 review AI 生成代码的唯一参照系**。
+
+AI 会写代码，但不知道"这段代码在你的业务场景里安不安全"——闭包是否泄露变量、this 是否丢失、原型链是否被污染——这些都需要你看机制才能判断。
+
+**本节核心论点**：JavaScript 的"动态性"（弱类型 / 原型链 / this 动态绑定）带来灵活性，也带来大量隐式行为——**不理解机制 = 不知道代码会在什么情况下翻车**。TypeScript 能防一部分错，但闭包 / this / 原型链的问题它管不到——你必须自己看。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                   | 直接读                                            |
+> | -------------------------------------- | ------------------------------------------------- |
+> | **新人 / 转行者**                      | 按顺序读完 §1-§4（作用域 → 闭包 → 原型链 → this） |
+> | **写过 JS 但没系统学过机制**           | §2 闭包三个经典案例 → §4 this 四种绑定规则        |
+> | **React 开发者，被闭包坑过**           | §2.2 React Hooks 闭包陷阱                         |
+> | **被"为什么 this 是 undefined"困扰过** | §4 this 绑定（整段）                              |
+> | **资深，想补"为什么 AI 会在这翻车"**   | §9 翻车库 + §8 AI 最小集                          |
+>
+> 整节读完约 40-50 分钟；按上面挑读 15-20 分钟。**§2 闭包**和**§4 this 绑定**是两个高频翻车点。
+
+---
+
+## 0. 演进史：var → let / const 的变量声明革命
+
+> 跟前面章节一样，先看演进——**"为什么不写 var"不是品味问题，是历史遗留问题的现代修正**。
+
+| 年代  | 变量声明方式           | 作用域                       | 问题                                      |
+| ----- | ---------------------- | ---------------------------- | ----------------------------------------- |
+| ~1995 | `var`                  | 函数作用域（function scope） | 没有块级作用域，循环 / if 里的变量泄漏    |
+| ~2009 | `var` + IIFE 模式      | 函数作用域                   | 手动用 `(function() {})()` 模拟块级作用域 |
+| 2015+ | `let` / `const`（ES6） | 块级作用域（block scope）    | **现代标准**——解决了 var 的所有问题       |
+
+**为什么"不写 var"是现代标准**：
+
+```js
+// ❌ 反例：var 泄漏到循环外
+for (var i = 0; i < 3; i++) {
+  // ...
+}
+console.log(i); // 3 —— i 泄漏到了循环外
+
+// ✅ 正例：let 限制在块级作用域内
+for (let j = 0; j < 3; j++) {
+  // ...
+}
+console.log(j); // ReferenceError: j is not defined
+```
+
+**var 的三个致命问题**：
+
+1. **没有块级作用域**——`if` / `for` 里的变量泄漏到外层
+2. **变量提升（hoisting）**——`var` 声明会被"提升"到函数顶部，但赋值不提升，导致 `undefined` 陷阱
+3. **可以重复声明**——`var x = 1; var x = 2;` 不报错，容易覆盖
+
+**let / const 解决了这些问题**：
+
+| 特性              | `var`          | `let`          | `const`        |
+| ----------------- | -------------- | -------------- | -------------- |
+| 作用域            | 函数作用域     | 块级作用域     | 块级作用域     |
+| 变量提升          | 是（提升声明） | 是（但有 TDZ） | 是（但有 TDZ） |
+| 可重复声明        | 是             | 否             | 否             |
+| 可重新赋值        | 是             | 是             | 否             |
+| 暂时性死区（TDZ） | 否             | 是             | 是             |
+
+> **暂时性死区（Temporal Dead Zone, TDZ）**：`let` / `const` 从块级作用域开始到声明语句之间的区域——访问会报错。这是 ES6 故意设计的"防止变量提升陷阱"机制。
+
+**经验法则**：
+
+- **默认用 `const`**——不可重新赋值，更安全
+- **需要重新赋值时用 `let`**——如循环计数器
+- **永远不用 `var`**——除非维护 2015 年前的遗留代码
+
+> 一手：[MDN: let](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/let)；[MDN: const](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/const)；[MDN: var](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/var)。
+
+---
+
+## 1. 作用域与变量声明
+
+**作用域（scope）** 是变量的"可见范围"——在哪里能访问这个变量。JavaScript 有三种作用域：
+
+### 1.1 三种作用域
+
+| 作用域类型     | 定义                                          | 何时用                              |
+| -------------- | --------------------------------------------- | ----------------------------------- |
+| **全局作用域** | 在任何函数 / 块之外声明的变量                 | 全局配置 / 工具函数（尽量少用）     |
+| **函数作用域** | 在函数内声明的变量（`var` / `let` / `const`） | 函数内部的局部变量                  |
+| **块级作用域** | `{}` 内声明的 `let` / `const`                 | `if` / `for` / `while` 里的临时变量 |
+
+```js
+// 全局作用域
+const globalVar = "global";
+
+function example() {
+  // 函数作用域
+  const functionVar = "function";
+
+  if (true) {
+    // 块级作用域
+    const blockVar = "block";
+    console.log(blockVar); // ✅ 'block'
+  }
+
+  console.log(blockVar); // ❌ ReferenceError
+}
+
+console.log(functionVar); // ❌ ReferenceError
+```
+
+### 1.2 词法作用域（lexical scope）
+
+JavaScript 是**词法作用域**——变量的作用域在**写代码时**就确定了，不是运行时决定的。
+
+```js
+const x = 10;
+
+function outer() {
+  const x = 20;
+
+  function inner() {
+    console.log(x); // 20 —— 查找"写代码时"最近的 x
+  }
+
+  return inner;
+}
+
+const fn = outer();
+fn(); // 20 —— 不是全局的 10
+```
+
+**关键点**：`inner` 函数"记住"了它定义时的作用域链——这就是**闭包**的基础。
+
+### 1.3 暂时性死区（TDZ）详解
+
+```js
+console.log(x); // ❌ ReferenceError: Cannot access 'x' before initialization
+let x = 10;
+```
+
+**为什么这样设计**：防止变量提升带来的 `undefined` 陷阱。`var` 时代常见的错误：
+
+```js
+console.log(y); // undefined —— 不报错但值错了
+var y = 20;
+
+// 实际执行相当于：
+var y; // 声明提升
+console.log(y); // undefined
+y = 20; // 赋值留在原处
+```
+
+`let` / `const` 的 TDZ 让"先用后声明"直接报错，强制你写对顺序。
+
+### 1.4 全局作用域的污染风险
+
+**反例**：忘了 `let` / `const` 直接赋值——会创建隐式全局变量：
+
+```js
+function bad() {
+  message = "hello"; // ❌ 没有声明，自动变全局变量（非严格模式）
+}
+
+bad();
+console.log(message); // 'hello' —— 全局污染
+```
+
+**修复**：开启严格模式（`'use strict'`）或用 ES Modules（默认严格模式）——隐式全局变量会**直接报错**。
+
+> 现代项目几乎全部用 ESM，这个问题不会出现。但如果你看到 `<script>` 标签直接加载的旧脚本，记得加 `'use strict'`。详见 [§5 严格模式](#5-严格模式)。
+
+---
+
+## 2. 闭包（closure）
+
+**闭包**是 JavaScript 最重要、也最容易被误解的概念之一。
+
+### 2.1 定义
+
+> **闭包 = 函数 + 它能访问的外部作用域变量**。
+
+更精确的说法：**当一个函数被定义时，它"记住"了它所在的作用域链**——即使这个函数后来被"带到"其他地方执行，它仍然能访问原作用域的变量。
+
+```js
+function makeCounter() {
+  let count = 0; // 外部作用域变量
+
+  return function () {
+    // 内部函数
+    count++; // 访问外部变量
+    return count;
+  };
+}
+
+const counter = makeCounter();
+counter(); // 1
+counter(); // 2
+counter(); // 3
+```
+
+**关键观察**：
+
+- `makeCounter()` 已经执行完毕
+- 但内部函数 `function() { count++; ... }` 仍然能访问 `count`
+- 这就是闭包——**函数记住了它的"出生地"**
+
+### 2.2 三个经典案例
+
+#### 案例 1：循环里的 var 陷阱
+
+**这是面试题级别的经典坑**——也是 ES6 引入 `let` 的直接原因：
+
+```js
+// ❌ 反例：用 var 的循环
+for (var i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 100);
+}
+// 输出：3 3 3 —— 不是预期的 0 1 2
+```
+
+**为什么**：`var` 是函数作用域——所有 `setTimeout` 回调共享**同一个 `i`**。100ms 后回调执行时，`i` 已经变成 3。
+
+**修复 1：用 `let`**（推荐）：
+
+```js
+for (let i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 100);
+}
+// 输出：0 1 2 —— let 在每次循环创建新的 i
+```
+
+**修复 2：IIFE（ES5 时代的方案）**：
+
+```js
+for (var i = 0; i < 3; i++) {
+  (function (j) {
+    setTimeout(() => console.log(j), 100);
+  })(i);
+}
+// 输出：0 1 2 —— 每次循环传入新的 j 到立即执行函数
+```
+
+> ES6 之后**只用 `let`**——IIFE 方案是历史遗留，看到要识别但不要写新的。
+
+#### 案例 2：React Hooks 的"过期闭包"（stale closure）
+
+这是 React 开发者最常踩的闭包坑：
+
+```tsx
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // ❌ 这里的 count 永远是初始值 0
+      console.log(count);
+      setCount(count + 1);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []); // 空依赖数组
+
+  return <div>{count}</div>;
+}
+```
+
+**为什么**：`useEffect` 的 `[]` 依赖数组让回调只创建一次——回调里"记住"的是**第一次渲染时的 `count`（值为 0）**。即使 React state 已经更新，回调里的 `count` 还是 0。
+
+**修复**：
+
+```tsx
+// ✅ 方案 1：用函数式 setState，从最新 state 派生
+useEffect(() => {
+  const id = setInterval(() => {
+    setCount((c) => c + 1); // c 是最新值，闭包不影响
+  }, 1000);
+  return () => clearInterval(id);
+}, []);
+
+// ✅ 方案 2：把 count 加入依赖数组（每次重建 interval）
+useEffect(() => {
+  const id = setInterval(() => {
+    setCount(count + 1);
+  }, 1000);
+  return () => clearInterval(id);
+}, [count]); // 依赖 count
+```
+
+> 深入：[Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）**——React 核心维护者写的闭包陷阱权威解释。这是少数值得读完的"个人博客"，按 [SPEC-0002](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0002-content-source-admission/spec.md) 灰名单条款引用。
+
+#### 案例 3：模块模式（IIFE 实现私有变量）
+
+ES6 module 出现前，JS 没有原生的"私有变量"机制——靠**闭包**模拟：
+
+```js
+const counter = (function () {
+  let count = 0; // 私有变量，外部无法访问
+
+  return {
+    increment: () => ++count,
+    decrement: () => --count,
+    getValue: () => count,
+  };
+})();
+
+counter.increment(); // 1
+counter.increment(); // 2
+counter.getValue(); // 2
+counter.count; // undefined —— 外部访问不到
+```
+
+**模块模式的本质**：
+
+- IIFE 创建独立作用域
+- 返回的对象只暴露需要的方法
+- `count` 被闭包"封闭"在 IIFE 里
+
+> ES6 之后用 `class` + private fields（`#count`）或 ESM 模块更优雅，但**模块模式的思想**（信息隐藏）仍然适用。
+
+### 2.3 内存泄漏风险
+
+**闭包会保留外部变量的引用**——如果引用了大对象，可能阻止垃圾回收：
+
+```js
+function attachHandler() {
+  const bigData = new Array(1000000).fill("x"); // 100 万元素的大数组
+
+  // ❌ 闭包里引用了 bigData，即使后续不需要也无法回收
+  document.getElementById("btn").addEventListener("click", () => {
+    console.log(bigData.length);
+  });
+}
+```
+
+**修复**：移除不需要的引用，或解绑事件：
+
+```js
+function attachHandler() {
+  const bigData = new Array(1000000).fill("x");
+  const length = bigData.length; // 只保留需要的值
+
+  document.getElementById("btn").addEventListener("click", () => {
+    console.log(length); // 不再引用 bigData
+  });
+}
+```
+
+### 2.4 设计判断暗线：信息隐藏（information hiding）
+
+**闭包是 JS 里实现"私有变量"的原生方式**——在 ES2022 的 private fields（`#field`）出现前，闭包是唯一选项。
+
+回顾 [§3.5 设计判断暗线](/chapter-03/styling-systems#10-设计判断暗线)：信息隐藏 = 每层抽象都在"藏什么、暴露什么"。
+
+| 实现方式               | 藏了什么                         | 暴露了什么                 |
+| ---------------------- | -------------------------------- | -------------------------- |
+| 闭包（IIFE 模块）      | 私有变量（如 `count`）           | 公开 API（`increment` 等） |
+| ES6 `class` + `#field` | `#count` 私有字段                | `class` 方法               |
+| TypeScript `private`   | 类型层面的访问限制（运行时无效） | 编译时检查                 |
+
+**为什么闭包仍然重要**：即使有 `#field`，**很多函数式风格的代码仍然用闭包**——它比 `class` 更轻量，更符合 JS 的函数式血统。
+
+> 一手：[MDN: 闭包](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)。
+
+---
+
+## 3. 原型链（prototype chain）
+
+JavaScript 的**继承机制不是"基于类"的，是"基于原型"的**——这是 JS 与其他主流语言（Java / C# / Python）的根本差异。
+
+### 3.1 核心机制
+
+每个 JS 对象都有一个**原型（prototype）**——可以理解为"父对象"。当你访问一个属性时：
+
+1. 先在对象自身找
+2. 找不到 → 去原型上找
+3. 还找不到 → 去原型的原型上找
+4. 一直找到 `null` → 返回 `undefined`
+
+这条链就叫**原型链**。
+
+```js
+const animal = { eats: true };
+const rabbit = { jumps: true };
+
+// 把 animal 设为 rabbit 的原型
+Object.setPrototypeOf(rabbit, animal);
+
+console.log(rabbit.jumps); // true —— rabbit 自己的属性
+console.log(rabbit.eats); // true —— 从 animal 原型找到
+console.log(rabbit.flies); // undefined —— 整条链上没有
+```
+
+### 3.2 `__proto__` vs `prototype`：两个容易混淆的概念
+
+| 名字        | 作用对象             | 含义                                 |
+| ----------- | -------------------- | ------------------------------------ |
+| `__proto__` | **任何对象**         | 指向该对象的原型（实际原型链的连接） |
+| `prototype` | **函数（构造函数）** | 用 `new` 调用时，作为新对象的原型    |
+
+```js
+function Animal() {}
+Animal.prototype.eats = true; // 给 Animal 构造函数的 prototype 加属性
+
+const rabbit = new Animal(); // new 关键字让 rabbit.__proto__ 指向 Animal.prototype
+
+console.log(rabbit.__proto__ === Animal.prototype); // true
+console.log(rabbit.eats); // true
+```
+
+**记忆口诀**：
+
+- `prototype` 是**函数**的属性——"这个函数被 `new` 后，子对象长什么样"
+- `__proto__` 是**对象**的属性——"我的爹是谁"
+
+> **现代代码不直接用 `__proto__`**：用 `Object.getPrototypeOf(obj)` / `Object.setPrototypeOf(obj, proto)`。`__proto__` 是历史遗留。
+
+### 3.3 `class` 是原型链的语法糖
+
+ES6 的 `class` 看起来像 Java 的类，但**底层仍然是原型链**：
+
+```js
+// ES6 class 写法
+class Animal {
+  constructor(name) {
+    this.name = name;
+  }
+
+  eat() {
+    return `${this.name} eats`;
+  }
+}
+
+class Rabbit extends Animal {
+  jump() {
+    return `${this.name} jumps`;
+  }
+}
+
+const rabbit = new Rabbit("White");
+rabbit.eat(); // "White eats"
+rabbit.jump(); // "White jumps"
+```
+
+**等价的原型链写法**（ES5 时代的写法）：
+
+```js
+function Animal(name) {
+  this.name = name;
+}
+Animal.prototype.eat = function () {
+  return `${this.name} eats`;
+};
+
+function Rabbit(name) {
+  Animal.call(this, name); // 类似 super(name)
+}
+Rabbit.prototype = Object.create(Animal.prototype); // 设置原型
+Rabbit.prototype.constructor = Rabbit;
+Rabbit.prototype.jump = function () {
+  return `${this.name} jumps`;
+};
+```
+
+`class` 语法糖让继承代码大大简化，但**原型链机制没变**。
+
+### 3.4 原型污染（prototype pollution）
+
+**这是真实的安全漏洞**——攻击者通过修改 `Object.prototype` 影响所有对象：
+
+```js
+// ❌ 危险：直接合并对象时可能污染原型
+function merge(target, source) {
+  for (const key in source) {
+    if (typeof source[key] === "object") {
+      target[key] = target[key] || {};
+      merge(target[key], source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+}
+
+// 攻击者构造的恶意输入
+const malicious = JSON.parse('{"__proto__": {"isAdmin": true}}');
+merge({}, malicious);
+
+// 影响所有对象
+const someObj = {};
+console.log(someObj.isAdmin); // true —— Object.prototype 被污染了！
+```
+
+**这不是理论攻击**——2018-2024 年间多个流行库（如 lodash 早期版本）都出现过原型污染漏洞。
+
+**防御**：
+
+```js
+// ✅ 用 Object.create(null) 创建无原型对象
+const safeObj = Object.create(null);
+safeObj.__proto__; // undefined —— 没有原型链
+
+// ✅ 使用 Map 替代普通对象（不会被原型污染）
+const map = new Map();
+map.set("key", "value");
+
+// ✅ 合并时检查危险键
+function safeMerge(target, source) {
+  for (const key in source) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      continue; // 跳过危险键
+    }
+    // ...
+  }
+}
+```
+
+> 一手：[PortSwigger: Prototype Pollution](https://portswigger.net/web-security/prototype-pollution)（英文，权威安全指南）；[npm advisory: lodash prototype pollution](https://github.com/advisories/GHSA-jf85-cpcp-j695)。
+
+### 3.5 设计判断暗线：委托（delegation）
+
+**原型链不是"继承"，是"委托"**——这是理解 JS 原型机制的关键。
+
+| 经典面向对象（Java）        | JavaScript 原型链                |
+| --------------------------- | -------------------------------- |
+| 类是"模板"，对象是"实例"    | 对象是"实物"，原型是"另一个实物" |
+| 继承 = 复制父类的成员到子类 | 委托 = 找不到时去问父对象        |
+| 编译时确定层级              | 运行时可以改变原型链             |
+
+**"委托"心智的含义**：
+
+```js
+const cat = { sound: "meow" };
+const lion = Object.create(cat); // lion 委托给 cat
+
+console.log(lion.sound); // 'meow' —— 自己没有，去问 cat
+
+cat.sound = "roar"; // 改父对象
+console.log(lion.sound); // 'roar' —— 跟着变（不是复制）
+```
+
+**Java 风格**：父类改了，已经创建的子类对象不受影响（因为是复制）。
+**JS 风格**：原型改了，所有委托给它的对象都受影响（因为是查找）。
+
+**这种"动态性"是 JS 的力量也是陷阱**——它让你能在运行时修改对象行为，但也让原型污染成为可能。
+
+> 一手：[MDN: 继承与原型链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain)。
+
+---
+
+## 4. this 绑定
+
+`this` 是 JavaScript 里**最容易出错的概念**——它不是"当前对象"那么简单。`this` 的指向**完全取决于函数怎么被调用**，与函数定义在哪里无关。
+
+### 4.1 四种绑定规则
+
+`this` 的指向由调用方式决定，按优先级从低到高有四种规则：
+
+#### 规则 1：默认绑定（不带任何修饰的函数调用）
+
+```js
+function show() {
+  console.log(this);
+}
+
+show(); // 浏览器：window；严格模式：undefined
+```
+
+**经验**：默认绑定基本不用——现代代码都在严格模式下，默认绑定的 `this` 是 `undefined`，访问属性直接报错。
+
+#### 规则 2：隐式绑定（作为对象方法调用）
+
+```js
+const obj = {
+  name: "Alice",
+  greet() {
+    console.log(this.name);
+  },
+};
+
+obj.greet(); // 'Alice' —— this 指向 obj
+```
+
+**陷阱：函数引用导致 this 丢失**：
+
+```js
+const fn = obj.greet; // 把方法"摘下来"
+fn(); // undefined —— this 不再指向 obj，回到默认绑定
+```
+
+**这是 React 类组件最常踩的坑**：
+
+```jsx
+class Button extends React.Component {
+  handleClick() {
+    console.log(this.props); // ❌ this 是 undefined
+  }
+
+  render() {
+    return <button onClick={this.handleClick}>Click</button>;
+    //                       ^^^^^^^^^^^^^^^^ 摘下来传给 onClick
+  }
+}
+```
+
+**修复方案**（React 类组件场景）：
+
+```jsx
+// 方案 1：构造函数里 bind
+constructor(props) {
+  super(props);
+  this.handleClick = this.handleClick.bind(this);
+}
+
+// 方案 2：用箭头函数（避免 this 问题）
+handleClick = () => {
+  console.log(this.props);
+};
+
+// 方案 3：渲染时包一层
+render() {
+  return <button onClick={() => this.handleClick()}>Click</button>;
+}
+```
+
+> **现代 React 用 hooks，不再有 this 问题**——但如果你接手老代码，这是高频坑。
+
+#### 规则 3：显式绑定（`call` / `apply` / `bind`）
+
+强制指定 `this`：
+
+```js
+function greet(greeting) {
+  console.log(`${greeting}, ${this.name}`);
+}
+
+const alice = { name: "Alice" };
+
+greet.call(alice, "Hello"); // 'Hello, Alice'
+greet.apply(alice, ["Hi"]); // 'Hi, Alice'
+
+const greetAlice = greet.bind(alice);
+greetAlice("Hey"); // 'Hey, Alice' —— bind 返回新函数
+```
+
+| 方法    | 含义                       | 何时用                           |
+| ------- | -------------------------- | -------------------------------- |
+| `call`  | 立即调用 + 单个参数列表    | 一次性调用                       |
+| `apply` | 立即调用 + 数组形式参数    | 不定长参数（如展开数组传给函数） |
+| `bind`  | 返回**新函数**，不立即调用 | 需要保存"绑定后的函数"           |
+
+> ES6 `...` 展开运算符替代了 `apply` 的"数组传参"用法：`fn.apply(null, args)` → `fn(...args)`。**`apply` 现在很少用**。
+
+#### 规则 4：new 绑定（构造函数）
+
+```js
+function Person(name) {
+  this.name = name; // this 指向新创建的对象
+}
+
+const alice = new Person("Alice");
+console.log(alice.name); // 'Alice'
+```
+
+`new` 关键字做四件事：
+
+1. 创建一个空对象 `{}`
+2. 把这个对象的原型指向 `Person.prototype`
+3. 把 `this` 绑定到这个新对象
+4. 执行构造函数代码（如果没有 return 对象，自动返回 this）
+
+### 4.2 优先级：new > 显式 > 隐式 > 默认
+
+```js
+function show() {
+  console.log(this.name);
+}
+
+const obj1 = { name: "A", show };
+const obj2 = { name: "B", show };
+
+obj1.show(); // 'A' —— 隐式
+obj1.show.call(obj2); // 'B' —— 显式 > 隐式
+new obj1.show(); // undefined —— new 绑定优先级最高（this 是新对象）
+```
+
+### 4.3 箭头函数：词法 this（lexical this）
+
+**箭头函数没有自己的 `this`**——它"继承"定义时所在作用域的 `this`：
+
+```js
+const obj = {
+  name: "Alice",
+
+  greetNormal: function () {
+    console.log(this.name); // 'Alice' —— 隐式绑定
+  },
+
+  greetArrow: () => {
+    console.log(this.name); // undefined —— 箭头函数的 this 不是 obj
+  },
+};
+
+obj.greetNormal(); // 'Alice'
+obj.greetArrow(); // undefined（this 来自 obj 外层作用域）
+```
+
+**箭头函数的 this 是"词法的"**——写代码时就确定了，与调用方式无关。
+
+#### 经典用法：避免 this 丢失
+
+```js
+class Timer {
+  constructor() {
+    this.seconds = 0;
+  }
+
+  // ❌ 普通函数：this 在 setInterval 回调里丢失
+  startBad() {
+    setInterval(function () {
+      this.seconds++; // this 是 window / undefined
+      console.log(this.seconds);
+    }, 1000);
+  }
+
+  // ✅ 箭头函数：this 词法绑定，仍指向实例
+  startGood() {
+    setInterval(() => {
+      this.seconds++; // this 仍指向 Timer 实例
+      console.log(this.seconds);
+    }, 1000);
+  }
+}
+```
+
+### 4.4 何时用箭头函数 vs 普通函数
+
+| 场景                                            | 推荐                          | 理由                                   |
+| ----------------------------------------------- | ----------------------------- | -------------------------------------- |
+| **回调函数**（`map` / `filter` / `setTimeout`） | ✅ 箭头函数                   | 简洁；this 通常不需要                  |
+| **类的方法**                                    | ⚠️ 普通函数（类方法语法）     | 让方法可以被子类继承 / `super` 调用    |
+| **对象的方法**                                  | ⚠️ 普通函数                   | 隐式绑定能拿到对象本身                 |
+| **构造函数**                                    | ❌ 不能用箭头（`new` 会报错） | 箭头函数没有 `prototype`，不能 `new`   |
+| **需要动态 this** 的场景                        | ❌ 不能用箭头                 | 箭头函数 this 是词法绑定，无法动态改变 |
+
+**经验法则**：
+
+- **不需要 `this` 的纯函数 / 工具函数 → 箭头函数**
+- **需要"继承调用方上下文"（如类方法、原型方法）→ 普通函数**
+
+### 4.5 设计判断暗线：词法 this vs 动态 this
+
+JavaScript 同时提供**动态 this**（普通函数）和**词法 this**（箭头函数），这是有意设计的：
+
+| 维度         | 动态 this（普通函数）          | 词法 this（箭头函数）          |
+| ------------ | ------------------------------ | ------------------------------ |
+| **决定时机** | 调用时                         | 定义时                         |
+| **灵活性**   | 高（同一个函数能服务多个对象） | 低（this 一旦确定就不变）      |
+| **可预测性** | 低（要看调用方式）             | 高（看代码就知道 this 是什么） |
+| **典型用途** | 类方法、原型方法               | 回调、嵌套函数                 |
+
+**JavaScript 同时支持两者**——这不是"历史包袱"，是"两种范式都有用"。普通函数让 OOP 风格代码灵活，箭头函数让函数式风格代码可预测。**会用两者 = 真正掌握 JS**。
+
+> 一手：[MDN: this](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)；[MDN: 箭头函数](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Functions/Arrow_functions)。
+
+---
+
+## 5. 严格模式（"use strict"）
+
+ES5 引入的严格模式让 JavaScript 的"宽松"行为变成报错——**现代代码应该全部运行在严格模式下**。
+
+### 5.1 启用方式
+
+```js
+// 方式 1：脚本顶部（影响整个文件）
+"use strict";
+
+function example() {
+  // ...
+}
+
+// 方式 2：函数顶部（只影响函数内）
+function example() {
+  "use strict";
+  // ...
+}
+```
+
+**ES Modules 默认严格模式**——`<script type="module">` 或 `import` / `export` 文件不需要写 `'use strict'`，自动启用。
+
+### 5.2 严格模式的主要差异
+
+| 行为                       | 非严格模式          | 严格模式          |
+| -------------------------- | ------------------- | ----------------- |
+| **未声明的变量赋值**       | 隐式创建全局变量    | ❌ ReferenceError |
+| **函数默认 this**          | `window` / `global` | `undefined`       |
+| **删除不可删除的属性**     | 静默失败            | ❌ TypeError      |
+| **重复参数名**             | 后者覆盖前者        | ❌ SyntaxError    |
+| **`with` 语句**            | 允许                | ❌ SyntaxError    |
+| **八进制字面量**（`0123`） | 允许                | ❌ SyntaxError    |
+
+**经验**：现代项目几乎全用 ESM，自动严格模式——你很少需要主动写 `'use strict'`。但**看到旧脚本（`<script>` 直接加载）时，记得加**。
+
+> 一手：[MDN: 严格模式](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Strict_mode)。
+
+---
+
+## 6. 函数高级
+
+JavaScript 把**函数当作"一等公民"**——函数可以像普通值一样传递、赋值、返回。这是 JS 函数式风格的根基。
+
+### 6.1 函数是一等公民
+
+```js
+// 函数可以赋值给变量
+const add = function (a, b) {
+  return a + b;
+};
+
+// 函数可以作为参数传递
+[1, 2, 3].map((n) => n * 2);
+
+// 函数可以从函数返回
+function makeAdder(x) {
+  return (n) => n + x;
+}
+const add5 = makeAdder(5);
+add5(10); // 15
+```
+
+**这种灵活性让 JS 天然适合函数式编程**——map / filter / reduce / 高阶函数 / 柯里化 / 组合都依赖这个能力。
+
+### 6.2 高阶函数（higher-order function）
+
+**接收函数作为参数，或返回函数的函数**：
+
+```js
+// 数组方法都是高阶函数
+const numbers = [1, 2, 3, 4, 5];
+
+numbers.map((n) => n * 2); // [2, 4, 6, 8, 10]
+numbers.filter((n) => n % 2 === 0); // [2, 4]
+numbers.reduce((sum, n) => sum + n, 0); // 15
+```
+
+**经验**：现代 JS 代码里**优先用高阶函数代替 for 循环**——更声明式、更易读、更难写错。
+
+```js
+// ❌ 旧式 for 循环
+const result = [];
+for (let i = 0; i < numbers.length; i++) {
+  if (numbers[i] % 2 === 0) {
+    result.push(numbers[i] * 2);
+  }
+}
+
+// ✅ 高阶函数链
+const result = numbers.filter((n) => n % 2 === 0).map((n) => n * 2);
+```
+
+### 6.3 柯里化（currying）
+
+**把多参数函数转成一系列单参数函数**：
+
+```js
+// 普通函数
+function add(a, b, c) {
+  return a + b + c;
+}
+add(1, 2, 3); // 6
+
+// 柯里化版本
+const curriedAdd = (a) => (b) => (c) => a + b + c;
+curriedAdd(1)(2)(3); // 6
+
+// 部分应用
+const add1 = curriedAdd(1);
+const add1And2 = add1(2);
+add1And2(3); // 6
+```
+
+**何时用**：
+
+- 函数式工具库（lodash / fp-ts）
+- 配置预填——如 `axios.create({ baseURL })` 返回预填了 baseURL 的实例
+
+**何时不用**：
+
+- 业务代码——柯里化让代码更难读，没必要为了"函数式"而柯里化
+
+### 6.4 纯函数（pure function）
+
+**纯函数 = 相同输入永远得到相同输出 + 没有副作用**：
+
+```js
+// ✅ 纯函数
+function add(a, b) {
+  return a + b;
+}
+
+// ❌ 非纯函数（依赖外部状态）
+let counter = 0;
+function impureAdd(a) {
+  counter++;
+  return a + counter;
+}
+
+// ❌ 非纯函数（修改参数）
+function pushAndReturn(arr, item) {
+  arr.push(item); // 副作用：修改了 arr
+  return arr;
+}
+```
+
+**为什么纯函数重要**：
+
+- 易测试（输入决定输出）
+- 易缓存（同输入不重算）
+- 易并发（无共享状态）
+- React 渲染函数应该是纯函数（这是 hooks 设计的前提）
+
+> 第 5 章 React 会深入"为什么组件应该是纯函数"。
+
+---
+
+## 7. 三档归位
+
+| 知识点                                        | 归位         | 理由                                    |
+| --------------------------------------------- | ------------ | --------------------------------------- |
+| `let` / `const` / `var` 区别                  | **必学**     | 现代代码默认 const，永不写 var          |
+| 词法作用域                                    | **必学**     | 闭包的基础                              |
+| 暂时性死区（TDZ）                             | **必学**     | 防止"先用后声明"的现代修正              |
+| 闭包定义 + 三个经典案例                       | **必学**     | React Hooks 的基础；面试 + 实战高频     |
+| 闭包内存泄漏                                  | **必学**     | 生产代码 review 重点                    |
+| 原型链查找机制                                | **必学**     | `instanceof` / `class extends` 的底层   |
+| `__proto__` vs `prototype` 区分               | **必学**     | 必考概念                                |
+| 原型污染防御                                  | **必学**     | 安全 review 重点                        |
+| this 四种绑定规则                             | **必学**     | 函数调用必懂                            |
+| 箭头函数 vs 普通函数                          | **必学**     | 何时用哪个是日常判断                    |
+| `call` / `apply` / `bind`                     | **必学**     | 显式绑定的标准方法                      |
+| 严格模式行为差异                              | **必学**     | 旧代码迁移必查                          |
+| 高阶函数（map / filter / reduce）             | **必学**     | 现代 JS 的基础写法                      |
+| 纯函数概念                                    | **必学**     | React / Redux / 函数式编程的基础        |
+| ES5 时代的 IIFE 模块模式                      | **仍需理解** | 知道老代码在干嘛即可，不写新的          |
+| `Object.create()` / `Object.setPrototypeOf()` | **仍需理解** | 知道存在；现代代码用 `class`            |
+| 柯里化                                        | **仍需理解** | 函数式工具库会用；业务代码不强求        |
+| Symbol / Iterator / Generator                 | **仍需理解** | 业务代码很少用；知道存在                |
+| `with` / `eval` / `arguments`                 | **可委托**   | AI 知道这些是"反模式"；你只需要不主动写 |
+| `Object.create(null)` 防原型污染              | **可委托**   | 知道有这个手段，需要时让 AI 写          |
+
+---
+
+## 8. AI 时代写 JS 的最小集
+
+| 你想做                                | AI 帮得上吗                                                  |
+| ------------------------------------- | ------------------------------------------------------------ |
+| 写基础函数 / 类                       | ✅ AI 写得熟，但你要 review this 是否正确                    |
+| 把 ES5 写法改成 ES6+                  | ✅ 委托 AI（var → const / function → 箭头）                  |
+| 写高阶函数链（map / filter / reduce） | ✅ AI 极擅长                                                 |
+| 解释一段代码的闭包行为                | ✅ AI 能解释，但你要看实际调用栈验证                         |
+| 排查"为什么这个变量是 undefined"      | ⚠️ AI 能列可能性（闭包 / TDZ / this 丢失），定位需要你看代码 |
+| 设计模块的私有变量结构                | ⚠️ AI 给基础版（IIFE 或 `#field`），你要决定哪种符合项目风格 |
+| 决定何时用箭头函数 vs 普通函数        | ❌ 业务上下文 AI 拿不到——你要判断"this 是否需要动态"         |
+| 决定何时用 class vs 函数式            | ❌ 项目风格决策——AI 会两者混用                               |
+| 排查原型污染漏洞                      | ❌ 安全决策——AI 能提示风险，定位 + 修复需要你审查            |
+
+**重点强调**：
+
+### AI 写 JS 时最容易错的三件事
+
+1. **闭包 + 异步**：AI 写 `setTimeout` / `setInterval` / Promise 链时，可能引用过期闭包变量。**你必须 review "回调里的变量值是否符合预期"**。
+
+2. **this 在回调里丢失**：AI 把方法作为回调传时（如 `setTimeout(this.handler, 100)`），可能不自动 `bind`。**review 时检查所有回调传递**。
+
+3. **类型宽松导致的隐式转换**：AI 写 `if (value)` 而不是 `if (value !== null)`——`0` / `''` / `null` / `undefined` 都被当 `false`。在业务里**值为 0 也是合法**的场景，这会出错。
+
+### 你必须把握的 review 要点
+
+**变量声明**：
+
+- 是否用了 `var`（应该是 `const` / `let`）
+- 全局变量是否必要（能不能放进模块）
+
+**闭包**：
+
+- 异步回调里的变量是否会过期
+- 大对象是否被闭包意外保留（内存泄漏）
+
+**原型 / class**：
+
+- 是否在共享原型上加属性（污染风险）
+- `class` 继承层级是否合理（深继承不如组合）
+
+**this**：
+
+- 回调函数是否需要 `bind`
+- 箭头函数 vs 普通函数选对了吗
+
+---
+
+## 9. 翻车库
+
+### 9.1 循环 + setTimeout 的 var 陷阱
+
+**症状**：循环里 `setTimeout` 输出的不是预期序列。
+
+**原因**：`var` 是函数作用域，所有回调共享同一个变量。
+
+**修复**：把 `var` 改成 `let`（块级作用域）。
+
+```js
+// ❌ 反例
+for (var i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 100); // 3 3 3
+}
+
+// ✅ 正例
+for (let i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 100); // 0 1 2
+}
+```
+
+> 详见 [§2.2 案例 1](#案例-1循环里的-var-陷阱)。
+
+### 9.2 React Hooks 的过期闭包
+
+**症状**：`useEffect` 里读到的 state 永远是初始值。
+
+**原因**：依赖数组为 `[]` 时，effect 只创建一次，闭包"记住"了初始 state。
+
+**修复**：用函数式 setState（`setCount(c => c + 1)`）或正确写依赖数组。
+
+```jsx
+// ❌ 反例
+useEffect(() => {
+  setInterval(() => setCount(count + 1), 1000); // count 永远是 0
+}, []);
+
+// ✅ 正例
+useEffect(() => {
+  setInterval(() => setCount((c) => c + 1), 1000); // c 是最新值
+}, []);
+```
+
+> 详见 [§2.2 案例 2](#案例-2react-hooks-的过期闭包stale-closure)。
+
+### 9.3 this 在事件回调里丢失
+
+**症状**：React 类组件里 `this.props` 是 `undefined`。
+
+**原因**：把方法作为回调传时 this 指向丢失。
+
+**修复**：用箭头函数（类字段）或在构造函数 bind。
+
+```jsx
+// ❌ 反例
+class Btn extends React.Component {
+  handleClick() {
+    console.log(this.props); // undefined
+  }
+  render() {
+    return <button onClick={this.handleClick}>Click</button>;
+  }
+}
+
+// ✅ 正例 1：箭头函数（类字段）
+handleClick = () => {
+  console.log(this.props);
+};
+
+// ✅ 正例 2：构造函数 bind
+constructor(props) {
+  super(props);
+  this.handleClick = this.handleClick.bind(this);
+}
+```
+
+### 9.4 原型污染
+
+**症状**：用户输入合并到对象后，所有对象都获得了新属性。
+
+**原因**：合并时未过滤 `__proto__` / `constructor` / `prototype` 键。
+
+**修复**：用 `Object.create(null)` 或合并时过滤危险键。
+
+> 详见 [§3.4 原型污染](#34-原型污染prototype-pollution)。
+
+### 9.5 const 对象属性仍可变
+
+**症状**：以为 `const obj = {}` 让对象不可变，结果 `obj.x = 1` 仍然成功。
+
+**原因**：`const` 只防止**重新赋值**，不防止**修改属性**。
+
+**修复**：需要真正不可变时用 `Object.freeze()`：
+
+```js
+const obj = { x: 1 };
+obj.x = 2; // ✅ 仍然成功
+obj = { x: 3 }; // ❌ TypeError: Assignment to constant variable
+
+const frozen = Object.freeze({ x: 1 });
+frozen.x = 2; // ❌ 严格模式：TypeError；非严格模式：静默失败
+```
+
+> 注意 `Object.freeze` 只是**浅冻结**——嵌套对象仍可变。需要深度冻结要递归处理。
+
+### 9.6 隐式全局变量
+
+**症状**：忘了 `let` / `const` 声明，变量泄漏到全局。
+
+**原因**：非严格模式下，赋值给未声明变量会创建全局变量。
+
+**修复**：用 ESM 或加 `'use strict'`（自动报错）。
+
+```js
+function bad() {
+  message = "hello"; // ❌ 没声明 → 全局变量
+}
+
+// 修复：加严格模式
+("use strict");
+function good() {
+  message = "hello"; // ❌ ReferenceError —— 立即报错
+}
+```
+
+### 9.7 箭头函数误用为对象方法
+
+**症状**：对象方法里 `this` 不是对象本身。
+
+**原因**：箭头函数的 this 是词法绑定，不是对象。
+
+**修复**：对象方法用普通函数（或 ES6 方法简写）。
+
+```js
+// ❌ 反例
+const obj = {
+  name: "Alice",
+  greet: () => console.log(this.name), // this 不是 obj
+};
+
+// ✅ 正例
+const obj = {
+  name: "Alice",
+  greet() {
+    console.log(this.name);
+  }, // ES6 方法简写
+};
+```
+
+### 9.8 `for...in` 遍历数组
+
+**症状**：用 `for...in` 遍历数组时拿到非预期的键。
+
+**原因**：`for...in` 遍历**所有可枚举属性**，包括原型链上的。
+
+**修复**：数组用 `for...of` 或 `forEach` / `map`。
+
+```js
+const arr = [1, 2, 3];
+Array.prototype.customMethod = function () {}; // 假设有人扩展了原型
+
+// ❌ 反例
+for (const key in arr) {
+  console.log(key); // '0', '1', '2', 'customMethod'
+}
+
+// ✅ 正例
+for (const value of arr) {
+  console.log(value); // 1, 2, 3
+}
+
+// ✅ 正例（更现代）
+arr.forEach((value) => console.log(value));
+```
+
+---
+
+## 10. 读完本节你应该能
+
+### 变量与作用域
+
+- [ ] 解释为什么现代代码不用 `var`
+- [ ] 区分块级作用域 vs 函数作用域
+- [ ] 解释暂时性死区（TDZ）的作用
+- [ ] 区分 `const` 不可重新赋值 vs 对象属性可变
+
+### 闭包
+
+- [ ] 用一句话定义闭包（函数 + 它能访问的外部作用域变量）
+- [ ] 解释为什么循环 + `setTimeout` + `var` 会输出同一个值
+- [ ] 写出 React Hooks 过期闭包的修复方案（函数式 setState）
+- [ ] 识别闭包导致的内存泄漏场景
+
+### 原型链
+
+- [ ] 解释原型链的查找机制（自身 → 原型 → 原型的原型 → null）
+- [ ] 区分 `__proto__` vs `prototype`
+- [ ] 解释 `class` 是原型链的语法糖
+- [ ] 列出原型污染的防御手段（`Object.create(null)` / 过滤危险键）
+
+### this 绑定
+
+- [ ] 列出 this 的四种绑定规则及优先级
+- [ ] 解释为什么方法作为回调传递时 this 会丢失
+- [ ] 区分箭头函数 vs 普通函数的 this 行为
+- [ ] 写出显式绑定的三种方法（`call` / `apply` / `bind`）
+- [ ] 判断何时该用箭头函数、何时该用普通函数
+
+### 函数式风格
+
+- [ ] 解释"函数是一等公民"的含义
+- [ ] 用 `map` / `filter` / `reduce` 改写 for 循环
+- [ ] 定义纯函数并举例
+
+### 设计判断
+
+- [ ] 用"信息隐藏"解释闭包的价值
+- [ ] 用"委托"解释原型链与经典继承的差异
+- [ ] 用"词法 vs 动态"解释箭头函数与普通函数的适用场景
+
+---
+
+## 11. 延伸阅读
+
+- [MDN: JavaScript](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript) — 中文权威文档入口
+- [MDN: 闭包](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures) — 闭包权威解释
+- [MDN: 继承与原型链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain) — 原型链机制详解
+- [MDN: this](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this) — this 绑定完整规则
+- [javascript.info](https://javascript.info/) **（英文）** — 现代 JS 教程，从零到高级
+- [ES6 标准（ECMA-262）](https://262.ecma-international.org/6.0/) **（英文）** — 官方语言规范
+- [Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）** — React 核心维护者写的闭包陷阱权威解释（按 SPEC-0002 灰名单条款引用）
+- [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript) **（英文）** — 工业界最流行的 JS 风格指南（含最佳实践）
+- [You Don't Know JS (book series)](https://github.com/getify/You-Dont-Know-JS) **（英文）** — 深入 JS 机制的经典开源书
+
+> 访问性说明：MDN 中文版直接可访问；英文资源访问稳定。"You Don't Know JS"是 GitHub 上完全开源的书，免费阅读。
+
+---
+
+下一节：[§4.2 异步模型](/chapter-04/async-model) _（待写）_——Promise / async-await / 微任务 / 事件循环细节。
+
+> **动手验证**：用浏览器 DevTools 控制台跑一遍 §9 翻车库的案例——看到实际报错比"记住规则"有效得多。

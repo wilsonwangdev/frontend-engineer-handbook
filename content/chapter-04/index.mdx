@@ -1,0 +1,172 @@
+---
+title: JavaScript 与 TypeScript
+chapter: 4
+description: 语言核心、异步模型、模块系统、现代特性、类型系统——代码本身的判断力
+tier: essential
+prerequisites:
+  - /chapter-01
+  - /chapter-02
+paths:
+  sequential: 4
+---
+
+> 这一章讲**语言层**——JavaScript 和 TypeScript 的核心机制。前两章讲"环境"和"视觉层"，这一章讲"代码本身"。
+
+第 1 章讲了"AI 时代工程师的价值在判断"，第 2 章讲了"不依赖框架的 Web 平台基石"，第 3 章讲了"HTML / CSS 怎么写"。现在到了**代码逻辑层**——当 AI 写出一段 JavaScript / TypeScript 代码时，你拿什么判断它对不对？
+
+答案是**语言机制**。JavaScript 的作用域 / 闭包 / 原型链 / this 绑定 / 异步模型——这些不是"老知识"，是**你 review AI 生成代码的唯一参照系**。AI 会写 `async` / `await`，但它不知道你的业务场景里"这个 Promise 是不是该 catch"；AI 会写泛型，但它不知道"这个类型参数该不该加约束"。
+
+TypeScript 在 2024 后是**工程标配**——不再是"可选"。但很多人只会写 `any`，或者让 TS 编译器报错时删类型注解"先过编译"。这一章会讲**类型设计**的核心心智——不是"怎么让类型通过"，是"怎么设计类型让错误在编译期暴露"。
+
+> **写给新人**：JavaScript 是入门必学，但**机制层（闭包 / 原型链 / this / 事件循环）** 经常被跳过——"反正 AI 能写，我先跳过"。这是最危险的捷径。AI 写出的代码如果闭包错了、this 丢了、微任务顺序乱了，**你看不出来 = 你失去了唯一的质量闸门**。
+
+> **写给老前端**：如果你最近一次系统学 JS 是 2015-2018 年的 ES6 时代，这一章需要重读。不是因为旧知识过期了，是因为**现代 TypeScript 的类型设计已经成为前端工程的核心技能**——2018 年 TS 还是"可选增强"，2024 年不会 TS = 不会前端。
+
+---
+
+## 4.1 本章六节速览
+
+| 节  | 标题                                                  | 一句话定位                                                | 推荐给           |
+| --- | ----------------------------------------------------- | --------------------------------------------------------- | ---------------- |
+| 4.1 | [JavaScript 语言核心](/chapter-04/js-core) _（待写）_ | 作用域 / 闭包 / 原型链 / this 绑定——AI 时代 review 的基础 | 所有人           |
+| 4.2 | 异步模型 _（待写）_                                   | Promise / async-await / 微任务 / 事件循环细节             | 所有人           |
+| 4.3 | 模块系统 _（待写）_                                   | ESM / 动态 import / Node 互操作                           | 所有人           |
+| 4.4 | ES2020-2025 现代特性 _（待写）_                       | optional chaining / 顶层 await / 装饰器 / Records         | 所有人           |
+| 4.5 | TypeScript 类型系统 _（待写）_                        | 结构化类型 / 泛型 / 类型收窄 / 工具类型                   | 所有人，资深尤其 |
+| 4.6 | TypeScript 实战与类型设计 _（待写）_                  | 何时 type vs interface / 何时不用 enum / 类型边界         | 所有人，资深尤其 |
+
+**推荐阅读路径**（建议）：
+
+| 你是                                   | 直接读                                                 |
+| -------------------------------------- | ------------------------------------------------------ |
+| **新人 / 转行者**                      | 按顺序读完 §4.1 → §4.2 → §4.5（跳过 §4.3 / §4.4）      |
+| **写过 JS 但没系统学过机制**           | §4.1 闭包 / 原型链 / this → §4.2 微任务队列            |
+| **会 JS 但没用过 TypeScript**          | §4.5 类型系统 → §4.6 实战设计                          |
+| **会 TS 但只会写 `any` 的**            | §4.5 类型收窄 → §4.6 type vs interface                 |
+| **资深，但想补"为什么 AI 会在这翻车"** | §4.1 this 绑定 → §4.2 Promise 错误处理 → §4.6 类型边界 |
+
+整章读完约 90-120 分钟；按上面挑读 30-45 分钟。**§4.1 JavaScript 语言核心**和**§4.5 TypeScript 类型系统**是两个核心——前者是机制基础，后者是工程标配。
+
+> _「待写」_ 的章节会按推荐顺序逐节上线。本章目前全部待写——下一条 commit 会上 §4.1 JavaScript 语言核心。
+
+---
+
+## 4.2 JavaScript 演进史（必要的回顾）
+
+> 跟第 2 / 3 章一样，先看演进——**今天每一个"为什么不该这么写"，都在回答某个 2000-2015 年代的历史遗留问题**。串起来看，AI 给的代码你才能判断"这是老写法还是现代写法"。
+
+| 年代  | 里程碑                                                            | 留下了什么                                   | 现在怎么看                                 |
+| ----- | ----------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------ |
+| 1995  | JavaScript 诞生（Brendan Eich，10 天原型）                        | 原型链 / 弱类型 / 函数是一等公民             | 优点和缺点都在这 10 天里埋下了             |
+| ~2005 | jQuery 时代（DOM 操作 + AJAX 封装）                               | `$()` / 链式调用 / 跨浏览器兼容层            | 现代框架已替代，但"声明式 vs 命令式"分水岭 |
+| 2009  | Node.js 诞生（Ryan Dahl）                                         | JS 进入服务端 / 事件循环成为核心             | 前端工程化的起点                           |
+| 2015  | [ES6 (ES2015)](https://262.ecma-international.org/6.0/) 发布      | `let` / `const` / 箭头函数 / Promise / class | **现代 JavaScript 元年**——这是本章默认基线 |
+| 2017  | [TypeScript 2.x](https://devblogs.microsoft.com/typescript/) 稳定 | 结构化类型 / 条件类型                        | TS 从"可选工具"变"团队标配"                |
+| 2020+ | ES2020-2024 逐年小步迭代                                          | optional chaining / 顶层 await / Records     | 年度更新小而稳，不再有 ES6 级别的革命      |
+| 2023+ | TypeScript 5.x                                                    | 装饰器稳定 / `satisfies` 运算符              | 类型系统趋于成熟                           |
+
+**三条主线值得记住**：
+
+1. **从"能运行"到"能维护"**：1995-2015 年 JS 是"写完就跑"的脚本语言，jQuery 时代代码很难维护。ES6 + TypeScript 把 JS 变成**可工程化的语言**——模块 / 类型 / 工具链让大型项目成为可能。
+
+2. **从"同步阻塞"到"异步非阻塞"**：早期 JS 是单线程同步执行（`alert()` 会卡住整个页面）。Node.js 把**事件循环**带入主流，Promise / async-await 成为现代异步标准——这是 JS 能做服务端 / 高并发的根。
+
+3. **从"弱类型无约束"到"类型驱动设计"**：1995-2015 年 JS 靠"约定 + 文档"防错，TypeScript 让**类型成为第一道防线**——2024 年不写类型 = 放弃了最便宜的质量保障。
+
+> **写给老前端**：如果你最近一次系统学 JS 是 2012-2015 年（ES5 / jQuery 时代），这一章需要完整读一遍。**不是因为旧知识过期，是因为"现代 JavaScript"的定义在 2015 年被 ES6 重写了一遍**——`var` → `let` / `const`、`function` → 箭头函数、回调地狱 → Promise / async-await、全局变量 → 模块——每一条都是"不写旧的"的理由。
+
+> **写给新人**：你看到的"JS 选型争论"很多是 2010-2015 年的遗留——那时还在争"要不要用 TypeScript"。现在不争了，**TypeScript 是事实标准**。直接学 ES6 + TS，jQuery / ES5 只需要"知道存在 + 不主动写"。
+
+---
+
+## 4.3 本章覆盖什么、不覆盖什么
+
+### 进主干（会详细讲）
+
+- **语言核心**：作用域 / 闭包 / 原型链 / this 绑定 / 严格模式
+- **异步模型**：Promise / async-await / 微任务 vs 宏任务 / 事件循环细节
+- **模块系统**：ESM 语法 / 动态 import / Node.js 互操作（`.mjs` / `package.json` "type"）
+- **现代特性**：optional chaining / nullish coalescing / 顶层 await / 装饰器（stage 3）
+- **TypeScript 类型系统**：结构化类型 / 泛型 / 类型收窄 / 联合类型 / 工具类型（`Partial` / `Pick` / `Omit`）
+- **类型设计**：何时 `type` vs `interface` / 何时不用 `enum` / 如何设计"不让错误编译通过"的类型
+
+### 不进主干（点到为止或完全不讲）
+
+- **ES5 polyfill 写法**：`Object.create()` / `Function.prototype.bind()` 手写 polyfill——知道概念即可，AI 时代不手写
+- **CommonJS 详尽内幕**：`require()` / `module.exports` / 循环依赖解析——知道"Node 早期用的"即可，现代项目用 ESM
+- **装饰器历史**：stage 2 → stage 3 的提案演变——只讲 stage 3 稳定版（TypeScript 5.0+）
+- **Generator / Iterator 深度**：`function*` / `yield` / `Symbol.iterator`——业务代码很少用，知道存在即可
+- **Proxy / Reflect 内部实现**：Vue 3 响应式原理会用到，但本章只讲基础用法，深入留给框架章节
+- **单元测试 / Vitest**：这是工程化话题，留给第 7 章质量与交付
+
+**判断标准**：进主干的都是"AI 会写、但你必须 review 的机制"；不进主干的是"AI 能查文档写、你不需要手写的细节"。
+
+---
+
+## 4.4 本章与其他章节的关系
+
+| 依赖关系      | 说明                                                |
+| ------------- | --------------------------------------------------- |
+| **← 第 2 章** | §2.4 事件循环是本章 §4.2 异步模型的前置知识         |
+| **← 第 3 章** | CSS-in-JS / Tailwind 配置会用到 TS 类型，但不强依赖 |
+| **→ 第 5 章** | React Hooks 的闭包陷阱、TS 组件类型都基于本章       |
+| **→ 第 6 章** | 模块打包 / tree-shaking 依赖 ESM 机制               |
+| **→ 第 7 章** | 单元测试 / 类型覆盖率都基于 TS 类型系统             |
+
+**"AI 可委托清单"在本章的位置**：§4.1 / §4.2 / §4.5 每节末尾都有"AI 时代写这个的最小集"段——明确列出"哪些你必须 review、哪些可以委托 AI 写"。
+
+---
+
+## 4.5 核心概念速查（会在多节反复出现）
+
+以下是本章反复出现的**跨节核心概念**——会在多节反复出现，本章每次提到时都会回链回来。
+
+| 概念                                                                                                                     | 一句话定义                                     | 为什么重要                              | 在本章哪里出现        |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------- | --------------------- | ---- |
+| [闭包（closure）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)                                      | 函数 + 它能访问的外部作用域变量                | React Hooks 的基础；AI 写闭包容易丢变量 | §4.1 / §4.2           |
+| [原型链（prototype chain）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain) | 对象查找属性的"继承链"                         | `class` 语法的底层；理解 `instanceof`   | §4.1                  |
+| [this 绑定](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)                            | 函数调用时 `this` 指向谁                       | 箭头函数 vs 普通函数的最大差异          | §4.1                  |
+| [微任务（microtask）](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)                     | Promise / queueMicrotask 的队列                | 执行顺序：微任务 > 宏任务（setTimeout） | §4.2                  |
+| [Promise 链式调用](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)             | `.then()` / `.catch()` 返回新 Promise          | 错误处理 / 异步流水线                   | §4.2                  |
+| [ESM（ES Modules）](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)                               | `import` / `export` 的现代模块标准             | 替代 CommonJS；tree-shaking 的基础      | §4.3                  |
+| [结构化类型（structural typing）](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)                  | TS 按"形状"匹配类型，不按名称                  | 为什么 `{ x: number }` 能赋给 `Point`   | §4.5                  |
+| [类型收窄（type narrowing）](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)                              | 用 `if` / `typeof` / `instanceof` 缩小类型范围 | 让 TS 从 `string                        | number`推断出`string` | §4.5 |
+| [工具类型（utility types）](https://www.typescriptlang.org/docs/handbook/utility-types.html)                             | `Partial<T>` / `Pick<T, K>` / `Omit<T, K>` 等  | 从已有类型派生新类型                    | §4.5 / §4.6           |
+
+> 访问性说明：所有 MDN 链接是中文版，直接可访问。TypeScript 官方文档是英文但访问稳定。
+
+---
+
+## 4.6 本章的"AI 可委托"总览
+
+| 任务                                     | AI 能帮到什么程度                                        |
+| ---------------------------------------- | -------------------------------------------------------- |
+| 写基础的函数 / 类                        | ✅ 委托 AI，但你要 review 闭包 / this 是否正确           |
+| 把回调地狱改成 async-await               | ✅ 委托 AI，但你要 review 错误处理是否漏了               |
+| 给已有代码加 TS 类型注解                 | ✅ 委托 AI，但你要 review 类型是否过于宽松（`any` 泛滥） |
+| 设计"不让错误编译通过"的类型             | ⚠️ AI 给基础版，你要加约束（如用联合类型替代 `string`）  |
+| 决定何时用 `type` vs `interface`         | ❌ 你必须判断——AI 会混用，不符合项目风格                 |
+| 排查"为什么这个变量是 undefined"         | ❌ Tier 4：闭包 / 作用域问题，AI 只能猜，你要看调用栈    |
+| 排查"Promise 没 catch 导致的错误吞没"    | ❌ Tier 4：AI 能提醒加 catch，但定位需要你看异步流程     |
+| 决定用 `Promise.all` 还是 `Promise.race` | ❌ 业务决策——AI 不知道你的并发 / 超时策略                |
+
+回顾第 1 章 [§1.4](/chapter-01#14-ai-可委托清单完整版)的 D1–D5 维度。本章涉及的"语言机制"基本都卡在 **D4（需要上下文才能判断对错）** + **D5（长期委托会失去自保能力）**。
+
+---
+
+## 4.7 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本章会在以下位置点破设计判断：
+
+- **§4.1 闭包**：信息隐藏（information hiding）——闭包是 JS 里实现"私有变量"的唯一原生方式（在 private fields 出现前）
+- **§4.1 原型链**：委托（delegation）——原型链不是"复制继承"，是"查找委托"
+- **§4.2 Promise**：错误传播（error propagation）——Promise 链的 `.catch()` 是"最近的一个 catch 捕获"，不是"必须每个 then 后面都 catch"
+- **§4.3 ESM**：静态可分析性（static analyzability）——ESM 是编译期确定依赖，tree-shaking 才能做
+- **§4.5 结构化类型**：鸭子类型（duck typing）——"走起来像鸭子就是鸭子"，TypeScript 的类型兼容是按"形状"不是"名字"
+- **§4.6 类型设计**：让非法状态无法表示（make illegal states unrepresentable）——好的类型设计让"错误的代码编译不通过"
+
+每个暗线会在对应章节的"设计判断暗线"段点破，不单开一节。读完你会理解**为什么 JS / TS 要这么设计**，而不是"死记这个 API 怎么用"。
+
+---
+
+下一章：[第 5 章 React 与 Next.js](/chapter-05) _（待写）_——组件、状态、副作用、服务端组件。
