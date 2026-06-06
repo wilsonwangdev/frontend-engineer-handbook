@@ -61,14 +61,28 @@ initializer 而非 `useState(default)` + `useEffect`。**
 - `isDarkMode` 决定是否用不同的事件处理策略
 - `isPortrait` 决定手势方向
 
+## 第二轮修复：`(hover: hover)` 替代视口宽度
+
+第一次修复用了 `max-width: 767px` 判断触屏——这是错的。标准做法是
+W3C Media Queries Level 4 的 `(hover: hover)`：
+
+- `matchMedia('(hover: hover)').matches` 直接查询设备是否具备 hover 能力
+- 设备常量，不随视口变化——不需要 useEffect listener
+- 正确区分"窄桌面窗口"（有 hover）和"宽平板"（无 hover）
+
+教训：**遇到"判断设备能力"的需求，先问"我真正想知道什么"——是
+"屏幕多宽"还是"能不能 hover"？然后找 W3C 标准对应的 media feature。**
+
+第一反应不该是 `max-width`。这与手册 §3.4 倡导的"用对平台原语"
+一致——`(hover: hover)` 就是 W3C 为这个场景设计的标准原语。
+
 ## 是否值得成为手册内容
 
 H5 开发中这类事件模型差异（mouse 模拟、300ms 延迟历史、
-passive event listener、viewport 与 visualViewport）是前端
-工程化的基础设施知识。当前手册 §3.4 响应式与中文 Web 侧重
-CSS 层面，§2.4 事件循环偏 JS 运行机制——H5 事件模型作为一个
-独立专题，值得在合适的章节（如 §3.4 扩展或 §6 工程化实战）
-中系统覆盖。
+passive event listener、viewport 与 visualViewport、`hover` /
+`pointer` media features）是前端工程化的基础设施知识。当前手册
+§3.4 响应式与中文 Web 侧重 CSS 层面，§2.4 事件循环偏 JS 运行
+机制——H5 事件模型与设备能力检测作为一个独立专题，值得系统覆盖。
 
 **建议**：继续积累 ≥ 3 个同类 H5 事件坑后，评估是否开独立小节。
 当前先记 journal，触发升级条件时再考虑入附录 D。
