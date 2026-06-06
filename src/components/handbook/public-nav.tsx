@@ -13,6 +13,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "术语", href: "/glossary" },
   { label: "Playground", href: "/playground" },
+  { label: "资源", href: "/resources" },
 ];
 
 export function PublicNav({ className }: { className?: string }) {
