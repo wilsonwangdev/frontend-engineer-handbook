@@ -6,6 +6,7 @@ import { PublicNav } from "@/components/handbook/public-nav";
 import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
 import { ThemeToggle } from "@/components/handbook/theme-toggle";
 import { SearchTrigger } from "@/components/handbook/search";
+import { ReadingProgress } from "@/components/handbook/reading-progress";
 import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
 
@@ -14,6 +15,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
+      <ReadingProgress />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-[var(--color-bg)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:outline-2 focus:outline-[var(--color-accent)]"
