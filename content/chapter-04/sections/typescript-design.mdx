@@ -1,0 +1,1319 @@
+---
+title: TypeScript 实战与类型设计
+chapter: 4
+section: 6
+description: type vs interface / 不用 enum / 让非法状态无法表示——会写 TS 的标志
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 22
+---
+
+> §4.5 讲了**类型系统的机制**——能写出对的类型；这一节讲**类型设计的判断**——能写出"让错误编译不通过"的类型。
+
+§4.5 把类型系统的机制（结构化类型 / 类型收窄 / 泛型 / 工具类型）讲清楚了。这一节往"工程实战"再推一层——**类型不是注解，是设计**。
+
+**本节核心论点**：
+
+1. **从"通过编译"到"防止 bug"是写 TS 的能力分水岭**——会写 TS 的标志是用类型表达业务约束
+2. **`type` vs `interface` 在 2024 后基本可互换**——选哪个看团队约定，但有几条差异决定"日常默认用哪个"
+3. **`enum` 几乎可以淘汰**——字面量联合 + `as const` 更现代
+4. **"让非法状态无法表示"** 是 TypeScript 类型设计的最高原则
+5. **运行时边界必须用 Zod 等验证**——TS 类型只在编译期有效
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                              | 直接读                                        |
+> | --------------------------------- | --------------------------------------------- |
+> | **会基础 TS，想跟进类型设计实战** | §0 立意 → §3 让非法状态无法表示 → §4 类型边界 |
+> | **不知道 type 还是 interface**    | §1 type vs interface（含选型推荐）            |
+> | **正在维护用 enum 的老项目**      | §2 何时不用 enum                              |
+> | **被 API / 表单数据验证困扰**     | §4 运行时验证（Zod 推荐）                     |
+> | **被"两个 ID 串用"的 bug 坑过**   | §5 标称类型                                   |
+> | **要带 AI 写 TS 类型**            | §8 AI 最小集 → §9 翻车库                      |
+>
+> 整节读完约 50-60 分钟；按上面挑读 15-20 分钟。**§3 让非法状态无法表示**和**§4 类型边界**是两个核心——它们决定了你的类型设计水平。
+
+---
+
+## 0. 立意：从"通过编译"到"防止 bug"
+
+写 TypeScript 的能力分三档：
+
+| 档次     | 表现                                           | 类型质量               |
+| -------- | ---------------------------------------------- | ---------------------- |
+| **入门** | 加类型注解让代码"通过编译"                     | 大量 `any` / 大量 `as` |
+| **进阶** | 用类型守卫 / 联合 / 泛型让"类型对了"           | 几乎不用 `any`         |
+| **资深** | **用类型表达业务约束**，让错误代码"编译不通过" | 类型驱动设计           |
+
+**核心差异**：
+
+- 入门档把类型当"麻烦"——能绕就绕（`as any` / `// @ts-ignore`）
+- 进阶档把类型当"参照"——让 TS 帮自己抓 bug
+- 资深档把**类型当设计工具**——主动设计类型让"非法状态无法表示"
+
+### 类型设计 vs 类型注解的差异
+
+```ts
+// ❌ 入门：类型注解
+type User = {
+  id: string;
+  name: string;
+  loading: boolean;
+  data: any; // ← any 起手
+  error: any; // ← 又一个 any
+};
+
+// 使用方
+function show(user: User) {
+  if (user.loading) return "loading";
+  if (user.error) return user.error;
+  return user.data.name; // ← user.data 是 any，TS 帮不上忙
+}
+```
+
+```ts
+// ✅ 资深：类型设计
+type UserState =
+  | { status: "loading" }
+  | { status: "error"; error: Error }
+  | { status: "success"; user: { id: string; name: string } };
+
+function show(state: UserState) {
+  switch (state.status) {
+    case "loading":
+      return "loading";
+    case "error":
+      return state.error.message;
+    case "success":
+      return state.user.name; // ← 类型完全推断出来
+  }
+}
+```
+
+**关键差异**：第二种类型设计**让"loading 状态没有 user.data"成为编译期事实**——业务约束直接由类型表达。
+
+> **本节就是讲"如何从入门档跳到资深档"**——类型设计的几条核心原则。
+
+---
+
+## 1. `type` vs `interface` 选型
+
+这是 TS 学习者最常问的问题。**结论先说**：2024 年的 TS 里两者**基本可互换**——选哪个不是技术问题，是团队约定问题。
+
+### 1.1 五个差异
+
+| 维度                       | `type`                         | `interface`                     |
+| -------------------------- | ------------------------------ | ------------------------------- |
+| **声明合并**               | ❌ 不能同名重复声明            | ✅ 同名会自动合并               |
+| **扩展语法**               | `type B = A & { ... }`（交叉） | `interface B extends A { ... }` |
+| **基础类型 / 联合 / 元组** | ✅ 支持                        | ❌ 只能描述对象 / 函数          |
+| **计算属性（mapped）**     | ✅ 支持                        | ❌ 不支持                       |
+| **错误提示**               | 可能显示展开后的复杂结构       | 通常显示原始名字                |
+
+### 1.2 实战示例
+
+#### 共同的对象描述能力
+
+```ts
+// 两者都能描述对象
+type UserType = {
+  name: string;
+  age: number;
+};
+
+interface UserInterface {
+  name: string;
+  age: number;
+}
+```
+
+#### 只有 `type` 能做的
+
+```ts
+// 1. 联合类型
+type Status = "active" | "inactive";
+
+// 2. 元组
+type Pair = [string, number];
+
+// 3. 字面量类型别名
+type Direction = "up" | "down" | "left" | "right";
+
+// 4. 计算属性 / 映射类型
+type Readonly<T> = { readonly [K in keyof T]: T[K] };
+
+// 5. 条件类型
+type IsString<T> = T extends string ? true : false;
+```
+
+#### 只有 `interface` 能做的
+
+```ts
+// 1. 声明合并（同名 interface 自动合并）
+interface Window {
+  customProperty: string;
+}
+interface Window {
+  anotherProperty: number;
+}
+// 现在 Window 同时有 customProperty 和 anotherProperty
+
+// 用途：扩展第三方库的全局类型
+declare global {
+  interface Window {
+    myAppConfig: { theme: string };
+  }
+}
+
+// type 不能这么做
+type Window = { ... }; // ❌ 重复声明会报错
+```
+
+### 1.3 团队选型推荐
+
+**主流推荐两条路线**：
+
+#### 路线 A：默认 `type`（推荐）
+
+```ts
+// 99% 的场景用 type
+type User = {
+  id: string;
+  name: string;
+};
+
+type Status = "active" | "inactive";
+
+// 仅当需要声明合并时用 interface
+declare global {
+  interface Window {
+    config: AppConfig;
+  }
+}
+```
+
+**理由**：
+
+- `type` 能力更全（联合 / 元组 / 字面量都能写）
+- **统一一种语法**，少一个判断
+- React 团队、TanStack 团队、Tailwind 团队都默认 `type`
+
+#### 路线 B：默认 `interface`，对象用 `interface`，其他用 `type`
+
+```ts
+// 对象描述用 interface
+interface User {
+  id: string;
+  name: string;
+}
+
+// 联合 / 字面量 / 元组用 type
+type Status = "active" | "inactive";
+type Pair = [string, number];
+```
+
+**理由**：
+
+- 错误提示更友好（显示原始名字）
+- TypeScript 团队官方倾向（早期 Handbook 推荐）
+- 性能略好（编译时能复用）
+
+### 1.4 推荐立场
+
+**本手册推荐路线 A（默认用 `type`）**——这是 2024 后社区主流：
+
+- React 项目 / Next.js 项目几乎全用 `type`
+- 现代库（tRPC / Zod / TanStack Query）类型导出全用 `type`
+- 一致性 > 微小性能差
+
+**唯一必须用 `interface` 的场景**：
+
+- 扩展全局类型（`declare global { interface Window { ... } }`）
+- 模块声明合并（声明第三方库类型）
+- 写公共库希望使用方能扩展（声明合并能力对库设计有用）
+
+> **关键**：团队**选一种就贯彻**——混用是最差选择。如果你接手的代码库已经全用 `interface`，沿用即可，**不要去重写**。
+
+> 一手：[TypeScript Handbook: Differences Between Type Aliases and Interfaces](https://www.typescriptlang.org/docs/handbook/2/objects.html#interfaces-vs-intersections)（英文）；[Declaration Merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html)（英文）。
+
+---
+
+## 2. 何时不用 `enum`：字面量联合 + `as const` 替代
+
+**结论先说**：现代 TS 项目**几乎不用 `enum`**——字面量联合 + `as const` 能做到 99% 的事情，代价更小。
+
+### 2.1 enum 的三个问题
+
+#### 问题 1：运行时开销
+
+```ts
+// 你写的
+enum Direction {
+  Left = "left",
+  Right = "right",
+}
+
+// TypeScript 编译为（有运行时代码）
+var Direction;
+(function (Direction) {
+  Direction["Left"] = "left";
+  Direction["Right"] = "right";
+})(Direction || (Direction = {}));
+```
+
+**问题**：每个 enum 都会在 bundle 里产生一个对象——多个 enum 累积下来 bundle 变大。**字面量联合是纯类型，零运行时开销**。
+
+#### 问题 2：数字 enum 的安全性问题
+
+```ts
+enum Status {
+  Pending, // 0
+  Active, // 1
+  Closed, // 2
+}
+
+function process(s: Status) {
+  // ...
+}
+
+process(Status.Pending); // ✅
+process(0); // ✅ 也合法！数字 enum 可以传任意 number
+process(99); // ❌ 但传 99 也编译过——只在运行时才报错
+```
+
+**问题**：数字 enum **接受任意数字**——失去了类型安全。
+
+#### 问题 3：const enum 的 isolated modules 问题
+
+`const enum` 性能好（编译期内联），但**不能在 isolated modules 模式下用**——而 Vite / esbuild / Babel 都默认 isolated modules。
+
+### 2.2 现代替代方案
+
+#### 方案 1：纯字面量联合（最简单）
+
+```ts
+// ✅ 替代 enum Direction { Left = 'left', Right = 'right' }
+type Direction = "left" | "right";
+
+function move(dir: Direction) {
+  // ...
+}
+
+move("left"); // ✅
+move("up"); // ❌ Type '"up"' is not assignable to type 'Direction'
+```
+
+**何时用**：你不需要"枚举的运行时对象"——只需要类型限制。
+
+#### 方案 2：`as const` 对象（需要运行时值时）
+
+```ts
+// ✅ 替代有"运行时对象"需求的 enum
+const Direction = {
+  Left: "left",
+  Right: "right",
+} as const;
+
+type Direction = (typeof Direction)[keyof typeof Direction];
+// 'left' | 'right'
+
+function move(dir: Direction) {
+  // ...
+}
+
+move(Direction.Left); // ✅
+move("left"); // ✅
+move("up"); // ❌
+```
+
+**`as const` 的作用**：把对象的所有属性变成**字面量类型**（不是 `string`）。
+
+**何时用**：
+
+- 既需要类型限制
+- 又需要"通过名字访问值"（如 `Direction.Left`）
+- 又不想要 enum 的运行时开销
+
+#### 方案 3：const enum（极少数场景）
+
+```ts
+const enum Direction {
+  Left = "left",
+  Right = "right",
+}
+
+// 编译后内联（零运行时）
+move(Direction.Left); // 编译为 move('left')
+```
+
+**只在以下场景用**：
+
+- 不用 isolated modules（罕见）
+- 性能极致敏感
+- 已经在项目里大量用了
+
+### 2.3 实战对比
+
+| 写法             | 运行时开销           | 类型安全           | IDE 体验               |
+| ---------------- | -------------------- | ------------------ | ---------------------- |
+| `enum`（字符串） | 有（生成对象）       | ✅ 类型安全        | 好                     |
+| `enum`（数字）   | 有                   | ❌ 接受任意 number | 好                     |
+| 字面量联合       | 无                   | ✅ 类型安全        | 中（无名字访问）       |
+| `as const` 对象  | 极小（只是常量对象） | ✅ 类型安全        | 好                     |
+| `const enum`     | 无（编译期内联）     | ✅                 | 好（但 isolated 限制） |
+
+**经验法则**：
+
+- **新项目**：默认用字面量联合 / `as const`，**不写新 enum**
+- **老项目**：维护已有 enum，但新代码用现代方案
+- **库代码**：避免 enum（会污染使用方 bundle）
+
+> 一手：[TypeScript Handbook: Enums](https://www.typescriptlang.org/docs/handbook/enums.html)（英文，含官方对 enum 的"建议"）；[TypeScript issue #202: const enums in isolated modules](https://github.com/microsoft/TypeScript/issues/202)（英文，社区讨论）。
+
+---
+
+## 3. 让非法状态无法表示（make illegal states unrepresentable）
+
+> **这是 TypeScript 类型设计的最高原则**——也是从"会写 TS"到"会用 TS 防 bug"的关键一跳。
+
+### 3.1 核心思想
+
+**用类型表达业务约束，让"业务上不该出现的状态"在编译期就报错**。
+
+```text
+反例：什么都可能 → 运行时检查
+  ↓
+正例：用类型限制可能 → 编译期保证
+```
+
+### 3.2 反例：可空字段满天飞
+
+```ts
+// ❌ 反例：所有字段都可空——业务约束消失
+type UserState = {
+  loading: boolean;
+  error: string | null;
+  data: User | null;
+};
+
+// 使用方
+function show(state: UserState) {
+  if (state.loading) {
+    // 这里 error 和 data 还可能不是 null 吗？
+    // TS 不知道，你也不知道
+  }
+}
+```
+
+**问题**：
+
+- `loading: true` 时 `data` 应该是 null（还在加载）——但类型不强制
+- `error` 不为 null 时 `data` 应该是 null（出错了）——但类型不强制
+- 所有"业务约束"都靠**手写 if 检查 + 注释**——容易写错、容易漏
+
+### 3.3 正例：可辨识联合（discriminated union）
+
+```ts
+// ✅ 正例：状态之间互斥
+type UserState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: User }
+  | { status: 'error'; error: Error };
+
+// 使用方
+function show(state: UserState) {
+  switch (state.status) {
+    case 'idle':
+      return null; // 不能访问 data / error
+    case 'loading':
+      return <Spinner />;
+    case 'success':
+      return <UserCard user={state.data} />; // ✅ 类型推断知道有 data
+    case 'error':
+      return <ErrorMsg error={state.error} />; // ✅ 类型推断知道有 error
+  }
+}
+```
+
+**关键改进**：
+
+- `loading` 状态**不可能有 data / error**（类型不允许）
+- `success` 状态**必有 data**（不需要写 `if (data)` 检查）
+- 加了新 status 但 switch 没处理时——加 `never` 穷尽性检查会报错
+
+### 3.4 实战 1：表单验证状态
+
+```ts
+// ❌ 反例
+type FormState = {
+  values: Record<string, unknown>;
+  errors: Record<string, string>;
+  isSubmitting: boolean;
+  isSubmitted: boolean;
+  submitError: string | null;
+};
+
+// "isSubmitting + isSubmitted 同时为 true 应该不可能"——但类型不强制
+```
+
+```ts
+// ✅ 正例
+type FormState =
+  | { phase: "editing"; values: Record<string, unknown>; errors: Record<string, string> }
+  | { phase: "submitting"; values: Record<string, unknown> }
+  | { phase: "success"; result: unknown }
+  | { phase: "error"; values: Record<string, unknown>; submitError: string };
+```
+
+**业务约束直接体现在类型里**：
+
+- editing 阶段有 errors，没 result
+- submitting 阶段没 errors（不让用户改）
+- success 阶段有 result
+- error 阶段有 submitError + values（让用户重提）
+
+### 3.5 实战 2：API 响应
+
+```ts
+// ❌ 反例：把 success / error 都塞进同一个对象
+type ApiResponse<T> = {
+  ok: boolean;
+  data?: T;
+  error?: string;
+};
+
+// 使用方
+async function fetchUser(): Promise<ApiResponse<User>> {
+  // ...
+}
+
+const res = await fetchUser();
+if (res.ok) {
+  res.data?.name; // 还要 ?.！TS 不知道 ok=true 时 data 一定有
+}
+```
+
+```ts
+// ✅ 正例：用可辨识联合
+type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
+
+const res = await fetchUser();
+if (res.ok) {
+  res.data.name; // ✅ TS 知道 data 一定存在，不需要 ?.
+} else {
+  res.error; // ✅ TS 知道有 error
+}
+```
+
+### 3.6 实战 3：可选属性的"绑定关系"
+
+```ts
+// ❌ 反例
+type ButtonProps = {
+  type: "button" | "link";
+  href?: string;
+  onClick?: () => void;
+};
+
+// 类型上"link 没 href 也合法"，"button 有 href 也合法"——业务约束丢失
+```
+
+```ts
+// ✅ 正例
+type ButtonProps = { type: "button"; onClick: () => void } | { type: "link"; href: string };
+
+// 现在：
+// type='button' 必须有 onClick
+// type='link' 必须有 href
+// 互不交叉
+```
+
+### 3.7 一条经验法则
+
+**写出类型后问自己**："业务上不可能同时存在的字段，类型允许吗？"——如果允许，重新设计。
+
+**指标**：当你发现自己**经常在使用方写 `?.` / `!` / `if (data)` 检查**——很可能是类型设计太宽。**类型设计紧 = 使用方代码紧**。
+
+---
+
+## 4. 类型边界与运行时验证
+
+**TypeScript 类型只在编译期有效**——运行时数据不会"自动"匹配你的 TS 类型。这一节讲怎么在**类型系统的边界**做正确的事。
+
+### 4.1 哪里是"运行时边界"
+
+| 边界                        | 数据来源                   | 风险                               |
+| --------------------------- | -------------------------- | ---------------------------------- |
+| **API 响应**                | 后端返回的 JSON            | 后端字段变了，前端 TS 类型还是旧的 |
+| **用户输入**                | 表单 / URL 参数 / 文件上传 | 用户故意发恶意数据                 |
+| **`JSON.parse(input)`**     | 字符串解析                 | 解析后是 `any`，类型完全消失       |
+| **`localStorage` 读取**     | 字符串                     | 类型不一定符合期望                 |
+| **第三方库回调**            | 库的回调参数               | 类型注解可能不准                   |
+| **环境变量**                | `process.env`              | 类型默认是 `string \| undefined`   |
+| **WebSocket / postMessage** | 异步消息                   | 完全无类型                         |
+
+**核心规则**：**运行时边界进来的数据必须验证才能信任**——TypeScript 帮不上忙。
+
+### 4.2 反例：用 `as` 强行断言
+
+```ts
+// ❌ 反例：假装它就是 User
+async function fetchUser(id: string): Promise<User> {
+  const res = await fetch(`/api/users/${id}`);
+  const data = await res.json(); // any
+  return data as User; // ❌ 谎报类型
+}
+
+// 使用方
+const user = await fetchUser("123");
+user.name.toUpperCase(); // 编译过——但如果后端返回的 name 是 null，运行时崩溃
+```
+
+**问题**：`as` 是"我比 TS 更懂这个类型"——但你**没真的验证**，只是嘴上说。
+
+### 4.3 正例：用 Zod 等运行时验证库
+
+[Zod](https://zod.dev/) 是 2024 年 TypeScript 生态的**事实标准**——schema 验证 + 类型推导一体化。
+
+```ts
+import { z } from "zod";
+
+// 1. 定义 schema
+const UserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  age: z.number().min(0).max(150),
+  email: z.string().email().optional(),
+});
+
+// 2. 自动推导出 TS 类型
+type User = z.infer<typeof UserSchema>;
+// { id: string; name: string; age: number; email?: string }
+
+// 3. 运行时验证
+async function fetchUser(id: string): Promise<User> {
+  const res = await fetch(`/api/users/${id}`);
+  const data = await res.json();
+
+  // parse 失败时抛错，成功时返回类型确定的对象
+  return UserSchema.parse(data);
+}
+
+// 使用方
+const user = await fetchUser("123");
+user.name.toUpperCase(); // ✅ 真正安全——schema 已经验证过
+```
+
+**好处**：
+
+- **schema 是单一来源**——定义一次，编译期类型 + 运行时验证都从它来
+- **错误消息友好**——告诉你"哪个字段类型不对"，而不是模糊的运行时崩溃
+- **可组合**——`UserSchema.partial()` / `.pick()` / `.omit()` 等
+
+### 4.4 实战：表单验证
+
+```ts
+const SignupSchema = z.object({
+  email: z.string().email("请输入有效邮箱"),
+  password: z.string().min(8, "密码至少 8 位"),
+  age: z.number().min(13, "需要 13 岁以上").max(150),
+  agree: z.literal(true, { errorMap: () => ({ message: "必须同意条款" }) }),
+});
+
+type SignupForm = z.infer<typeof SignupSchema>;
+
+function handleSubmit(formData: unknown) {
+  const result = SignupSchema.safeParse(formData);
+
+  if (!result.success) {
+    // result.error.issues 包含每个字段的错误
+    return showErrors(result.error.issues);
+  }
+
+  // result.data 是类型安全的 SignupForm
+  return submitToServer(result.data);
+}
+```
+
+> 第 5 章 React 表单会展开 Zod + React Hook Form 的完整集成方案。
+
+### 4.5 处理 `JSON.parse`
+
+```ts
+// ❌ 反例
+const config = JSON.parse(localStorage.getItem("config") || "{}") as AppConfig;
+// any → as → 假类型
+
+// ✅ 正例
+const ConfigSchema = z.object({
+  theme: z.enum(["light", "dark"]),
+  fontSize: z.number().min(10).max(30),
+});
+
+const raw = localStorage.getItem("config");
+const config = raw ? ConfigSchema.parse(JSON.parse(raw)) : defaultConfig;
+```
+
+### 4.6 环境变量验证
+
+```ts
+// ❌ 反例
+const port = parseInt(process.env.PORT!); // 漏配置时 NaN
+const apiKey = process.env.API_KEY!; // 漏配置时 undefined → 'undefined'
+
+// ✅ 正例
+const EnvSchema = z.object({
+  PORT: z.coerce.number().min(1).max(65535),
+  API_KEY: z.string().min(1),
+  NODE_ENV: z.enum(["development", "production", "test"]),
+});
+
+export const env = EnvSchema.parse(process.env);
+// 启动时如果环境变量缺失或类型错——立即抛错
+// 之后访问 env.PORT / env.API_KEY 都是类型安全的
+```
+
+### 4.7 Zod 替代品：Valibot（轻量替代）
+
+[Valibot](https://valibot.dev/) 是 2024 年新兴的轻量替代——bundle 比 Zod 小 90%（可 tree-shake）。
+
+```ts
+import * as v from "valibot";
+
+const UserSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+});
+
+type User = v.InferOutput<typeof UserSchema>;
+const user = v.parse(UserSchema, data);
+```
+
+**何时选 Valibot**：bundle 大小敏感（如内嵌 Web 组件）。
+
+**何时选 Zod**：生态集成最广（tRPC / React Hook Form / Next.js Server Actions 都默认 Zod）。
+
+> **本手册推荐 Zod**——除非有明确的 bundle 优化需求。
+
+> 一手：[Zod 官方](https://zod.dev/)；[Valibot 官方](https://valibot.dev/)。
+
+### 4.8 一条原则
+
+**TypeScript 类型在运行时不存在**——它只在编译期帮你检查代码。运行时数据必须靠**显式验证**才能信任。
+
+**判断**：数据来自哪里？
+
+- **代码内部产生** → 用 TS 类型即可
+- **跨过任何"边界"（API / 用户 / 存储 / 环境）** → 必须验证
+
+**经验**：每个项目应该有**一个 schema 层**（如 `src/schemas/`）——所有运行时验证集中在这里，与 API 文档 / 数据库 schema 对应。
+
+---
+
+## 5. 标称类型（branded types）
+
+TypeScript 是**结构化类型**——长得像就匹配（详见 §4.5 §2）。这带来灵活性，但也带来**误兼容**风险。
+
+### 5.1 结构化类型的"误兼容"问题
+
+```ts
+type UserId = string;
+type ProductId = string;
+
+function getUser(id: UserId) {
+  /* ... */
+}
+function getProduct(id: ProductId) {
+  /* ... */
+}
+
+const userId: UserId = "u_123";
+const productId: ProductId = "p_456";
+
+getUser(productId); // ❌ 应该报错，但 TS 不报——都是 string
+getProduct(userId); // ❌ 同样不报
+```
+
+**问题**：`UserId` 和 `ProductId` 在结构上都是 `string`——TS 视为同一类型。**串用 ID 是常见 bug**——而且很难 debug，因为不会立即崩，只在某个隐藏路径上出错。
+
+### 5.2 Brand pattern 模拟标称化
+
+**Brand pattern**：用一个"假属性"区分类型——TS 编译期知道它们不同，但运行时它们就是 string。
+
+```ts
+type Brand<T, B> = T & { readonly __brand: B };
+
+type UserId = Brand<string, "UserId">;
+type ProductId = Brand<string, "ProductId">;
+
+// 工厂函数：把普通 string 提升为带 brand 的类型
+function asUserId(id: string): UserId {
+  return id as UserId;
+}
+
+function asProductId(id: string): ProductId {
+  return id as ProductId;
+}
+
+const userId = asUserId("u_123");
+const productId = asProductId("p_456");
+
+function getUser(id: UserId) {
+  /* ... */
+}
+function getProduct(id: ProductId) {
+  /* ... */
+}
+
+getUser(userId); // ✅
+getUser(productId); // ❌ Argument of type 'ProductId' is not assignable to parameter of type 'UserId'
+getUser("u_123"); // ❌ 普通字符串也不行——必须经过 asUserId
+```
+
+**关键**：
+
+- `__brand` 字段**只在类型层面存在**——运行时 `userId` 仍然是普通字符串
+- TypeScript 检查时把它们当作不同类型——**编译期捕捉串用错误**
+- 零运行时开销（仍是 string）
+
+### 5.3 Zod 自带 brand 支持
+
+```ts
+import { z } from "zod";
+
+const UserIdSchema = z.string().brand<"UserId">();
+const ProductIdSchema = z.string().brand<"ProductId">();
+
+type UserId = z.infer<typeof UserIdSchema>;
+type ProductId = z.infer<typeof ProductIdSchema>;
+
+const userId = UserIdSchema.parse("u_123"); // 同时验证 + 加 brand
+const productId = ProductIdSchema.parse("p_456");
+```
+
+**好处**：在**运行时验证**的同时**编译期防串用**——一举两得。
+
+### 5.4 实战：用 brand 表达"已验证的状态"
+
+```ts
+type SafeHtml = Brand<string, "SafeHtml">;
+type RawHtml = string;
+
+// 净化函数把 raw 提升为 safe
+function sanitize(raw: RawHtml): SafeHtml {
+  // 用 DOMPurify 等净化
+  const clean = DOMPurify.sanitize(raw);
+  return clean as SafeHtml;
+}
+
+// 渲染函数只接受已净化的
+function renderHtml(html: SafeHtml) {
+  document.body.innerHTML = html; // 安全
+}
+
+renderHtml(sanitize(userInput)); // ✅
+renderHtml(userInput); // ❌ 类型错，强制走 sanitize
+```
+
+**关键设计**：把"已验证 / 已净化"提升到**类型层面**——使用方不可能"忘了净化就直接用"。
+
+### 5.5 何时用标称类型
+
+**该用**：
+
+- ID 容易串用的领域（`UserId` / `ProductId` / `OrderId` / `OrgId` 等）
+- 表达"已验证的状态"（`SafeHtml` / `ValidatedEmail`）
+- 单位区分（`USD` / `EUR` / `Cents` / `Dollars`）
+
+**不该用**：
+
+- 业务模型简单、ID 不容易混淆
+- 学习成本 > 收益的小项目
+
+**经验**：先看你的项目有多少"ID 串用"或"未验证数据被当已验证用"的 bug——如果常见，用 brand 收益大；如果罕见，可以不用。
+
+---
+
+## 6. 类型组织与导出
+
+### 6.1 类型放哪里：colocate vs 集中
+
+两种主流模式，各有适用场景：
+
+#### 模式 A：colocate（与代码并列）
+
+```text
+src/
+├─ users/
+│  ├─ User.tsx
+│  ├─ User.types.ts      ← 与组件同目录
+│  ├─ useUserData.ts
+│  └─ ...
+├─ products/
+│  └─ ...
+```
+
+**何时用**：
+
+- 类型只在一个模块用
+- 组件 + 类型一起改
+
+#### 模式 B：集中（`src/types/`）
+
+```text
+src/
+├─ types/
+│  ├─ user.ts
+│  ├─ product.ts
+│  └─ index.ts           ← 桶文件
+├─ users/
+└─ products/
+```
+
+**何时用**：
+
+- 类型跨多个模块共享
+- 与后端 schema / OpenAPI 对应
+
+#### 实战推荐
+
+**混用**：
+
+- **跨模块的领域类型**（`User` / `Order` / `Product`）→ `src/types/` 集中
+- **组件内部状态类型**（`ButtonState` / `FormPhase`）→ colocate 与组件
+- **Zod schemas** → `src/schemas/` 集中（与运行时验证逻辑）
+
+### 6.2 `import type` 与 verbatim module syntax
+
+#### 为什么要 `import type`
+
+```ts
+// ❌ 普通 import
+import { User } from "./types";
+function fn(u: User) {
+  /* ... */
+}
+
+// 编译后 import 仍在 bundle 里——但实际只用作类型，浪费 bundle
+```
+
+```ts
+// ✅ import type
+import type { User } from "./types";
+function fn(u: User) {
+  /* ... */
+}
+
+// 编译时被擦除——零运行时开销
+```
+
+**经验**：**只用作类型时永远写 `import type`**。
+
+#### TS 5.0+ 的混合语法
+
+```ts
+// 一行同时导入类型和值
+import { type User, fetchUser } from "./users";
+```
+
+**作用**：`type` 关键字告诉 TS "User 只是类型，编译时擦除"。
+
+#### `verbatimModuleSyntax: true` 配置
+
+TS 5.0+ 推荐开启 [`verbatimModuleSyntax`](https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax)——**强制你写 `import type`** 否则报错。
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "verbatimModuleSyntax": true
+  }
+}
+```
+
+**好处**：
+
+- 防止漏写 `type` 关键字
+- bundle 输出更可预测
+- 替代旧的 `isolatedModules` 限制
+
+> 一手：[TypeScript: verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax)（英文）。
+
+### 6.3 类型导出原则
+
+```ts
+// types/user.ts
+
+// ✅ 导出类型
+export type User = {
+  id: string;
+  name: string;
+};
+
+// ✅ 导出 schema（既是值也是类型）
+import { z } from 'zod';
+export const UserSchema = z.object({ ... });
+export type User = z.infer<typeof UserSchema>;
+
+// ❌ 不要导出"内部辅助类型"
+type _Internal = { ... }; // 私有，不导出
+```
+
+**经验**：
+
+- **公共类型导出**（如领域模型）
+- **内部辅助类型不导出**（用 `_` 前缀或不导出）
+- **schema + 类型一起导出**（让使用方可以选择类型或运行时验证）
+
+---
+
+## 7. 三档归位
+
+| 知识点                                        | 归位         | 理由                                |
+| --------------------------------------------- | ------------ | ----------------------------------- |
+| `type` vs `interface` 选型判断                | **必学**     | 项目级风格统一                      |
+| 默认用 `type`（路线 A）                       | **必学**     | 2024 后社区主流                     |
+| `interface` 的声明合并                        | **仍需理解** | 扩展全局类型时必备                  |
+| 字面量联合 + `as const` 替代 enum             | **必学**     | 现代 TS 标配                        |
+| enum 的运行时开销                             | **必学**     | 老代码 review 重点                  |
+| 让非法状态无法表示（discriminated union）     | **必学**     | 类型设计的最高原则                  |
+| API 响应 / 表单 / UI 状态的可辨识联合写法     | **必学**     | 业务代码最常用模式                  |
+| 运行时边界识别（API / 用户输入 / JSON.parse） | **必学**     | 安全 review 必备                    |
+| Zod schema 验证                               | **必学**     | 2024 TS 生态事实标准                |
+| `z.infer<typeof Schema>` 类型推导             | **必学**     | schema-first 设计                   |
+| `import type` 与 `verbatimModuleSyntax`       | **必学**     | TS 5.0+ 标配                        |
+| 标称类型（branded types）基础                 | **仍需理解** | 大型项目高价值；小项目可不用        |
+| Zod `.brand()` API                            | **仍需理解** | 与 brand pattern 整合               |
+| Valibot（Zod 轻量替代）                       | **仍需理解** | bundle 敏感时考虑                   |
+| 类型组织（colocate vs 集中）                  | **仍需理解** | 项目结构判断                        |
+| `as const`                                    | **必学**     | 字面量类型推断核心                  |
+| `satisfies` 操作符                            | **必学**     | TS 4.9+ 标配（详见 §4.5）           |
+| 类型层面的"私有"标记（`_` 前缀 / 不导出）     | **仍需理解** | API 设计时用                        |
+| `enum`                                        | **可委托**   | 老项目维护时知道；不写新的          |
+| `namespace`                                   | **不学**     | ES Module 替代了它                  |
+| 类型层面的"私有"语义（无运行时含义）          | **仅了解**   | 避免误解 TS 的 private 在运行时无效 |
+
+---
+
+## 8. AI 时代写类型设计的最小集
+
+### AI 写类型设计时最容易错的三件事
+
+#### 1. 用宽类型（满天飞的可空字段）
+
+```ts
+// ❌ AI 生成
+type State = {
+  loading: boolean;
+  error: string | null;
+  data: User | null;
+};
+
+// ✅ 你应改为可辨识联合
+type State =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "success"; data: User };
+```
+
+**review 时检查**：是不是"什么字段都可空"？是 → 重新设计为可辨识联合。
+
+#### 2. 跨过运行时边界没验证
+
+```ts
+// ❌ AI 生成
+async function fetchUser(): Promise<User> {
+  const res = await fetch("/api/user");
+  return res.json(); // any → 假装是 User
+}
+
+// ✅ 你应改为
+async function fetchUser(): Promise<User> {
+  const res = await fetch("/api/user");
+  return UserSchema.parse(await res.json());
+}
+```
+
+**review 时检查**：所有 `fetch().json()` / `JSON.parse()` / 用户输入是不是都做了 schema 验证？
+
+#### 3. 用 enum 而不是字面量联合
+
+```ts
+// ❌ AI 训练数据里很多老代码用 enum
+enum Status {
+  Pending,
+  Active,
+}
+
+// ✅ 你应改为
+type Status = "pending" | "active";
+// 或
+const Status = { Pending: "pending", Active: "active" } as const;
+```
+
+### 你必须把握的 review 要点
+
+**类型设计**：
+
+- 业务约束是否被类型表达（"非法状态无法表示"原则）
+- 可辨识联合的 status 字段是否清晰
+- 工具类型用对（`Partial` / `Omit` 等）
+
+**运行时边界**：
+
+- API 响应是否有 schema 验证
+- 用户输入是否有 schema 验证
+- 环境变量是否启动时验证
+
+**写法选择**：
+
+- `type` vs `interface` 是否符合项目风格
+- 是否还在写 `enum`
+- `import type` 是否正确使用
+
+---
+
+## 9. 翻车库
+
+### 9.1 用 `any` 绕过类型错（应该用 unknown + 验证）
+
+**症状**：编译过但运行时崩溃，调试时发现某处变量是 `any`。
+
+**原因**：用 `any` "假装类型对了"——绕过了 TS 检查。
+
+**修复**：用 `unknown` + 类型守卫 / Zod 验证：
+
+```ts
+// ❌ 反例
+const data: any = JSON.parse(input);
+data.foo.bar; // 编译过但可能崩
+
+// ✅ 正例
+const data: unknown = JSON.parse(input);
+const validated = MySchema.parse(data); // 真正验证
+```
+
+### 9.2 类型注解 vs satisfies 选错
+
+**症状**：const 对象的精确字面量类型丢失（变成 `string` 而非 `'red'`）。
+
+**原因**：用类型注解（`:`）会让类型变窄到注解。
+
+**修复**：用 `satisfies`：
+
+```ts
+// ❌ 反例
+const config: { theme: string } = { theme: "dark" };
+config.theme; // string，不是 'dark'
+
+// ✅ 正例
+const config = { theme: "dark" } satisfies { theme: string };
+config.theme; // 'dark'
+```
+
+### 9.3 运行时数据没验证就当 TS 类型用
+
+**症状**：开发环境正常，生产环境某些用户报错"x is not a function"。
+
+**原因**：后端字段变了（如 `users` 变成 `userList`），TS 类型还是旧的——运行时 `data.users.map` 是 `undefined.map` → 崩。
+
+**修复**：所有 API 响应走 Zod 验证：
+
+```ts
+const ResponseSchema = z.object({
+  users: z.array(UserSchema),
+});
+
+const res = ResponseSchema.parse(await response.json());
+// 后端字段变了 → parse 时立即报错（带详细信息）
+// 而不是某个用户访问时神秘崩
+```
+
+### 9.4 标称类型未用导致 ID 串用
+
+**症状**：`getUser(productId)` 编译过——但其实是错的。
+
+**原因**：UserId / ProductId 都是 `string`，结构上兼容。
+
+**修复**：用 brand pattern 或 Zod brand：
+
+```ts
+type UserId = Brand<string, "UserId">;
+type ProductId = Brand<string, "ProductId">;
+
+getUser(productId); // ❌ 现在编译错
+```
+
+### 9.5 enum 在 bundle 里产生运行时代码
+
+**症状**：bundle 比预期大，尤其在多 enum 项目里。
+
+**原因**：每个 enum 编译为运行时对象。
+
+**修复**：换成字面量联合 / `as const`：
+
+```ts
+// ❌ 反例
+enum Direction {
+  Left,
+  Right,
+}
+
+// ✅ 正例
+type Direction = "left" | "right";
+```
+
+### 9.6 类型导出忘加 `type` 关键字
+
+**症状**：bundle 包含只用作类型的 import 路径——可能引入循环依赖或多余依赖。
+
+**原因**：TS 默认把 import 当成运行时依赖。
+
+**修复**：开 `verbatimModuleSyntax: true`，让 TS 强制你写 `import type`。
+
+```ts
+// ❌ 反例
+import { User } from "./types";
+
+// ✅ 正例
+import type { User } from "./types";
+```
+
+### 9.7 Discriminated union 的 status 字段拼错
+
+**症状**：switch 里的 case 永远进不去。
+
+**原因**：拼错 status 字符串（如 `'sucess'` vs `'success'`）——TS 不会报错（仍然合法的字面量）。
+
+**修复**：用穷尽性检查（`never`）：
+
+```ts
+function handle(state: State) {
+  switch (state.status) {
+    case 'loading': return ...;
+    case 'success': return ...;
+    case 'error': return ...;
+    default:
+      const _exhaustive: never = state;
+      return _exhaustive;
+  }
+}
+```
+
+加新 status 但 switch 没处理 → `_exhaustive` 报类型错——强制你处理所有情况。
+
+---
+
+## 10. 设计判断暗线：让非法状态无法表示
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破第 4 章的最高设计原则。
+
+### 类型即文档，类型即测试
+
+好的类型设计**让代码本身成为最准确的文档**——不需要注释告诉读者"loading 状态没有 data"，类型本身就这么定义了。
+
+| 维度         | 类型作为文档             | 类型作为测试         |
+| ------------ | ------------------------ | -------------------- |
+| **谁读它**   | 人 + AI                  | 编译器               |
+| **过时风险** | 几乎为零（编译期校验）   | 同步更新（编译失败） |
+| **覆盖度**   | 100%（每行代码都有类型） | 比单测覆盖更广       |
+
+### 类型驱动设计（type-driven design）
+
+**核心思路**：从 schema / 类型开始设计 → 推导出实现。
+
+```ts
+// 1. 先想清楚业务约束 → 写成类型
+type CheckoutState =
+  | { phase: "cart"; items: CartItem[] }
+  | { phase: "shipping"; items: CartItem[]; address: Address }
+  | { phase: "payment"; items: CartItem[]; address: Address; method: PaymentMethod }
+  | { phase: "success"; orderId: OrderId };
+
+// 2. 实现自然约束在类型里——payment 阶段必有 address，cart 阶段必无 orderId
+function transition(state: CheckoutState, event: Event): CheckoutState {
+  // ...
+}
+```
+
+**好处**：
+
+- 业务约束直接体现在类型里
+- AI 看类型就能写正确的代码
+- 重构时编译器告诉你哪里漏了
+
+### 三个原则的总结
+
+第 4 章贯穿始终的设计判断：
+
+1. **§4.1 信息隐藏**：闭包 / `#field` 让"不该被外部知道的"留在内部
+2. **§4.5 鸭子类型**：结构化类型让"形状契约"取代"名字契约"
+3. **§4.6 让非法状态无法表示**：用类型表达业务约束，让编译器帮你抓 bug
+
+**贯穿这三条的"元原则"**：**让信息在尽可能早的阶段被确定 / 验证 / 隐藏**——编译期 > 启动期 > 运行时。
+
+这与 §4.3 模块系统的"静态可分析性"是同一个心智——TypeScript 把这个原则推进到了**业务约束层面**。
+
+---
+
+## 11. 读完本节你应该能
+
+### 选型与写法
+
+- [ ] 给一个团队风格场景，能选 `type` 还是 `interface`，理由不止"我习惯"
+- [ ] 解释为什么现代 TS 项目几乎不用 `enum`
+- [ ] 用字面量联合 / `as const` 替代 `enum`
+
+### 类型设计
+
+- [ ] 识别"满天飞可空字段"的反例
+- [ ] 改写成可辨识联合，让非法状态无法表示
+- [ ] 给 API 响应 / 表单状态 / UI 状态写出可辨识联合
+- [ ] 用 `never` 做穷尽性检查
+
+### 运行时边界
+
+- [ ] 列出至少 5 个运行时边界（API / 用户输入 / JSON.parse / localStorage / 环境变量）
+- [ ] 写 Zod schema + 用 `z.infer` 推导类型
+- [ ] 区分编译期类型 vs 运行时验证
+
+### 标称类型
+
+- [ ] 写出 brand pattern 实现
+- [ ] 解释何时该用 brand（ID 串用 / 已验证状态）
+- [ ] 用 Zod `.brand()` 同时做验证 + brand
+
+### 类型组织
+
+- [ ] 区分 colocate 与集中两种类型组织模式
+- [ ] 解释为什么写 `import type` 比 `import` 更优
+- [ ] 配置 `verbatimModuleSyntax`
+
+### 设计判断
+
+- [ ] 用"类型即文档，类型即测试"心智解释类型驱动设计
+- [ ] 解释为什么"让非法状态无法表示"是最高原则
+- [ ] 区分类型作为"通过编译"的工具 vs 作为"防 bug"的工具
+
+---
+
+## 12. 延伸阅读
+
+- [TypeScript Handbook: Type vs Interface](https://www.typescriptlang.org/docs/handbook/2/objects.html#interfaces-vs-intersections) **（英文）** — 官方对比文档
+- [TypeScript Handbook: Declaration Merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html) **（英文）** — interface 声明合并详解
+- [TypeScript Handbook: Enums](https://www.typescriptlang.org/docs/handbook/enums.html) **（英文）** — 含官方对 enum 的"建议"
+- [Zod 官方](https://zod.dev/) **（英文）** — 类型系统 + 运行时验证一体化
+- [Valibot 官方](https://valibot.dev/) **（英文）** — Zod 轻量替代
+- [Total TypeScript](https://www.totaltypescript.com/) **（英文）** — Matt Pocock 的 TS 进阶教程（部分免费）
+- [TypeScript: verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax) **（英文）** — TS 5.0+ 模块语法配置
+
+> 访问性说明：所有链接英文为主，但访问稳定。Total TypeScript 部分付费，但有大量免费博客和速查表。
+
+---
+
+第 4 章完！前 6 节合起来覆盖：JS 语言核心 / 异步模型 / 模块系统 / 现代特性 / TS 类型系统 / TS 实战与设计——构成 AI 时代写 JS / TS 的完整判断地图。
+
+下一章：[第 5 章 React 与 Next.js](/chapter-05) _（待写）_——组件、状态、副作用、服务端组件。
