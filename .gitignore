@@ -58,3 +58,6 @@ lychee-report.md
 
 # Claude Code local settings (per-developer state)
 .claude/settings.local.json
+
+# MCP browser debug output
+.playwright-mcp/
