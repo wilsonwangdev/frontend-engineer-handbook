@@ -49,6 +49,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      url: `${SITE_URL}/resources`,
+      lastModified: today,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    },
+    {
       url: `${SITE_URL}/playground/animations`,
       lastModified: today,
       changeFrequency: "monthly" as const,
