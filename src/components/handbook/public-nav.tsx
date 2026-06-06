@@ -12,7 +12,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: "术语", href: "/glossary" },
-  { label: "演练场", href: "/playground" },
+  { label: "示例", href: "/playground" },
   { label: "资源", href: "/resources" },
 ];
 

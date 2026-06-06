@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const topicMeta = topics.find((item) => item.id === topic);
   if (!topicMeta) return {};
   return {
-    title: `Playground · ${topicMeta.title}`,
+    title: `示例 · ${topicMeta.title}`,
     description: topicMeta.description,
   };
 }
@@ -33,7 +33,7 @@ export default async function TopicPage({ params }: Props) {
       <header className="not-prose mb-8 border-b border-[var(--color-border)] pb-6 sm:mb-10">
         <p className="font-mono text-xs tabular-nums text-fg-muted uppercase tracking-widest">
           <Link href="/playground" className="hover:text-[var(--color-accent)] transition-colors">
-            Playground
+            示例
           </Link>{" "}
           / {topicMeta.title}
         </p>
