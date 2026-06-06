@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
+import { NAV_ITEMS } from "./public-nav";
 import type { ChapterMeta } from "@/lib/content";
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -91,11 +93,59 @@ export function MobileNav({ tree }: { tree: ChapterMeta[] }) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
+              <MobilePublicNav />
+              <hr className="my-3 border-[var(--color-border)]" />
               <Sidebar tree={tree} />
             </div>
           </aside>
         </>
       )}
+    </div>
+  );
+}
+
+function MobilePublicNav() {
+  const pathname = usePathname();
+
+  return (
+    <div>
+      <p className="px-1 pb-1.5 text-[11px] font-medium tracking-widest text-fg-muted/60 uppercase">
+        公共页面
+      </p>
+      <nav aria-label="公共页面">
+        <ol className="space-y-0.5">
+          {NAV_ITEMS.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+
+            if (item.disabled) {
+              return (
+                <li key={item.href}>
+                  <span className="block rounded px-2 py-1.5 text-sm text-fg-muted/50 cursor-not-allowed select-none">
+                    {item.label}
+                  </span>
+                </li>
+              );
+            }
+
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    "block rounded px-2 py-1.5 text-sm transition-colors " +
+                    (active
+                      ? "bg-[var(--color-bg-elevated)] font-medium text-[var(--color-accent)]"
+                      : "text-fg-muted hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]")
+                  }
+                >
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
     </div>
   );
 }

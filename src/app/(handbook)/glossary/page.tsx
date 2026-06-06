@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { loadGlossary } from "@/lib/glossary";
 import { mdxComponents } from "@/components/mdx/components";
 
@@ -140,7 +141,15 @@ export default async function GlossaryPage() {
         ))}
       </div>
 
-      <footer className="not-prose mt-12 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4 text-sm text-fg-muted sm:p-6">
+      <footer className="not-prose mt-12 space-y-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4 text-sm text-fg-muted sm:p-6">
+        <p>
+          🏗️{" "}
+          <Link href="/playground" className="text-[var(--color-accent)] hover:underline">
+            动手试试 → Playground
+          </Link>{" "}
+          —— 动画、布局等可调试 demo 集中页
+        </p>
+        <hr className="border-[var(--color-border)]" />
         <p>
           术语表是站内统一术语来源——内容里出现的{" "}
           <code className="font-mono text-xs">&lt;Term k=&quot;...&quot;&gt;</code>{" "}
