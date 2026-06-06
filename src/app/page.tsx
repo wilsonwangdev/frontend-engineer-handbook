@@ -87,9 +87,9 @@ function PathCard({
   note?: string;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]">
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--color-border)] p-5 text-center transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)]">
       <div
-        className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold"
         style={{
           background: `var(--color-tier-${tone}-bg)`,
           color: `var(--color-tier-${tone})`,
@@ -97,9 +97,11 @@ function PathCard({
       >
         {tag}
       </div>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-fg-muted">{desc}</p>
-      {note && <p className="mt-2 text-xs text-fg-muted/70">⏳ {note}</p>}
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="mt-1 text-xs text-fg-muted">{desc}</p>
+        {note && <p className="mt-2 text-[11px] text-fg-muted/50">{note}</p>}
+      </div>
     </div>
   );
 }
