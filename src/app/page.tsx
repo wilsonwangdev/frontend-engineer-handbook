@@ -87,7 +87,7 @@ function PathCard({
   note?: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--color-border)] p-5 text-center transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)]">
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--color-border)] p-5 text-center">
       <div
         className="inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold"
         style={{
@@ -116,7 +116,7 @@ function FeatureCard({
   desc: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-[var(--color-border)] p-5 text-center transition-colors hover:bg-[var(--color-bg-elevated)]">
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-[var(--color-border)] p-5 text-center">
       <Icon size={24} strokeWidth={1.5} className="text-[var(--color-accent)]" />
       <h3 className="text-sm font-semibold">{title}</h3>
       <p className="text-xs text-fg-muted">{desc}</p>
