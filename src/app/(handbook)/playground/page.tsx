@@ -27,7 +27,7 @@ export default function PlaygroundPage() {
             <Link
               key={topic.id}
               href={`/playground/${topic.id}`}
-              className="group rounded-lg border border-[var(--color-border)] p-5 transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)]"
+              className="group rounded-lg border border-[var(--color-border)] p-5 no-underline transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)]"
             >
               <h2 className="text-lg font-semibold text-[var(--color-fg)] group-hover:text-[var(--color-accent)]">
                 {topic.title}
