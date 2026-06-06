@@ -118,7 +118,7 @@ function FeatureCard({
       <Icon size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="mt-0.5 text-xs text-fg-muted">{desc}</p>
+        <p className="mt-0.5 min-h-8 text-xs text-fg-muted">{desc}</p>
       </div>
     </div>
   );
