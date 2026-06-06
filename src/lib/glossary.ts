@@ -30,7 +30,7 @@ const termSchema = z.object({
   /** 关联术语 key（数组） */
   "see-also": z.array(z.string()).optional(),
   /** 一手参考链接（可选） */
-  ref: z.string().url().optional(),
+  ref: z.url().optional(),
 });
 
 export type Term = z.infer<typeof termSchema> & { key: string };
@@ -40,17 +40,45 @@ const glossarySchema = z.record(z.string(), termSchema);
 /**
  * 加载并校验整个术语表。
  * 返回按 key 字典序排序的 Term 数组——/glossary 索引页直接用。
+ *
+ * 完整性校验：see-also 引用的 key 必须存在于 terms 集合里——
+ * 不存在的引用会被**静默过滤**，避免渲染出无效的死锚点链接
+ * （之前的 bug：see-also: [xss, dompurify] 但这两个 key 没登记，
+ * 渲染成 <a href="#xss"> 点击没反应）。
+ * dev 环境会 console.warn 提示哪些引用被过滤掉了，方便补登记。
  */
 export async function loadGlossary(): Promise<Term[]> {
   "use cache";
   const raw = await readFile(TERMS_PATH, "utf-8");
   const parsed = parseYaml(raw);
   const validated = glossarySchema.parse(parsed);
+  const allKeys = new Set(Object.keys(validated));
 
   return Object.entries(validated)
     .map(([key, value]): Term => {
       const term = value as Term;
       term.key = key;
+
+      // 过滤 see-also 里的无效引用（指向未登记的 key）
+      if (term["see-also"]) {
+        const valid: string[] = [];
+        const invalid: string[] = [];
+        for (const ref of term["see-also"]) {
+          if (allKeys.has(ref)) {
+            valid.push(ref);
+          } else {
+            invalid.push(ref);
+          }
+        }
+        if (invalid.length > 0 && process.env.NODE_ENV === "development") {
+          console.warn(
+            `[glossary] term "${key}" 引用了未登记的 key: ${invalid.join(", ")}`,
+            "—— 这些引用已从渲染中过滤；如需保留请在 terms.yaml 补登记",
+          );
+        }
+        term["see-also"] = valid;
+      }
+
       return term;
     })
     .toSorted((a, b) => a.key.localeCompare(b.key));

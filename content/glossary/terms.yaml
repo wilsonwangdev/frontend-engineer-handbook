@@ -16,6 +16,9 @@
 #   2. brief 必须能让读者"读到这一句就够"
 #   3. long 写完整背景；可放代码示例 / 多段
 #   4. see-also 双向维护——加 A→B 时也加 B→A
+#   5. see-also 引用的 key 必须在本文件里登记——否则 loadGlossary
+#      会在 dev 环境 console.warn 并把无效引用从渲染中过滤掉
+#      （避免渲染出点击没反应的死锚点链接）
 
 sanitizer:
   zh: 净化器
@@ -39,7 +42,6 @@ sanitizer:
     **何时需要**：任何把字符串当 HTML 渲染的场景（`innerHTML` /
     `dangerouslySetInnerHTML` / 富文本编辑器输出展示）。
     **不要**自己写正则替换 `<script>`——攻击向量极多，正则覆盖不全。
-  see-also: [xss, dompurify]
   ref: https://github.com/cure53/DOMPurify
 
 cjk:
@@ -62,7 +64,6 @@ cjk:
 
     **本手册主要面向简体中文场景**，但许多结论对繁体 / 日文 / 韩文
     同样适用——见 §3.4 §3 CJK Web 排版。
-  see-also: [全角字符, clreq]
   ref: https://w3c.github.io/clreq/
 
 rsc:
@@ -113,7 +114,7 @@ ssr:
 
     **Next.js / Remix / Nuxt** 等框架默认 SSR。RSC 是 SSR 的
     进一步演进——把"不需要交互的组件"完全留在服务端、不发 JS。
-  see-also: [rsc, fouc, hydration]
+  see-also: [rsc, fouc]
 
 fouc:
   zh: 无样式内容闪烁
@@ -174,7 +175,7 @@ cva:
     button({ variant: 'secondary', size: 'lg' });
     // → 'inline-flex ... bg-gray-200 ... h-12 px-6'
     ```
-  see-also: [variant, tailwind, shadcn]
+  see-also: [variant]
   ref: https://cva.style/docs
 
 variant:
@@ -220,7 +221,6 @@ preflight:
     - `postcss-antd-fixes`：构建期补丁
 
     详见 §3.5 §7.3 Tailwind + antd 混用方案。
-  see-also: [tailwind, antd]
   ref: https://tailwindcss.com/docs/preflight
 
 polyfill:
@@ -254,7 +254,6 @@ polyfill:
     **vs transpile**：transpile 是把新语法**编译**成旧语法
     （`const x = 1` → `var x = 1`）；polyfill 是**运行时注入**新 API。
     两者通常一起用。
-  see-also: [transpile, core-js]
   ref: https://github.com/zloirock/core-js
 
 brand-pattern:
@@ -295,4 +294,3 @@ brand-pattern:
     string——零运行时开销。
 
     详见 §4.6 §5 标称类型。
-  see-also: [structural-typing, zod]

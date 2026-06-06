@@ -536,6 +536,20 @@
   animation: term-tooltip-fade 0.12s ease-out;
 }
 
+/* 透明桥：填满 trigger 和 tooltip 之间的 0.5rem 间隙，
+   让鼠标"过桥"时仍处于 hover 范围内——配合 JS 的延迟关闭双重保险。
+   桥宽稍大于 tooltip 主体（150% 宽 / 100% 偏移），覆盖斜向鼠标轨迹。 */
+.term-tooltip::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 0.5rem;
+  /* 透明但仍能接收鼠标事件 */
+  background: transparent;
+}
+
 @keyframes term-tooltip-fade {
   from {
     opacity: 0;
