@@ -112,8 +112,8 @@ localStorage.clear();
 
 > **设计判断（内聚边界）**：选存储不是按"哪个 API 顺手"，是按"数据的
 > 生命周期 + 访问模式"。会话级 → sessionStorage；跨会话偏好 → localStorage；
-> 大量结构化 → IndexedDB；要随请求发 → Cookie。这就是 SPEC-0013 §1
-> 模块化里的"内聚（cohesion）"——按职责切，不按熟悉度切。
+> 大量结构化 → IndexedDB；要随请求发 → Cookie。这就是**内聚（cohesion）**
+> 的核心心智——按职责切，不按熟悉度切。
 
 ---
 

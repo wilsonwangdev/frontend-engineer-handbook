@@ -323,7 +323,7 @@ const button = cva(
 
 事实：**Tailwind 不擅长动态计算样式**——如果你写的是图表 / 编辑器 / 高度运行时计算的组件（比如 `transform: translate(${x}px, ${y}px)`），Tailwind 帮不上忙，回到 CSS Modules + style 属性更好。
 
-### 3.5 我的推荐立场
+### 3.5 选型推荐立场
 
 **新项目无特殊原因选 Tailwind + shadcn + Radix**——这是 2024-2026 年生态默认组合。"特殊原因"包括：
 
@@ -1274,7 +1274,7 @@ export default {
 
 ## 10. 设计判断暗线
 
-按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破以下设计判断：
+本节贯穿几条核心设计判断，会在以下位置点破：
 
 ### 信息隐藏（information hiding）：每层抽象都在"藏什么、暴露什么"
 
