@@ -169,6 +169,7 @@
 
   .handbook-container {
     max-width: var(--handbook-container);
+    transition: max-width 0.3s ease;
   }
 
   /* In focus mode, hide the sidebar and let main occupy full width.
