@@ -153,7 +153,7 @@ import "./polyfill.js"; // 只执行，不导入任何值
 - 导入 polyfill / 全局样式 / 初始化代码
 - 不需要导入值，只要执行代码
 
-> 一手：[MDN: JavaScript 模块](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)；[MDN: import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/import)；[MDN: export](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/export)。
+> 权威参考：[MDN: JavaScript 模块](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules)；[MDN: import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/import)；[MDN: export](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/export)。
 
 ---
 
@@ -254,7 +254,7 @@ console.log(count); // 1 —— 实时反映！(导入的是 binding，不是值
 
 **经验**：新项目全 ESM；老项目维护时遇到 CommonJS 不要花精力迁移（除非有强需求），但**不写新的 CommonJS**。
 
-> 一手：[Node.js: ECMAScript 模块](https://nodejs.org/api/esm.html)（英文，Node 官方对 ESM 支持的说明）；[Node.js: package.json](https://nodejs.org/api/packages.html)（package.json `"type"` 字段说明）。
+> 权威参考：[Node.js: ECMAScript 模块](https://nodejs.org/api/esm.html)（英文，Node 官方对 ESM 支持的说明）；[Node.js: package.json](https://nodejs.org/api/packages.html)（package.json `"type"` 字段说明）。
 
 ---
 
@@ -362,7 +362,7 @@ const config = await import("./config.json", { with: { type: "json" } });
 
 > 旧语法 `assert { type: 'json' }` 已被 `with { type: 'json' }` 替代——**用 `with`，不用 `assert`**。
 
-> 一手：[MDN: 动态 import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/import)。
+> 权威参考：[MDN: 动态 import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/import)。
 
 ---
 
@@ -488,7 +488,7 @@ const { sum } = require("./esm-module.mjs"); // ERR_REQUIRE_ESM
 
 > 业务项目通常不需要做"双重导出"——只在写**给别人用的库**时需要。
 
-> 一手：[Node.js: 包入口配置](https://nodejs.org/api/packages.html)。
+> 权威参考：[Node.js: 包入口配置](https://nodejs.org/api/packages.html)。
 
 ---
 
@@ -611,7 +611,7 @@ export * from "./Card";
 - 应用代码：直接 `import { Button } from './components/Button'`
 - 库的对外入口：可以用桶文件（库通常会预编译）
 
-> 一手：[webpack: Tree Shaking](https://webpack.js.org/guides/tree-shaking/)（英文，权威指南）。
+> 权威参考：[webpack: Tree Shaking](https://webpack.js.org/guides/tree-shaking/)（英文，权威指南）。
 
 ---
 
@@ -1034,13 +1034,15 @@ console.log(count); // 1 —— 不是 0，因为 a.js 已经增加过
 - [MDN: JavaScript 模块](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Modules) — 中文权威文档
 - [MDN: import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/import) — import 语法详解
 - [MDN: 动态 import](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/import) — 动态 import 表达式
+- [V8 Blog: JavaScript modules](https://v8.dev/features/modules) **（英文）** — V8 团队对 ES 模块语义、加载、live binding 的权威讲解，理解 ESM 内部行为的最佳起点
+- [Jake Archibald: ES modules: A cartoon deep-dive](https://jakearchibald.com/2017/es-modules-in-browsers/) **（英文）** — Google Chrome 工程师写的 ESM 加载机制详解，含浏览器实现细节
 - [Node.js: ECMAScript 模块](https://nodejs.org/api/esm.html) **（英文）** — Node.js 对 ESM 支持的官方说明
 - [Node.js: 包入口配置](https://nodejs.org/api/packages.html) **（英文）** — `package.json` 的 `"type"` / `"exports"` / `"imports"` 字段详解
 - [webpack: Tree Shaking](https://webpack.js.org/guides/tree-shaking/) **（英文）** — tree-shaking 权威指南
 - [TC39: Import Attributes 提案](https://github.com/tc39/proposal-import-attributes) **（英文）** — 2024 标准化的 import 属性
 - [TC39: JSON Modules 提案](https://github.com/tc39/proposal-json-modules) **（英文）** — JSON 模块导入标准
 
-> 访问性说明：MDN 中文版直接可访问；Node.js / TC39 / webpack 文档是英文但访问稳定。
+> 访问性说明：MDN 中文版直接可访问；Node.js / TC39 / webpack / V8 / 个人博客都是英文但访问稳定。
 
 ---
 

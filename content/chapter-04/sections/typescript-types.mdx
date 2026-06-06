@@ -224,7 +224,7 @@ move("left"); // 直接传字符串
 
 > **何时不用 enum**：§4.6 详解。**简短结论：现代 TS 项目几乎不用 `enum`**——字面量联合 + `as const` 更好。
 
-> 一手：[TypeScript Handbook: Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)（英文）。
+> 权威参考：[TypeScript Handbook: Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)（英文）。
 
 ---
 
@@ -350,7 +350,7 @@ makeQuack(new Person()); // ✅ —— 形状匹配，TS 不在意是不是 Duck
 
 **深层洞察**：结构化类型让**接口 = 形状契约**，而不是"标签"。这与 Go 的 interface 是同一种设计哲学——**信息隐藏的极致：只要看到形状，就知道能做什么**。
 
-> 一手：[TypeScript Handbook: Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)（英文）。
+> 权威参考：[TypeScript Handbook: Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)（英文）。
 
 ---
 
@@ -582,7 +582,7 @@ function fail(): never {
 }
 ```
 
-> 一手：[TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)（英文）。
+> 权威参考：[TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)（英文）。
 
 ---
 
@@ -903,7 +903,7 @@ class User {
 const u = create(User); // u is User
 ```
 
-> 一手：[TypeScript Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)（英文）。
+> 权威参考：[TypeScript Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)（英文）。
 
 ---
 
@@ -1069,7 +1069,7 @@ config.port; // 3000
 - 想验证类型符合 + 保留精确推断 → 用 `satisfies`
 - 想强制类型变窄到注解 → 用 `:` 注解或 `as`
 
-> 一手：[TypeScript 4.9 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html)（英文）。
+> 权威参考：[TypeScript 4.9 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html)（英文）。
 
 ### 6.6 `Partial` 不是深度的——常见陷阱
 
@@ -1093,7 +1093,7 @@ type Result = DeepPartial<User>;
 // { profile?: { name?: string; address?: { city?: string } } }
 ```
 
-> 一手：[TypeScript Handbook: Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html)（英文）。
+> 权威参考：[TypeScript Handbook: Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html)（英文）。
 
 ---
 
@@ -1218,7 +1218,7 @@ type FirstAndLast<T> = T extends [infer F, ...any[], infer L] ? [F, L] : never;
 type Result = FirstAndLast<[1, 2, 3, 4]>; // [1, 4]
 ```
 
-> 一手：[TypeScript Handbook: Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)；[Mapped Types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)；[Template Literal Types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)（英文）。
+> 权威参考：[TypeScript Handbook: Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)；[Mapped Types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)；[Template Literal Types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)（英文）。
 
 ### 7.5 何时该用高级类型
 

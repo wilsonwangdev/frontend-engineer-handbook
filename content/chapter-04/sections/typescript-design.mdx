@@ -236,7 +236,7 @@ type Pair = [string, number];
 
 > **关键**：团队**选一种就贯彻**——混用是最差选择。如果你接手的代码库已经全用 `interface`，沿用即可，**不要去重写**。
 
-> 一手：[TypeScript Handbook: Differences Between Type Aliases and Interfaces](https://www.typescriptlang.org/docs/handbook/2/objects.html#interfaces-vs-intersections)（英文）；[Declaration Merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html)（英文）。
+> 权威参考：[TypeScript Handbook: Differences Between Type Aliases and Interfaces](https://www.typescriptlang.org/docs/handbook/2/objects.html#interfaces-vs-intersections)（英文）；[Declaration Merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html)（英文）。
 
 ---
 
@@ -370,7 +370,7 @@ move(Direction.Left); // 编译为 move('left')
 - **老项目**：维护已有 enum，但新代码用现代方案
 - **库代码**：避免 enum（会污染使用方 bundle）
 
-> 一手：[TypeScript Handbook: Enums](https://www.typescriptlang.org/docs/handbook/enums.html)（英文，含官方对 enum 的"建议"）；[TypeScript issue #202: const enums in isolated modules](https://github.com/microsoft/TypeScript/issues/202)（英文，社区讨论）。
+> 权威参考：[TypeScript Handbook: Enums](https://www.typescriptlang.org/docs/handbook/enums.html)（英文，含官方对 enum 的"建议"）；[TypeScript issue #202: const enums in isolated modules](https://github.com/microsoft/TypeScript/issues/202)（英文，社区讨论）。
 
 ---
 
@@ -698,7 +698,7 @@ const user = v.parse(UserSchema, data);
 
 > **本手册推荐 Zod**——除非有明确的 bundle 优化需求。
 
-> 一手：[Zod 官方](https://zod.dev/)；[Valibot 官方](https://valibot.dev/)。
+> 权威参考：[Zod 官方](https://zod.dev/)；[Valibot 官方](https://valibot.dev/)。
 
 ### 4.8 一条原则
 
@@ -940,7 +940,7 @@ TS 5.0+ 推荐开启 [`verbatimModuleSyntax`](https://www.typescriptlang.org/tsc
 - bundle 输出更可预测
 - 替代旧的 `isolatedModules` 限制
 
-> 一手：[TypeScript: verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax)（英文）。
+> 权威参考：[TypeScript: verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax)（英文）。
 
 ### 6.3 类型导出原则
 

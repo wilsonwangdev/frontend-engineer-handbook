@@ -128,7 +128,7 @@ renderUI(data);
 - **异步不是并行**——JS 仍然是单线程，只是把"等待"的时间让给其他代码
 - **回调 / Promise / async-await 都是同一个机制的不同语法包装**——底层都是"事件循环 + 任务队列"
 
-> 一手：[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)（英文，权威规范）。
+> 权威参考：[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)（英文，权威规范）。
 
 ### 1.2 同步 vs 异步：阻塞与非阻塞
 
@@ -151,7 +151,7 @@ console.log("3");
 - **CPU 密集任务**用同步代码（数学计算 / 数组排序）——用异步包装反而慢
 - **IO 任务**用异步代码（网络请求 / 文件读写 / 数据库查询）——避免阻塞 UI 或主线程
 
-> 涉及**Web Workers**（让 CPU 密集任务跑在另一个线程）的话题留给第 8 章前沿话题。本章只讨论"标准单线程 + 异步 IO"。
+> **关于 Web Workers**：让 CPU 密集任务跑在另一个线程的能力（[MDN: Web Workers API](https://developer.mozilla.org/zh-CN/docs/Web/API/Web_Workers_API)）。本节聚焦"标准单线程 + 异步 IO"模型——这是日常业务代码 99% 的场景。Web Workers / SharedArrayBuffer / Atomics 等多线程话题不在本节展开。
 
 ---
 
@@ -285,7 +285,7 @@ Promise 的链式 `.catch` 设计借鉴了**异常处理**的层次结构：
 
 **关键设计**：错误**默认向后传播**——这让"快乐路径"代码不被错误处理污染。但代价是：**漏写一个 `.catch`，错误就被吞没**。
 
-> 一手：[MDN: Promise](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)。
+> 权威参考：[MDN: Promise](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)。
 
 ### 2.4 Promise 的不可变性
 
@@ -450,7 +450,7 @@ const html = await Promise.any([
 | 多源 fallback          | `Promise.any`                                         |
 | 普通"等一个东西完成"   | `await` 直接等，不用 race / any                       |
 
-> 一手：[MDN: Promise.all](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/all) / [Promise.allSettled](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) / [Promise.race](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/race) / [Promise.any](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/any)。
+> 权威参考：[MDN: Promise.all](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/all) / [Promise.allSettled](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) / [Promise.race](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/race) / [Promise.any](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/any)。
 
 ---
 
@@ -546,7 +546,7 @@ export default config;
 
 **何时用**：模块初始化时需要异步加载配置 / 数据——比 IIFE 包装 async 函数更简洁。
 
-> 一手：[TC39: top-level await proposal](https://github.com/tc39/proposal-top-level-await)。
+> 权威参考：[TC39: top-level await proposal](https://github.com/tc39/proposal-top-level-await)。
 
 ### 4.4 async 函数的几个陷阱
 
@@ -628,7 +628,7 @@ async function processAll(items) {
 
 **原因**：`forEach` 只是普通函数，不会等待 `async` 回调返回的 Promise。**永远不在 `forEach` 里用 `await`**。
 
-> 一手：[MDN: async function](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/async_function) / [MDN: await](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/await)。
+> 权威参考：[MDN: async function](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/async_function) / [MDN: await](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/await)。
 
 ---
 
@@ -727,7 +727,7 @@ function handleClick() {
 - 业务代码极少需要手动调度微任务
 - 普通 Promise 链 / async-await 不需要懂这层细节
 
-> 一手：[MDN: Microtask 指南](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)；[MDN: queueMicrotask](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/queueMicrotask)；[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)。
+> 权威参考：[MDN: Microtask 指南](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)；[MDN: queueMicrotask](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/queueMicrotask)；[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)。
 
 > **回链 §2.4 事件循环**：第 2 章讲了浏览器侧的整体事件循环（含 requestAnimationFrame 和渲染管线）。本节聚焦 JS 语言层的微任务 / 宏任务区分，两者结合起来才是完整心智。
 
@@ -896,7 +896,7 @@ for await (const page of fetchPages(urls)) {
 
 **何时用**：流式处理大量数据（如分页加载、SSE 事件流）——比 `Promise.all` 更省内存。
 
-> 一手：[MDN: AbortController](https://developer.mozilla.org/zh-CN/docs/Web/API/AbortController)；[MDN: for await...of](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/for-await...of)。
+> 权威参考：[MDN: AbortController](https://developer.mozilla.org/zh-CN/docs/Web/API/AbortController)；[MDN: for await...of](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/for-await...of)。
 
 ---
 

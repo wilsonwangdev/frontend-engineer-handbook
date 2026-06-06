@@ -80,7 +80,7 @@ console.log(j); // ReferenceError: j is not defined
 - **需要重新赋值时用 `let`**——如循环计数器
 - **永远不用 `var`**——除非维护 2015 年前的遗留代码
 
-> 一手：[MDN: let](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/let)；[MDN: const](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/const)；[MDN: var](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/var)。
+> 权威参考：[MDN: let](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/let)；[MDN: const](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/const)；[MDN: var](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/var)。
 
 ---
 
@@ -294,7 +294,7 @@ useEffect(() => {
 }, [count]); // 依赖 count
 ```
 
-> 深入：[Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）**——React 核心维护者写的闭包陷阱权威解释。这是少数值得读完的"个人博客"，按 [SPEC-0002](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0002-content-source-admission/spec.md) 灰名单条款引用。
+> 深入：[Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）**——React 核心维护者写的闭包陷阱权威解释。
 
 #### 案例 3：模块模式（IIFE 实现私有变量）
 
@@ -367,7 +367,7 @@ function attachHandler() {
 
 **为什么闭包仍然重要**：即使有 `#field`，**很多函数式风格的代码仍然用闭包**——它比 `class` 更轻量，更符合 JS 的函数式血统。
 
-> 一手：[MDN: 闭包](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)。
+> 权威参考：[MDN: 闭包](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Closures)。
 
 ---
 
@@ -521,7 +521,7 @@ function safeMerge(target, source) {
 }
 ```
 
-> 一手：[PortSwigger: Prototype Pollution](https://portswigger.net/web-security/prototype-pollution)（英文，权威安全指南）；[npm advisory: lodash prototype pollution](https://github.com/advisories/GHSA-jf85-cpcp-j695)。
+> 权威参考：[PortSwigger: Prototype Pollution](https://portswigger.net/web-security/prototype-pollution)（英文，权威安全指南）；[npm advisory: lodash prototype pollution](https://github.com/advisories/GHSA-jf85-cpcp-j695)。
 
 ### 3.5 设计判断暗线：委托（delegation）
 
@@ -550,7 +550,7 @@ console.log(lion.sound); // 'roar' —— 跟着变（不是复制）
 
 **这种"动态性"是 JS 的力量也是陷阱**——它让你能在运行时修改对象行为，但也让原型污染成为可能。
 
-> 一手：[MDN: 继承与原型链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain)。
+> 权威参考：[MDN: 继承与原型链](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain)。
 
 ---
 
@@ -767,7 +767,7 @@ JavaScript 同时提供**动态 this**（普通函数）和**词法 this**（箭
 
 **JavaScript 同时支持两者**——这不是"历史包袱"，是"两种范式都有用"。普通函数让 OOP 风格代码灵活，箭头函数让函数式风格代码可预测。**会用两者 = 真正掌握 JS**。
 
-> 一手：[MDN: this](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)；[MDN: 箭头函数](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Functions/Arrow_functions)。
+> 权威参考：[MDN: this](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this)；[MDN: 箭头函数](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Functions/Arrow_functions)。
 
 ---
 
@@ -807,13 +807,13 @@ function example() {
 
 **经验**：现代项目几乎全用 ESM，自动严格模式——你很少需要主动写 `'use strict'`。但**看到旧脚本（`<script>` 直接加载）时，记得加**。
 
-> 一手：[MDN: 严格模式](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Strict_mode)。
+> 权威参考：[MDN: 严格模式](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Strict_mode)。
 
 ---
 
-## 6. 函数高级
+## 6. 函数式风格基础
 
-JavaScript 把**函数当作"一等公民"**——函数可以像普通值一样传递、赋值、返回。这是 JS 函数式风格的根基。
+JavaScript 把**函数当作"一等公民"**——函数可以像普通值一样传递、赋值、返回。这一节梳理由此衍生的几条核心范式：高阶函数、柯里化、纯函数。这些不是"高级技巧"，是现代 JS 代码（尤其 React）每天都在用的基础写法。
 
 ### 6.1 函数是一等公民
 
@@ -1235,7 +1235,7 @@ arr.forEach((value) => console.log(value));
 - [MDN: this](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/this) — this 绑定完整规则
 - [javascript.info](https://javascript.info/) **（英文）** — 现代 JS 教程，从零到高级
 - [ES6 标准（ECMA-262）](https://262.ecma-international.org/6.0/) **（英文）** — 官方语言规范
-- [Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）** — React 核心维护者写的闭包陷阱权威解释（按 SPEC-0002 灰名单条款引用）
+- [Dan Abramov: A Complete Guide to useEffect](https://overreacted.io/a-complete-guide-to-useeffect/) **（英文）** — React 核心维护者写的闭包陷阱权威解释
 - [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript) **（英文）** — 工业界最流行的 JS 风格指南（含最佳实践）
 - [You Don't Know JS (book series)](https://github.com/getify/You-Dont-Know-JS) **（英文）** — 深入 JS 机制的经典开源书
 
