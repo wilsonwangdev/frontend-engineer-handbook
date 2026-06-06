@@ -1,0 +1,298 @@
+# 术语表（Glossary）数据源
+#
+# 单一数据源（SSOT）——内容里的 <Term> 组件、/glossary 路由、
+# 未来的搜索索引都从这里取。
+#
+# 字段约定：
+#   - 顶层 key：术语的"规范形态"（通常是英文原词，全小写、连字符、保留缩写大写如 CJK）
+#   - zh: 中文译名（无中文译时省略，hover 卡片直接显示原词）
+#   - brief: 一句话定义（≤ 60 字）—— hover 卡片显示
+#   - long: 详细解释（多段、可含 markdown）—— /glossary#<key> 显示
+#   - see-also: 关联术语 key（数组）
+#   - ref: 一手参考链接（可选，单条；多条放进 long 里写）
+#
+# 添加新术语时：
+#   1. 选个稳定 key（避免日后改名）
+#   2. brief 必须能让读者"读到这一句就够"
+#   3. long 写完整背景；可放代码示例 / 多段
+#   4. see-also 双向维护——加 A→B 时也加 B→A
+
+sanitizer:
+  zh: 净化器
+  brief: 把不可信 HTML 字符串过滤成只含安全标签的工具，防 XSS 标准手段
+  long: |
+    `sanitizer`（净化器）的作用是接收一段不可信的 HTML 字符串
+    （比如用户提交的富文本、第三方 API 返回的内容），按白名单
+    过滤掉危险标签和属性（如 `<script>` / `onerror=` / `javascript:` URL），
+    返回只含安全标签的字符串。
+
+    **代表库**：[DOMPurify](https://github.com/cure53/DOMPurify)（事实标准）。
+
+    **典型用法**：
+
+    ```js
+    import DOMPurify from 'dompurify';
+    const safe = DOMPurify.sanitize(userInput);
+    element.innerHTML = safe;
+    ```
+
+    **何时需要**：任何把字符串当 HTML 渲染的场景（`innerHTML` /
+    `dangerouslySetInnerHTML` / 富文本编辑器输出展示）。
+    **不要**自己写正则替换 `<script>`——攻击向量极多，正则覆盖不全。
+  see-also: [xss, dompurify]
+  ref: https://github.com/cure53/DOMPurify
+
+cjk:
+  zh: 中日韩
+  brief: Chinese / Japanese / Korean——三种共享许多排版规则的文字
+  long: |
+    **CJK** 是 **C**hinese / **J**apanese / **K**orean 的缩写，
+    国际通用的"中日韩"代号。三种文字共享许多排版规则：
+
+    - **全角字符**——汉字 / 假名 / 谚文都占两个英文字符宽度
+    - **表意标点**——`。、，；：「」『』` 等（与英文标点不同）
+    - **行首行尾禁则**——句号 `。` 不能出现在行首；前引号 `「`
+      不能出现在行尾
+    - **不需要词间空格**——按字符断行而非按词
+
+    Unicode 和 W3C 在很多排版规范里把它们合并讨论
+    （[CJK Unified Ideographs](https://www.unicode.org/charts/PDF/U4E00.pdf) /
+    [W3C 中文排版需求](https://w3c.github.io/clreq/)），
+    因为三种文字的布局机制有大量共性。
+
+    **本手册主要面向简体中文场景**，但许多结论对繁体 / 日文 / 韩文
+    同样适用——见 §3.4 §3 CJK Web 排版。
+  see-also: [全角字符, clreq]
+  ref: https://w3c.github.io/clreq/
+
+rsc:
+  zh: React 服务端组件
+  brief: React 18+ 引入的"在服务器渲染、不向客户端发送 JS"的组件
+  long: |
+    **RSC**（**R**eact **S**erver **C**omponents）是 React 18+
+    引入的新组件类型——在服务器上渲染，输出 HTML + 少量 JSON 给
+    客户端，**不发送组件本身的 JavaScript**。
+
+    **关键差异 vs 客户端组件**：
+
+    | 维度       | 服务端组件（RSC）              | 客户端组件                     |
+    | ---------- | ------------------------------ | ------------------------------ |
+    | 运行位置   | 服务端                         | 客户端                         |
+    | 可用 hooks | ❌ 不能用 useState / useEffect | ✅ 能用                        |
+    | 可访问 DB  | ✅ 直接                        | ❌ 要走 API                    |
+    | bundle 体积 | 不计入                         | 计入                           |
+
+    Next.js App Router（13+）默认所有组件是 RSC——需要交互时用
+    `'use client'` 标记切换。
+
+    **影响**：运行时 CSS-in-JS（styled-components / Emotion）
+    在 RSC 里用不了——它们依赖客户端 JS 注入样式。
+  see-also: [ssr, fouc]
+  ref: https://react.dev/reference/rsc/server-components
+
+ssr:
+  zh: 服务端渲染
+  brief: Server-Side Rendering——在服务器把组件渲染成 HTML，浏览器收到时已是有内容的页面
+  long: |
+    **SSR**（**S**erver-**S**ide **R**endering）是相对于 CSR
+    （客户端渲染）的一种渲染策略：
+
+    - **CSR**：浏览器收到一个空 HTML + 一堆 JS，JS 跑起来才渲染内容
+    - **SSR**：服务器先渲染好 HTML 发给浏览器，浏览器直接显示内容；
+      之后 JS 再"激活"（hydration）让交互工作
+
+    **SSR 的好处**：
+    - 首屏渲染快（用户立刻看到内容）
+    - SEO 友好（爬虫直接看到 HTML）
+    - 弱网络下也能用
+
+    **SSR 的代价**：
+    - 服务器计算开销
+    - hydration 阶段会有"看到内容但不能交互"的窗口
+    - 状态管理更复杂（要同构）
+
+    **Next.js / Remix / Nuxt** 等框架默认 SSR。RSC 是 SSR 的
+    进一步演进——把"不需要交互的组件"完全留在服务端、不发 JS。
+  see-also: [rsc, fouc, hydration]
+
+fouc:
+  zh: 无样式内容闪烁
+  brief: Flash of Unstyled Content——HTML 已渲染但 CSS 还没应用的瞬间窗口
+  long: |
+    **FOUC**（**F**lash **O**f **U**nstyled **C**ontent）：
+    HTML 已经渲染到屏幕，但 CSS 还没下载 / 没解析完成的瞬间——
+    用户看到的是"光秃秃的文字、默认浏览器样式"，等 CSS 应用后
+    才"啪"地变成正常样式。视觉上像闪一下。
+
+    **常见触发场景**：
+    - 暗色模式 SSR 首次加载（HTML 默认亮色，JS 加载后才切暗色）
+    - CSS-in-JS 运行时注入样式（Hydration 完成前样式不到位）
+    - 大体积外部 CSS 加载慢
+
+    **应对手段**：
+    - 关键 CSS 内联到 `<head>`
+    - 暗色 / 主题切换的状态用同步 `<head>` 内嵌 script 设置
+    - 避免运行时 CSS-in-JS 在 SSR / RSC 里用
+
+    详见 §3.4 §4.3 SSR FOUC 防闪方案。
+  see-also: [ssr, rsc]
+
+cva:
+  brief: Class Variance Authority——管理 Tailwind 类名变体的事实标准工具
+  long: |
+    **`cva`**（**C**lass **V**ariance **A**uthority）是 Tailwind
+    生态的事实标准变体管理工具——shadcn/ui 内部就用它。
+
+    **解决了什么**：组件有多种视觉变体（按钮的 primary / secondary /
+    destructive；尺寸的 sm / md / lg；状态的 hover / disabled）时，
+    用 `cva` 把"变体 → 类名"的映射用配置写出来，比手写 if-else
+    类名拼接清晰得多。
+
+    **示例**：
+
+    ```ts
+    import { cva } from 'class-variance-authority';
+
+    const button = cva(
+      'inline-flex items-center justify-center rounded-md font-medium',
+      {
+        variants: {
+          variant: {
+            primary: 'bg-blue-500 hover:bg-blue-700 text-white',
+            secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900',
+          },
+          size: {
+            sm: 'h-8 px-3',
+            md: 'h-10 px-4',
+            lg: 'h-12 px-6',
+          },
+        },
+        defaultVariants: { variant: 'primary', size: 'md' },
+      }
+    );
+
+    button({ variant: 'secondary', size: 'lg' });
+    // → 'inline-flex ... bg-gray-200 ... h-12 px-6'
+    ```
+  see-also: [variant, tailwind, shadcn]
+  ref: https://cva.style/docs
+
+variant:
+  zh: 变体
+  brief: 同一组件的不同视觉版本（如按钮的 primary / secondary / destructive）
+  long: |
+    **`variant`**（变体）= 同一组件在不同语境下的不同视觉版本。
+
+    例如按钮组件常见变体：
+    - `primary`：主操作（最显眼，每个屏幕只能有一个）
+    - `secondary`：次要操作
+    - `destructive`：删除 / 危险动作（红色）
+    - `ghost`：无背景（用于工具栏）
+    - `link`：模拟链接的按钮
+
+    用 props 控制变体是 React 组件库的标准模式：
+
+    ```tsx
+    <Button variant="destructive">删除</Button>
+    ```
+
+    内部实现可以是 className 切换（[cva](#cva)）或 CSS-in-JS。
+  see-also: [cva]
+
+preflight:
+  brief: Tailwind 注入的浏览器默认样式重置（基于 modern-normalize）
+  long: |
+    **Tailwind Preflight** 是 Tailwind CSS 注入的一组**浏览器默认
+    样式重置**——基于 [modern-normalize](https://github.com/sindresorhus/modern-normalize)
+    扩展。
+
+    **它做什么**：
+    - 抹平浏览器默认样式差异（如 Safari / Chrome 的默认 margin 不同）
+    - 重置 `<button>` / `<h1>` / `<ul>` 等标签的默认样式（让你"从零开始写"）
+    - 设置 `box-sizing: border-box` 全局默认
+
+    **常见冲突**：与组件库（如 Ant Design）混用时，Preflight 重置
+    `<button>` / `<h1>` 等元素，但组件库依赖某些默认样式 —— 视觉错乱。
+
+    **应对**：
+    - `tailwindcss-scoped-preflight`：只在指定容器内应用 Preflight
+    - `corePlugins.preflight: false`：完全关闭
+    - `postcss-antd-fixes`：构建期补丁
+
+    详见 §3.5 §7.3 Tailwind + antd 混用方案。
+  see-also: [tailwind, antd]
+  ref: https://tailwindcss.com/docs/preflight
+
+polyfill:
+  zh: 垫片
+  brief: 让旧环境支持新 API 的兼容代码——浏览器没实现的 API 用 JS 模拟
+  long: |
+    **polyfill**（"垫片"）是一段 JavaScript 代码，让旧环境也能
+    使用新 API。原理：检测环境是否原生支持某 API，没有就**用旧 API
+    实现一个一样的**注入到全局。
+
+    **典型场景**：
+
+    ```js
+    // 假如目标浏览器不支持 Array.prototype.includes
+    if (!Array.prototype.includes) {
+      Array.prototype.includes = function(item) {
+        return this.indexOf(item) !== -1;
+      };
+    }
+    ```
+
+    **注意**：不是所有 API 都能 polyfill：
+    - **能**：纯 JS 逻辑（`Array.toSorted` / `Object.groupBy` /
+      `Promise.allSettled`）
+    - **不能**：依赖底层引擎能力（`WeakRef` / 顶层 await）/
+      依赖宿主 API（`structuredClone`）
+
+    **事实标准库**：[core-js](https://github.com/zloirock/core-js)
+    （Babel preset-env 默认用它）。
+
+    **vs transpile**：transpile 是把新语法**编译**成旧语法
+    （`const x = 1` → `var x = 1`）；polyfill 是**运行时注入**新 API。
+    两者通常一起用。
+  see-also: [transpile, core-js]
+  ref: https://github.com/zloirock/core-js
+
+brand-pattern:
+  zh: 标称模式
+  brief: 用 TypeScript 给"结构相同但语义不同"的类型加唯一标记，编译期防止串用
+  long: |
+    **brand pattern**（标称模式）是 TypeScript 里模拟"标称类型"
+    （nominal typing）的写法——给结构相同的类型加一个**只在类型
+    层面存在**的标记，让编译器把它们视为不同类型。
+
+    **解决了什么**：TS 是结构化类型——`UserId` 和 `ProductId`
+    都是 `string`，相互可赋值。如果业务里 ID 不能串用，类型层面
+    需要区分。
+
+    **实现**：
+
+    ```ts
+    type Brand<T, B> = T & { readonly __brand: B };
+
+    type UserId = Brand<string, 'UserId'>;
+    type ProductId = Brand<string, 'ProductId'>;
+
+    function asUserId(id: string): UserId {
+      return id as UserId;
+    }
+
+    const userId = asUserId('u_123');
+    const productId = 'p_456' as ProductId;
+
+    function getUser(id: UserId) { /* ... */ }
+
+    getUser(userId);     // ✅
+    getUser(productId);  // ❌ 类型错——不能传 ProductId
+    getUser('u_123');    // ❌ 不能传普通 string，必须经过 asUserId
+    ```
+
+    **关键**：`__brand` 字段**只在类型层面存在**，运行时仍是普通
+    string——零运行时开销。
+
+    详见 §4.6 §5 标称类型。
+  see-also: [structural-typing, zod]
