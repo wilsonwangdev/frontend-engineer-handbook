@@ -1,0 +1,1564 @@
+---
+title: TypeScript 类型系统
+chapter: 4
+section: 5
+description: 结构化类型 / 泛型 / 类型收窄 / 工具类型——AI 时代最重要的工程能力
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 21
+---
+
+> 这一节讲 TypeScript **类型系统的核心机制**——结构化类型 / 类型推断 / 泛型 / 工具类型。这是 2024 年后**前端工程必备技能**——不是"可选增强"。
+
+§4.1-§4.4 把 JavaScript 讲清楚了。这一节讲**类型系统**——为什么 TypeScript 在 2024 后从"可选工具"变成"团队标配"，为什么"会写 TS 而非只会写 `any` " 是关键能力。
+
+**本节核心论点**：
+
+1. **TS 不是 "JS + 类型注解"**——它有完整的类型代数（联合 / 交叉 / 条件 / 映射 / 模板字面量）
+2. **结构化类型是 TS 的根**——理解它才理解为什么"长得像就匹配"（不是 Java 的名义继承）
+3. **类型收窄**让 TS 自动从"宽"推断到"窄"——不用你手写 `if (typeof x === 'string')` 然后再 `as string`
+4. **`any` 是癌细胞**——它会污染整个推理链。会写 TS 的标志是**几乎不用 `any`**
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                | 直接读                                               |
+> | ----------------------------------- | ---------------------------------------------------- |
+> | **没用过 TypeScript**               | §0 简史 → §1 类型注解 → §2 结构化类型 → §3 类型收窄  |
+> | **用过 TS 但只会写 `any`**          | §3 类型收窄 → §6 工具类型 → §10 翻车库（`any` 污染） |
+> | **TS 用了一段时间，想跟进高级类型** | §5 泛型 → §7 高级类型（条件 / 映射 / 模板字面量）    |
+> | **要带 AI 写 TS**                   | §9 AI 最小集 → §10 翻车库                            |
+>
+> 整节读完约 60-80 分钟；按上面挑读 20-30 分钟。**§3 类型收窄**和**§5 泛型**是两个核心——它们决定了你写 TS 的天花板。
+
+---
+
+## 0. 演进史：从可选注解到事实标准
+
+> TypeScript 在 2012 年由微软发布，最初被视为"另一个 JS 替代品"。10 年后，它成了**前端工程的事实标准**——这条演进路线值得理解。
+
+| 年代 | 里程碑                                                                                                        | 关键能力                                  |
+| ---- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| 2012 | TypeScript 1.0（Anders Hejlsberg 主导）                                                                       | 基础类型注解 + class                      |
+| 2016 | TypeScript 2.0                                                                                                | 严格 null 检查 / 类型守卫                 |
+| 2018 | [TypeScript 3.0](https://devblogs.microsoft.com/typescript/announcing-typescript-3-0/)                        | 元组类型 / `unknown` 类型                 |
+| 2019 | [TypeScript 3.7](https://devblogs.microsoft.com/typescript/announcing-typescript-3-7/)                        | 可选链 / nullish 合并 / 断言函数          |
+| 2021 | [TypeScript 4.x 系列](https://devblogs.microsoft.com/typescript/announcing-typescript-4-0/)                   | 模板字面量类型 / 可变元组                 |
+| 2022 | [TypeScript 4.9: `satisfies`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html) | `satisfies` 操作符                        |
+| 2023 | [TypeScript 5.0](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html)              | Stage 3 装饰器 / `const` 类型参数         |
+| 2024 | TypeScript 5.x 持续迭代                                                                                       | 工具链全面集成（Vite / Next.js / Cursor） |
+
+**两个值得记住的转折**：
+
+1. **2016 TypeScript 2.0 引入严格 null 检查**——`strict: true` 配置成为现代 TS 项目标配。这一步让 TS 从"漂亮的注解"变成"真正能阻止 bug 的工具"。
+
+2. **2018 后的"工具链整合"**——VSCode 默认带 TS 支持、React 模板默认 TS、Next.js 默认 TS、Vite 默认 TS。**新项目不用 TS 反而是异常选择**。
+
+> **写给新人**：你看到的 JS 代码很多是 2018 年前写的，可能没有类型。**新项目从 TS 开始**——成本几乎零（IDE 自带），收益巨大。
+
+> **写给老前端**：如果你最近一次系统学 TS 是 2018-2020 年（TS 3.x），这一节需要重读。**TS 4.x / 5.x 加了大量"类型代数"能力**——条件类型、模板字面量类型、`satisfies`——能让你的类型表达力提升一个量级。
+
+---
+
+## 1. 类型注解基础
+
+### 1.1 基础类型
+
+```ts
+// 原始类型
+let name: string = "Alice";
+let age: number = 30;
+let active: boolean = true;
+let nothing: null = null;
+let undef: undefined = undefined;
+
+// BigInt / Symbol（很少用，知道存在即可）
+let big: bigint = 100n;
+let sym: symbol = Symbol("id");
+```
+
+**经验**：通常**不用显式注解原始类型**——TypeScript 能从初始值推断：
+
+```ts
+// ❌ 多余的注解
+let name: string = "Alice";
+
+// ✅ 让 TS 推断
+let name = "Alice"; // TS 推断为 string
+```
+
+### 1.2 数组与元组
+
+```ts
+// 数组：所有元素同类型
+let nums: number[] = [1, 2, 3];
+let nums2: Array<number> = [1, 2, 3]; // 等价
+
+// 只读数组
+let frozen: readonly number[] = [1, 2, 3];
+
+// 元组：固定长度 + 每个位置固定类型
+let pair: [string, number] = ["Alice", 30];
+let triple: [string, number, boolean] = ["Bob", 25, true];
+
+// 可选元组元素（?）
+let coord: [number, number, number?] = [10, 20]; // z 可选
+
+// 剩余元素
+let strings: [string, ...string[]] = ["first", "second", "third"];
+```
+
+### 1.3 对象类型
+
+```ts
+// 内联对象类型
+let user: { name: string; age: number } = {
+  name: "Alice",
+  age: 30,
+};
+
+// 提取为 type 别名
+type User = {
+  name: string;
+  age: number;
+};
+
+let user: User = { name: "Alice", age: 30 };
+
+// 用 interface（与 type 几乎等价，§4.6 详解差异）
+interface User {
+  name: string;
+  age: number;
+}
+
+// 可选属性（?）
+type Config = {
+  host: string;
+  port?: number; // 可选
+};
+
+// 只读属性
+type Point = {
+  readonly x: number;
+  readonly y: number;
+};
+```
+
+### 1.4 函数类型
+
+```ts
+// 基础注解
+function greet(name: string): string {
+  return `Hello, ${name}`;
+}
+
+// 箭头函数
+const greet = (name: string): string => `Hello, ${name}`;
+
+// 函数类型表达式
+type Greeter = (name: string) => string;
+const greet: Greeter = (name) => `Hello, ${name}`;
+
+// 可选参数
+function log(message: string, level?: string) {
+  // level 是 string | undefined
+}
+
+// 默认参数（推断为 string）
+function log(message: string, level = "info") {
+  // level 是 string
+}
+
+// 剩余参数
+function sum(...nums: number[]): number {
+  return nums.reduce((a, b) => a + b, 0);
+}
+
+// 函数重载
+function format(value: string): string;
+function format(value: number): string;
+function format(value: string | number): string {
+  return String(value);
+}
+```
+
+### 1.5 字面量类型
+
+**字面量类型**让你限制变量只能是某些具体值：
+
+```ts
+// 字符串字面量
+let direction: "left" | "right" = "left";
+direction = "up"; // ❌ Error: '"up"' is not assignable to type '"left" | "right"'
+
+// 数字字面量
+let dice: 1 | 2 | 3 | 4 | 5 | 6 = 1;
+
+// 布尔字面量（少见）
+let flag: true = true;
+```
+
+**为什么有用**：替代 `enum` / 字符串常量——更轻量、更自然。
+
+```ts
+// ❌ 旧写法：用 enum
+enum Direction {
+  Left = "left",
+  Right = "right",
+}
+
+function move(dir: Direction) {
+  /* ... */
+}
+move(Direction.Left);
+
+// ✅ 现代写法：字面量联合
+type Direction = "left" | "right";
+
+function move(dir: Direction) {
+  /* ... */
+}
+move("left"); // 直接传字符串
+```
+
+> **何时不用 enum**：§4.6 详解。**简短结论：现代 TS 项目几乎不用 `enum`**——字面量联合 + `as const` 更好。
+
+> 一手：[TypeScript Handbook: Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)（英文）。
+
+---
+
+## 2. 结构化类型（duck typing）
+
+**TypeScript 用结构化类型**——按"形状"匹配，不按名字。这是 TS 与 Java / C# 的根本差异。
+
+### 2.1 核心：长得像就匹配
+
+```ts
+type Point = { x: number; y: number };
+type Coord = { x: number; y: number };
+
+const p: Point = { x: 1, y: 2 };
+const c: Coord = p; // ✅ 完全合法——两个类型形状相同
+
+// 即使是匿名对象类型也行
+const fn = (point: { x: number; y: number }) => point.x + point.y;
+fn(p); // ✅ 合法
+fn({ x: 5, y: 10 }); // ✅ 合法（字面量也匹配）
+```
+
+**关键洞察**：TS **不在意类型叫什么名字**——只要形状（属性 + 方法）匹配就兼容。
+
+### 2.2 与名义类型对比
+
+| 维度         | 结构化类型（TypeScript / Go）    | 名义类型（Java / C# / Rust）             |
+| ------------ | -------------------------------- | ---------------------------------------- |
+| **匹配方式** | 按形状（duck typing）            | 按显式声明的关系（extends / implements） |
+| **何时兼容** | 形状相同就兼容                   | 必须显式声明继承                         |
+| **优点**     | 灵活，鸭子类型自然               | 类型边界清晰，不会"误兼容"               |
+| **缺点**     | 偶尔会"形状一样但语义不同"被误判 | 写很多模板代码                           |
+
+**TypeScript 的选择**：结构化——因为 JS 本来就是动态语言，**鸭子类型是 JavaScript 的天然风格**。强行用名义类型会让 TS 与 JS 生态格格不入。
+
+### 2.3 多余属性检查（excess property check）
+
+**结构化类型有一个例外**——直接传字面量对象时，TS 会**检查多余属性**：
+
+```ts
+type User = { name: string; age: number };
+
+// ✅ 正常：通过中间变量
+const data = { name: "Alice", age: 30, role: "admin" };
+const user: User = data; // 没问题
+
+// ❌ 反例：直接传字面量
+const user: User = { name: "Alice", age: 30, role: "admin" };
+// Error: 'role' does not exist in type 'User'
+```
+
+**为什么这个例外**：直接传字面量时，多余属性**几乎肯定是写错了**——TS 帮你拦截。如果你确实需要"附加属性"，通过变量绕过。
+
+**绕过方式**（不推荐，但偶尔有用）：
+
+```ts
+// 1. 先存到变量
+const data = { name: "Alice", age: 30, role: "admin" };
+const user: User = data;
+
+// 2. 类型断言
+const user = { name: "Alice", age: 30, role: "admin" } as User;
+
+// 3. 索引签名（接受任意附加属性）
+type UserExtended = User & { [key: string]: unknown };
+```
+
+### 2.4 协变 / 逆变（简提）
+
+**协变（covariance）**：子类型可以替代父类型。
+**逆变（contravariance）**：父类型可以替代子类型（反过来）。
+
+TypeScript 在**函数参数**上是逆变的：
+
+```ts
+type Animal = { name: string };
+type Dog = { name: string; breed: string };
+
+// 函数参数：父类型函数能赋给子类型函数（逆变）
+type AnimalHandler = (a: Animal) => void;
+type DogHandler = (d: Dog) => void;
+
+const handleAnimal: AnimalHandler = (a) => console.log(a.name);
+const handleDog: DogHandler = handleAnimal; // ✅ 合法——AnimalHandler 接受 Animal，肯定也接受 Dog
+
+const handleAnimalFromDog: AnimalHandler = handleDog; // ❌ 通常不合法（严格模式下）
+// DogHandler 期望 Dog，传 Animal 会缺 breed
+```
+
+**实战影响**：很少需要手动思考——TS 会自动推断。但理解协变 / 逆变能帮你看懂某些"看似奇怪"的类型错误。
+
+> **TypeScript 默认对函数参数 是双向协变**（兼容性折中）——这导致少数不安全场景。**`strictFunctionTypes: true`** 让它变成严格逆变（更安全）。
+
+### 2.5 设计判断暗线：鸭子类型（duck typing）
+
+**"如果它走起来像鸭子、叫起来像鸭子，那它就是鸭子"**——这是 JavaScript 的设计哲学，TypeScript 继承了它。
+
+```ts
+// 不需要显式 implements
+interface Quacker {
+  quack(): void;
+}
+
+class Duck {
+  quack() {
+    console.log("quack!");
+  }
+}
+
+class Person {
+  quack() {
+    console.log("I am pretending to be a duck");
+  }
+}
+
+function makeQuack(x: Quacker) {
+  x.quack();
+}
+
+makeQuack(new Duck()); // ✅
+makeQuack(new Person()); // ✅ —— 形状匹配，TS 不在意是不是 Duck
+```
+
+**深层洞察**：结构化类型让**接口 = 形状契约**，而不是"标签"。这与 Go 的 interface 是同一种设计哲学——**信息隐藏的极致：只要看到形状，就知道能做什么**。
+
+> 一手：[TypeScript Handbook: Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)（英文）。
+
+---
+
+## 3. 类型推断与类型收窄
+
+**类型推断**让 TS 能"读出"代码中变量的类型；**类型收窄**让 TS 在条件分支里把"宽类型"自动缩小到"窄类型"——这是 TS 最优雅的能力之一。
+
+### 3.1 类型推断：const vs let
+
+```ts
+const greeting = "hello";
+// 推断为字面量类型 'hello'
+
+let greeting = "hello";
+// 推断为 string（因为可以重新赋值）
+```
+
+**经验**：
+
+- 用 `const` → TS 推断**字面量类型**（更精确）
+- 用 `let` → TS 推断**宽类型**（更灵活）
+
+### 3.2 类型守卫：typeof / instanceof / in
+
+**类型收窄**的最常见手段——在分支里用条件判断让 TS 知道变量是什么类型。
+
+#### `typeof` 类型守卫
+
+```ts
+function format(x: string | number): string {
+  if (typeof x === "string") {
+    // 这里 x 是 string
+    return x.toUpperCase();
+  } else {
+    // 这里 x 是 number
+    return x.toFixed(2);
+  }
+}
+```
+
+#### `instanceof` 类型守卫
+
+```ts
+class Dog {
+  bark() {
+    console.log("woof");
+  }
+}
+
+class Cat {
+  meow() {
+    console.log("meow");
+  }
+}
+
+function makeSound(animal: Dog | Cat) {
+  if (animal instanceof Dog) {
+    animal.bark(); // 这里 animal 是 Dog
+  } else {
+    animal.meow(); // 这里 animal 是 Cat
+  }
+}
+```
+
+#### `in` 类型守卫
+
+```ts
+type Bird = { fly: () => void };
+type Fish = { swim: () => void };
+
+function move(animal: Bird | Fish) {
+  if ("fly" in animal) {
+    animal.fly(); // 这里 animal 是 Bird
+  } else {
+    animal.swim(); // 这里 animal 是 Fish
+  }
+}
+```
+
+### 3.3 自定义类型谓词（type predicate）
+
+当类型守卫逻辑复杂时，写**自定义类型谓词**：
+
+```ts
+type User = { id: number; name: string };
+
+function isUser(x: unknown): x is User {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    "id" in x &&
+    typeof (x as User).id === "number" &&
+    "name" in x &&
+    typeof (x as User).name === "string"
+  );
+}
+
+const data: unknown = JSON.parse(input);
+
+if (isUser(data)) {
+  data.name; // 这里 data 是 User
+}
+```
+
+**关键**：返回值类型 `x is User` 告诉 TS——"这个函数返回 true 时，参数类型是 User"。
+
+> **AI 时代用 Zod 替代手写类型谓词**：[Zod](https://zod.dev/) 可以从 schema 自动推导类型 + 提供运行时验证。第 5 章 React 表单和 §4.6 类型设计会展开。
+
+### 3.4 可辨识联合（discriminated union）
+
+**模式**：联合类型里每个成员有一个共同的"标签"字段——TS 能根据标签自动收窄。
+
+```ts
+type Result =
+  | { status: "success"; data: User }
+  | { status: "error"; error: string }
+  | { status: "loading" };
+
+function handle(result: Result) {
+  switch (result.status) {
+    case "success":
+      console.log(result.data); // 这里 result 是 success 分支
+      break;
+    case "error":
+      console.log(result.error); // 这里 result 是 error 分支
+      break;
+    case "loading":
+      console.log("loading...");
+      break;
+  }
+}
+```
+
+**为什么强大**：TS 能在每个分支自动知道"现在的类型是什么"——比 `instanceof` 更轻量，比 `in` 更明确。
+
+**这是 Redux / Zustand 等状态管理库 action 的标准模式**：
+
+```ts
+type Action =
+  | { type: "INCREMENT"; payload: number }
+  | { type: "DECREMENT"; payload: number }
+  | { type: "RESET" };
+
+function reducer(state: number, action: Action) {
+  switch (action.type) {
+    case "INCREMENT":
+      return state + action.payload;
+    case "DECREMENT":
+      return state - action.payload;
+    case "RESET":
+      return 0; // RESET 没 payload，TS 不会让你访问
+  }
+}
+```
+
+### 3.5 穷尽性检查（exhaustiveness check + never）
+
+**问题**：上面 reducer 如果加了新 action 类型，但忘了在 switch 里处理，会怎样？默认情况 TS 不会报错。
+
+**解法**：用 `never` 类型做穷尽性检查：
+
+```ts
+function reducer(state: number, action: Action) {
+  switch (action.type) {
+    case "INCREMENT":
+      return state + action.payload;
+    case "DECREMENT":
+      return state - action.payload;
+    case "RESET":
+      return 0;
+    default:
+      // 如果 switch 没穷尽所有情况，这里 action 不是 never
+      // TS 会报错
+      const exhaustive: never = action;
+      return state;
+  }
+}
+
+// 加新 action 但忘了处理时：
+type Action =
+  | { type: "INCREMENT"; payload: number }
+  | { type: "DECREMENT"; payload: number }
+  | { type: "RESET" }
+  | { type: "MULTIPLY"; payload: number }; // 新加的
+
+// reducer 里 default 分支会报错：
+// Type '{ type: "MULTIPLY"; payload: number; }' is not assignable to type 'never'
+```
+
+**作用**：让 TS 强制你处理每个新加的类型——是设计**不让非法状态编译通过**的核心手法。
+
+### 3.6 `any` / `unknown` / `never` 三种特殊类型
+
+| 类型      | 含义                               | 何时用                       |
+| --------- | ---------------------------------- | ---------------------------- |
+| `any`     | "我不关心类型，怎么用都行"         | **几乎不用**——会污染类型推断 |
+| `unknown` | "我不知道类型，但你必须先检查再用" | 替代 `any` 的安全选择        |
+| `never`   | "永不可能出现的值"                 | 穷尽性检查 / 抛错函数返回值  |
+
+**`any` vs `unknown` 关键对比**：
+
+```ts
+let x: any = JSON.parse(input);
+x.foo.bar; // ✅ 编译通过——但运行时可能崩溃
+
+let y: unknown = JSON.parse(input);
+y.foo.bar; // ❌ 编译错误——必须先收窄
+
+if (typeof y === "object" && y !== null && "foo" in y) {
+  // 现在可以安全访问
+}
+```
+
+**经验法则**：
+
+- **永远不写 `any`**——除非维护老代码 / 真的没法
+- **不知道类型时用 `unknown`**——强制你做收窄
+- **抛错函数 / 永真分支用 `never`**——表达"这里不可能到达"
+
+```ts
+function throwError(message: string): never {
+  throw new Error(message);
+}
+
+function fail(): never {
+  while (true) {
+    // 无限循环
+  }
+}
+```
+
+> 一手：[TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)（英文）。
+
+---
+
+## 4. 联合类型与交叉类型
+
+### 4.1 联合类型（`A | B`）
+
+**"是 A 或者是 B"**：
+
+```ts
+type Status = "active" | "inactive" | "pending";
+type ID = string | number;
+
+function format(id: ID): string {
+  // id 可以是 string 或 number
+  return String(id);
+}
+```
+
+**联合类型 = 可能性的并集**：
+
+```ts
+type StringOrNumber = string | number;
+
+const x: StringOrNumber = "hello"; // ✅
+const y: StringOrNumber = 42; // ✅
+const z: StringOrNumber = true; // ❌
+```
+
+**联合类型的属性访问**：只能访问**所有成员都有**的属性。
+
+```ts
+type Animal = { name: string; age: number };
+type Vehicle = { name: string; wheels: number };
+
+type AnimalOrVehicle = Animal | Vehicle;
+
+function show(x: AnimalOrVehicle) {
+  console.log(x.name); // ✅ 两个都有
+  console.log(x.age); // ❌ Vehicle 没有
+  console.log(x.wheels); // ❌ Animal 没有
+}
+```
+
+### 4.2 交叉类型（`A & B`）
+
+**"既是 A 又是 B"**——合并两个类型的所有属性：
+
+```ts
+type Animal = { name: string; age: number };
+type Pet = { owner: string };
+
+type PetAnimal = Animal & Pet;
+// { name: string; age: number; owner: string }
+
+const dog: PetAnimal = {
+  name: "Rex",
+  age: 5,
+  owner: "Alice",
+};
+```
+
+**交叉类型 = 属性的并集**：
+
+```ts
+type A = { x: number };
+type B = { y: number };
+type C = { z: number };
+
+type ABC = A & B & C;
+// { x: number; y: number; z: number }
+```
+
+### 4.3 联合 vs 交叉的"反直觉"
+
+很多新人会混淆——记忆口诀：
+
+- **联合（`|`）= 值的并集，但属性的交集**——可能性更多，能用的属性更少
+- **交叉（`&`）= 值的交集，但属性的并集**——可能性更少，能用的属性更多
+
+```ts
+type Cat = { meow: () => void; purr: () => void };
+type Dog = { bark: () => void; wagTail: () => void };
+
+// 联合：可能是 Cat 也可能是 Dog，只能调用两者都有的方法（这里没有，所以啥都不能调）
+type Pet = Cat | Dog;
+const p: Pet = ...;
+p.meow(); // ❌
+
+// 交叉：既是 Cat 又是 Dog（一只能 meow 又能 bark 的怪兽）
+type CatDog = Cat & Dog;
+const cd: CatDog = ...;
+cd.meow();    // ✅
+cd.bark();    // ✅
+cd.purr();    // ✅
+cd.wagTail(); // ✅
+```
+
+### 4.4 实战：用联合表达"可能存在的状态"
+
+可辨识联合是日常 React / Redux 代码的核心模式：
+
+```ts
+type AsyncState<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+
+function useUser(id: string) {
+  const [state, setState] = useState<AsyncState<User>>({ status: 'idle' });
+
+  // ...
+
+  return state;
+}
+
+// 使用方
+const state = useUser('123');
+
+if (state.status === 'loading') return <Loading />;
+if (state.status === 'error') return <Error error={state.error} />;
+if (state.status === 'success') return <UserCard user={state.data} />;
+return null; // idle
+```
+
+> **关键设计**：用联合类型让"非法状态"无法表示——比如不可能同时有 `data` 和 `error`（因为 success 和 error 是不同分支）。这是 §4.6 会深入的"让非法状态无法表示"原则。
+
+---
+
+## 5. 泛型（generics）
+
+**泛型**让函数 / 类 / 接口能"接收类型作为参数"——这是 TS 类型系统的灵活性核心。
+
+### 5.1 基础语法
+
+```ts
+// 泛型函数
+function identity<T>(value: T): T {
+  return value;
+}
+
+identity<string>("hello"); // 显式传 T = string
+identity("hello"); // 让 TS 推断 T = 'hello'
+identity(42); // T = 42
+```
+
+**为什么需要泛型**：保留输入和输出的类型关系。
+
+```ts
+// ❌ 反例：用 any，类型信息丢失
+function identity(value: any): any {
+  return value;
+}
+
+const x = identity("hello"); // x 是 any
+x.foo; // ✅ 编译通过（但运行时崩溃）
+
+// ✅ 正例：用泛型，类型保留
+function identity<T>(value: T): T {
+  return value;
+}
+
+const y = identity("hello"); // y 是 'hello'
+y.foo; // ❌ 编译错误
+```
+
+### 5.2 泛型约束（generic constraints）
+
+**问题**：泛型 `T` 默认可以是任何类型——但如果你想"任何**有 length 属性**的类型"呢？
+
+```ts
+function len<T>(value: T) {
+  return value.length; // ❌ T 可能没 length
+}
+```
+
+**解法**：用 `extends` 约束泛型：
+
+```ts
+function len<T extends { length: number }>(value: T): number {
+  return value.length;
+}
+
+len("hello"); // ✅ string 有 length
+len([1, 2, 3]); // ✅ 数组有 length
+len({ length: 10 }); // ✅ 对象有 length
+len(42); // ❌ number 没有 length
+```
+
+### 5.3 默认类型参数
+
+```ts
+function createState<T = string>(initial: T): T {
+  return initial;
+}
+
+createState("hello"); // T 推断为 string
+createState<number>(42); // T 显式为 number
+createState(); // ❌ initial 是必传
+```
+
+### 5.4 泛型类 / 泛型接口
+
+```ts
+// 泛型类
+class Box<T> {
+  constructor(public value: T) {}
+
+  get(): T {
+    return this.value;
+  }
+}
+
+const box = new Box<number>(42);
+box.get(); // number
+
+// 泛型接口
+interface Repository<T> {
+  findById(id: string): Promise<T>;
+  save(entity: T): Promise<void>;
+}
+
+class UserRepo implements Repository<User> {
+  async findById(id: string): Promise<User> {
+    /* ... */
+  }
+  async save(entity: User): Promise<void> {
+    /* ... */
+  }
+}
+```
+
+### 5.5 多个泛型参数
+
+```ts
+function pair<A, B>(a: A, b: B): [A, B] {
+  return [a, b];
+}
+
+pair("hello", 42); // [string, number]
+
+// 实际场景：Map 的 key/value
+function makeMap<K, V>(entries: [K, V][]): Map<K, V> {
+  return new Map(entries);
+}
+```
+
+### 5.6 关键边界：何时该用泛型
+
+**泛型的核心目的**：**保留两个或多个位置之间的类型关系**。
+
+```ts
+// ✅ 合理：保留 input 和 output 的关系
+function pluck<T, K extends keyof T>(obj: T, keys: K[]): T[K][] {
+  return keys.map((k) => obj[k]);
+}
+
+const user = { name: "Alice", age: 30 };
+pluck(user, ["name"]); // string[]
+pluck(user, ["age"]); // number[]
+```
+
+```ts
+// ❌ 滥用：泛型只用一次，没保留任何关系
+function log<T>(value: T): void {
+  console.log(value);
+}
+
+// 直接写就行：
+function log(value: unknown): void {
+  console.log(value);
+}
+```
+
+**经验法则**：
+
+- **泛型至少出现两次**才有意义（输入 + 输出 / 输入 + 约束）
+- **只出现一次的泛型 → 用 `unknown`**
+
+> AI 时代踩坑高发：AI 经常在不需要泛型的地方塞泛型——**review 时检查"这个 T 用了几次？只用了一次就该删"**。
+
+### 5.7 几个高频泛型模式
+
+#### 模式 1：从对象提取键
+
+```ts
+type Keys<T> = keyof T;
+
+type UserKeys = Keys<{ name: string; age: number }>;
+// 'name' | 'age'
+```
+
+#### 模式 2：用 keyof 约束
+
+```ts
+function get<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const user = { name: "Alice", age: 30 };
+get(user, "name"); // string
+get(user, "age"); // number
+get(user, "xxx"); // ❌ Error
+```
+
+#### 模式 3：泛型工厂函数
+
+```ts
+function create<T>(constructor: new () => T): T {
+  return new constructor();
+}
+
+class User {
+  name = "default";
+}
+
+const u = create(User); // u is User
+```
+
+> 一手：[TypeScript Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)（英文）。
+
+---
+
+## 6. 工具类型（utility types）
+
+**工具类型**是 TS 内置的"类型转换函数"——基于已有类型派生新类型。
+
+### 6.1 必学的 6 个工具类型
+
+#### `Partial<T>`：所有属性变可选
+
+```ts
+type User = { name: string; age: number; email: string };
+
+type PartialUser = Partial<User>;
+// { name?: string; age?: number; email?: string }
+
+// 实战：更新对象时，只传需要改的字段
+function updateUser(id: string, updates: Partial<User>) {
+  // ...
+}
+
+updateUser("123", { name: "Bob" }); // ✅
+```
+
+#### `Required<T>`：所有属性变必填
+
+```ts
+type Config = { host?: string; port?: number };
+
+type StrictConfig = Required<Config>;
+// { host: string; port: number }
+```
+
+#### `Readonly<T>`：所有属性变只读
+
+```ts
+type User = { name: string; age: number };
+
+type ReadonlyUser = Readonly<User>;
+
+const u: ReadonlyUser = { name: "Alice", age: 30 };
+u.name = "Bob"; // ❌ Cannot assign to 'name'
+```
+
+#### `Pick<T, K>`：选取 T 的部分属性
+
+```ts
+type User = { id: string; name: string; age: number; email: string };
+
+type PublicUser = Pick<User, "id" | "name">;
+// { id: string; name: string }
+```
+
+#### `Omit<T, K>`：排除 T 的部分属性
+
+```ts
+type User = { id: string; name: string; age: number; password: string };
+
+type SafeUser = Omit<User, "password">;
+// { id: string; name: string; age: number }
+```
+
+**`Pick` vs `Omit` 选择经验**：
+
+- 只想要少数几个属性 → `Pick`（白名单）
+- 只想去掉少数几个属性 → `Omit`（黑名单）
+
+#### `Record<K, V>`：构建对象类型
+
+```ts
+// 键是字符串字面量，值统一类型
+type Roles = Record<"admin" | "user" | "guest", string[]>;
+// { admin: string[]; user: string[]; guest: string[] }
+
+const permissions: Roles = {
+  admin: ["read", "write", "delete"],
+  user: ["read", "write"],
+  guest: ["read"],
+};
+
+// 任意字符串键
+type CacheMap = Record<string, unknown>;
+```
+
+### 6.2 异步与函数相关
+
+#### `Awaited<T>`：解开 Promise
+
+```ts
+type A = Awaited<Promise<string>>; // string
+type B = Awaited<Promise<Promise<number>>>; // number（递归解包）
+
+// 实战：从异步函数推导返回值
+async function fetchUser() {
+  return { name: "Alice", age: 30 };
+}
+
+type User = Awaited<ReturnType<typeof fetchUser>>;
+// { name: string; age: number }
+```
+
+#### `ReturnType<T>` / `Parameters<T>`
+
+```ts
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+type AddReturn = ReturnType<typeof add>; // number
+type AddParams = Parameters<typeof add>; // [number, number]
+```
+
+### 6.3 字符串相关
+
+```ts
+type LowerCase = Lowercase<"HELLO">; // 'hello'
+type UpperCase = Uppercase<"hello">; // 'HELLO'
+type Capitalize = Capitalize<"hello">; // 'Hello'
+type Uncap = Uncapitalize<"Hello">; // 'hello'
+```
+
+### 6.4 `NonNullable<T>` 移除 null / undefined
+
+```ts
+type StringOrNull = string | null | undefined;
+type Strict = NonNullable<StringOrNull>; // string
+```
+
+### 6.5 `satisfies` 操作符（TS 4.9+）
+
+**解决了什么**：保持精确类型推断，同时验证符合某个类型。
+
+```ts
+// ❌ 旧写法 1：用 as → 类型变窄到指定类型
+const config = {
+  host: "localhost",
+  port: 3000,
+} as { host: string; port: number };
+
+config.host; // string（不是 'localhost' 字面量）
+
+// ❌ 旧写法 2：注解 → 一样变窄
+const config: { host: string; port: number } = {
+  host: "localhost",
+  port: 3000,
+};
+
+config.host; // string（不是 'localhost'）
+
+// ✅ 新写法：satisfies → 验证 + 保留精确类型
+const config = {
+  host: "localhost",
+  port: 3000,
+} satisfies { host: string; port: number };
+
+config.host; // 'localhost'（保留字面量类型！）
+config.port; // 3000
+```
+
+**经验**：
+
+- 想验证类型符合 + 保留精确推断 → 用 `satisfies`
+- 想强制类型变窄到注解 → 用 `:` 注解或 `as`
+
+> 一手：[TypeScript 4.9 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html)（英文）。
+
+### 6.6 `Partial` 不是深度的——常见陷阱
+
+```ts
+type User = {
+  profile: {
+    name: string;
+    address: { city: string };
+  };
+};
+
+type PartialUser = Partial<User>;
+// 只有顶层 profile 变可选；嵌套的 name / city 仍是必填
+
+// 想要深度可选需要自己写：
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
+
+type Result = DeepPartial<User>;
+// { profile?: { name?: string; address?: { city?: string } } }
+```
+
+> 一手：[TypeScript Handbook: Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html)（英文）。
+
+---
+
+## 7. 高级类型：条件 / 映射 / 模板字面量 / infer
+
+这一段是 TypeScript **类型代数**的核心——让你能"用类型定义类型"。日常业务代码里用得不多，但写库 / 工具类型时是利器。
+
+### 7.1 条件类型（`T extends U ? X : Y`）
+
+**类型层面的 if-else**：
+
+```ts
+type IsString<T> = T extends string ? true : false;
+
+type A = IsString<"hello">; // true
+type B = IsString<42>; // false
+```
+
+**实战示例**：
+
+```ts
+// 提取数组元素类型
+type ArrayElement<T> = T extends (infer U)[] ? U : never;
+
+type A = ArrayElement<number[]>; // number
+type B = ArrayElement<string[]>; // string
+type C = ArrayElement<string>; // never
+```
+
+**条件类型在联合类型上是分配的**：
+
+```ts
+type ToArray<T> = T extends any ? T[] : never;
+
+type A = ToArray<string | number>;
+// 等价于 ToArray<string> | ToArray<number>
+// 结果：string[] | number[]
+```
+
+> **关键**：分配律让条件类型能"批量处理"联合的每个成员——是工具类型的基础机制。
+
+### 7.2 映射类型（`{ [K in keyof T]: ... }`）
+
+**遍历类型的所有键，生成新类型**：
+
+```ts
+// 把所有属性变可选（这就是 Partial 的实现）
+type Partial<T> = {
+  [K in keyof T]?: T[K];
+};
+
+// 把所有属性变只读
+type Readonly<T> = {
+  readonly [K in keyof T]: T[K];
+};
+
+// 把所有值变成 string
+type Stringify<T> = {
+  [K in keyof T]: string;
+};
+
+type Result = Stringify<{ name: number; age: number }>;
+// { name: string; age: string }
+```
+
+**映射修饰符**：
+
+```ts
+// + 添加修饰符（默认）
+type Readonly<T> = { +readonly [K in keyof T]: T[K] };
+
+// - 移除修饰符
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+type Required<T> = { [K in keyof T]-?: T[K] };
+```
+
+### 7.3 模板字面量类型（template literal types）
+
+**字符串拼接的类型版**：
+
+```ts
+type Greeting = `Hello, ${string}`;
+
+const g1: Greeting = "Hello, Alice"; // ✅
+const g2: Greeting = "Hi, Alice"; // ❌
+
+// 联合 → 笛卡尔积
+type Direction = "top" | "bottom" | "left" | "right";
+type Position = `${Direction}-${number}`;
+// 'top-${number}' | 'bottom-${number}' | ...
+```
+
+**实战：CSS-in-JS 的类型安全**：
+
+```ts
+type CSSColor = `#${string}` | `rgb(${number}, ${number}, ${number})`;
+
+const c1: CSSColor = "#fff"; // ✅
+const c2: CSSColor = "rgb(255, 0, 0)"; // ✅
+const c3: CSSColor = "red"; // ❌
+```
+
+### 7.4 `infer` 类型推导
+
+**在条件类型里"提取"类型**：
+
+```ts
+// 提取函数返回值（这就是 ReturnType 的实现）
+type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+
+type A = ReturnType<() => string>; // string
+type B = ReturnType<(x: number) => User>; // User
+
+// 提取数组元素
+type ArrayElement<T> = T extends (infer U)[] ? U : never;
+
+// 提取 Promise 的解包值
+type Awaited<T> = T extends Promise<infer V> ? V : T;
+
+// 多个 infer
+type FirstAndLast<T> = T extends [infer F, ...any[], infer L] ? [F, L] : never;
+type Result = FirstAndLast<[1, 2, 3, 4]>; // [1, 4]
+```
+
+> 一手：[TypeScript Handbook: Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)；[Mapped Types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)；[Template Literal Types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)（英文）。
+
+### 7.5 何时该用高级类型
+
+**该用**：
+
+- 写**通用工具类型**（如 React 组件 props 类型派生）
+- 表达**复杂业务约束**（如"`status: 'success'` 时必须有 `data`"）
+- **类型安全的 API 客户端**（路径 + 参数完全类型推导）
+
+**不该用**：
+
+- **业务代码不要"炫技"**——简单类型胜过聪明类型
+- **过度类型代数会让 TS 编译变慢**（O(n²) 是常见陷阱）
+- **AI 看不懂的复杂类型 = 你将来也看不懂**
+
+> 想刻意训练高级类型？做一遍 [type-challenges](https://github.com/type-challenges/type-challenges) 的 easy / medium 题——业务代码够用了。
+
+---
+
+## 8. 三档归位
+
+| 知识点                                       | 归位         | 理由                                          |
+| -------------------------------------------- | ------------ | --------------------------------------------- |
+| 基础类型注解（string / number / 数组等）     | **必学**     | 写 TS 代码的入门                              |
+| 字面量类型 + 联合（`'red' \| 'blue'`）       | **必学**     | 替代 enum 的现代写法                          |
+| 结构化类型机制（duck typing）                | **必学**     | TS 类型兼容性的根                             |
+| 多余属性检查                                 | **必学**     | TS 拦截"拼错字段"的核心                       |
+| 类型推断（const vs let）                     | **必学**     | 写代码不需要冗余注解                          |
+| 类型守卫（typeof / instanceof / in）         | **必学**     | 类型收窄的日常手段                            |
+| 自定义类型谓词（`x is User`）                | **必学**     | 自定义类型守卫                                |
+| 可辨识联合（discriminated union）            | **必学**     | React / Redux state / API response 的标准写法 |
+| 穷尽性检查（`never`）                        | **必学**     | "新加 case 不漏处理"的关键                    |
+| `unknown` vs `any` 区别                      | **必学**     | 写 TS 的标志                                  |
+| 联合类型 vs 交叉类型                         | **必学**     | 日常类型组合                                  |
+| 泛型基础（`<T>`）+ 泛型约束                  | **必学**     | 类型保留的核心                                |
+| 6 个核心工具类型（Partial / Pick / Omit 等） | **必学**     | 业务代码最常用的派生类型                      |
+| `Awaited<T>` / `ReturnType<T>`               | **必学**     | 从异步函数 / 已有函数推导类型                 |
+| `satisfies` 操作符                           | **必学**     | TS 4.9+ 标配                                  |
+| 协变 / 逆变                                  | **仍需理解** | 偶尔遇到错误时知道方向                        |
+| 条件类型（`T extends U ? X : Y`）            | **仍需理解** | 写工具类型时用                                |
+| 映射类型（`{ [K in keyof T]: ... }`）        | **仍需理解** | 写工具类型时用                                |
+| 模板字面量类型（`` `${T}` ``）               | **仍需理解** | 类型安全 API / CSS-in-JS                      |
+| `infer` 类型推导                             | **仍需理解** | 写工具类型时用                                |
+| `enum`                                       | **可委托**   | 知道存在；现代 TS 用字面量联合替代            |
+| 命名空间（`namespace`）                      | **不学**     | ES Module 替代了它，老代码才有                |
+| `triple-slash` 引用（`/// <reference />`）   | **不学**     | 老 TS 项目遗留，新项目不用                    |
+
+---
+
+## 9. AI 时代写 TypeScript 的最小集
+
+### AI 写 TS 时最容易错的三件事
+
+#### 1. 滥用 `any`
+
+AI 遇到复杂类型推断卡顿时，**默认会塞 `any`** 让代码"先编译过去"——但 `any` 会污染整个调用链：
+
+```ts
+// ❌ AI 生成
+function processData(data: any) {
+  return data.items.map((item: any) => item.value);
+  // 一切类型信息都丢了
+}
+
+// ✅ 你应改为
+function processData<T extends { items: { value: unknown }[] }>(data: T) {
+  return data.items.map((item) => item.value);
+}
+```
+
+**review 时检查：哪里写了 `any`？大部分可以换 `unknown` + 类型守卫。**
+
+#### 2. 滥用类型断言（`as`）
+
+`as` 是"我比 TS 更懂这个类型"——但**AI 经常用 `as` 绕过类型错误**，导致运行时崩溃。
+
+```ts
+// ❌ AI 生成
+const user = JSON.parse(input) as User;
+user.name; // 编译过，但 input 可能不是 User 形状 → 运行时崩
+
+// ✅ 你应改为：用类型守卫验证
+function isUser(x: unknown): x is User {
+  // 实际验证逻辑
+}
+
+const data = JSON.parse(input);
+if (isUser(data)) {
+  data.name; // 安全
+}
+
+// ✅ 或用 Zod 等运行时验证库
+const user = userSchema.parse(JSON.parse(input));
+```
+
+#### 3. 泛型滥用 / 不该用泛型时用泛型
+
+```ts
+// ❌ AI 生成：泛型只用一次，毫无意义
+function log<T>(value: T): void {
+  console.log(value);
+}
+
+// ✅ 改成
+function log(value: unknown): void {
+  console.log(value);
+}
+```
+
+**经验**：**泛型至少应该出现两次**——输入 + 输出 / 输入 + 约束。出现一次就该用 `unknown`。
+
+### 你必须把握的 review 要点
+
+**类型注解**：
+
+- 是否有 `any`（应该用 `unknown` 或具体类型）
+- 类型断言 `as` 是否可以换成类型守卫
+
+**联合类型**：
+
+- 是否用了可辨识联合（status 字段）
+- switch 是否做了穷尽性检查（`never`）
+
+**泛型**：
+
+- T 用了几次？只用一次就该删
+- 有没有合理的约束（`extends`）
+
+**工具类型**：
+
+- `Partial` 是否当成"深度可选"误用
+- 是否用了 `satisfies` 保留精确类型
+
+---
+
+## 10. 翻车库
+
+### 10.1 `any` 污染整个推理链
+
+**症状**：链式调用一开始有类型，到某一步突然全是 `any`。
+
+**原因**：链上某个返回值是 `any`——之后的所有类型推断都被污染。
+
+**修复**：找出 `any` 源头，换成 `unknown` 或具体类型：
+
+```ts
+// ❌ 反例
+const data: any = await fetch("/api").then((r) => r.json());
+data.users.map((u) => u.name); // u 是 any
+
+// ✅ 正例
+const data: unknown = await fetch("/api").then((r) => r.json());
+
+// 用类型守卫或 Zod 验证后再用
+if (isApiResponse(data)) {
+  data.users.map((u) => u.name); // u 类型推断正确
+}
+```
+
+### 10.2 `as` 强制断言导致运行时崩溃
+
+**症状**：编译过但生产环境报 `TypeError`。
+
+**原因**：`as` 强制断言绕过了 TS 检查——但运行时数据可能不符合声明类型。
+
+**修复**：用类型守卫或运行时验证库（Zod 等）替代 `as`。
+
+### 10.3 联合类型没穷尽
+
+**症状**：加了新 action 类型但 reducer 没处理，没收到任何报错。
+
+**修复**：用 `never` 做穷尽性检查：
+
+```ts
+function reducer(state: State, action: Action) {
+  switch (action.type) {
+    case "INC":
+      return state + 1;
+    case "DEC":
+      return state - 1;
+    default:
+      const _exhaustive: never = action; // 加了新 case 就编译错
+      return state;
+  }
+}
+```
+
+### 10.4 `Partial` 不是深度的
+
+**症状**：用 `Partial<User>` 后嵌套对象的属性仍然报"必填"。
+
+**原因**：`Partial` 只对**顶层**属性变可选。
+
+**修复**：自己写 `DeepPartial` 或用 type-fest 等库：
+
+```ts
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
+```
+
+### 10.5 函数参数协变 / 逆变误判
+
+**症状**：把"宽函数"赋给"窄函数"类型时报错。
+
+**原因**：函数参数是逆变的（默认）。
+
+**修复**：理解协变 / 逆变规则，或开 `strictFunctionTypes` 后调整代码：
+
+```ts
+type DogHandler = (d: Dog) => void;
+type AnimalHandler = (a: Animal) => void;
+
+const handleAnimal: AnimalHandler = (a) => console.log(a.name);
+
+const handleDog: DogHandler = handleAnimal; // ✅ 正确：宽函数能接受窄类型
+
+// 反过来不行
+const handleAnimal2: AnimalHandler = handleDog; // ❌ DogHandler 期望 Dog，传 Animal 不安全
+```
+
+### 10.6 `enum` 在 const 上下文 vs 运行时
+
+**症状**：`enum` 编译后产生运行时代码，bundle 变大。
+
+**原因**：`enum` 不是纯类型——它会被编译成对象。
+
+**修复**：用 `as const` + 字面量联合替代：
+
+```ts
+// ❌ 旧写法（生成运行时代码）
+enum Direction {
+  Left = "left",
+  Right = "right",
+}
+
+// ✅ 新写法（纯类型，零运行时开销）
+const Direction = {
+  Left: "left",
+  Right: "right",
+} as const;
+type Direction = (typeof Direction)[keyof typeof Direction]; // 'left' | 'right'
+
+// 或者直接字面量联合
+type Direction = "left" | "right";
+```
+
+### 10.7 类型导入忘加 `type` 关键字
+
+**症状**：bundle 包含了只用作类型的导入。
+
+**原因**：TypeScript 默认把 import 当成运行时依赖。
+
+**修复**：用 `import type`：
+
+```ts
+// ❌ 反例：会被打包器视为运行时依赖
+import { User } from "./types";
+
+// ✅ 正例：明确告知"只是类型"
+import type { User } from "./types";
+```
+
+> TS 5.0+ 可以混用 `import { type X, fn }` 一行解决。
+
+---
+
+## 11. 读完本节你应该能
+
+### 类型注解
+
+- [ ] 写出基础类型 / 数组 / 元组 / 对象 / 函数类型注解
+- [ ] 区分 `interface` 和 `type`（详见 §4.6）
+- [ ] 用字面量类型 + 联合替代 `enum`
+- [ ] 解释 `?` / `readonly` 修饰符的含义
+
+### 结构化类型
+
+- [ ] 解释为什么 TS 是结构化类型（duck typing）
+- [ ] 列出多余属性检查的触发条件
+- [ ] 区分协变 / 逆变（函数参数是逆变）
+
+### 类型收窄
+
+- [ ] 写 `typeof` / `instanceof` / `in` 类型守卫
+- [ ] 写自定义类型谓词（`x is User`）
+- [ ] 用可辨识联合表达多状态
+- [ ] 用 `never` 做穷尽性检查
+- [ ] 区分 `any` / `unknown` / `never` 的语义
+
+### 联合 vs 交叉
+
+- [ ] 区分 `A | B` 和 `A & B`
+- [ ] 解释"联合属性是交集，交叉属性是并集"
+- [ ] 写出"非法状态无法表示"的可辨识联合（如 `AsyncState<T>`）
+
+### 泛型
+
+- [ ] 写基础泛型函数 / 类 / 接口
+- [ ] 用 `extends` 约束泛型
+- [ ] 判断"什么时候该用泛型 vs 什么时候用 `unknown`"
+- [ ] 用 `keyof` 和泛型组合（如 `pluck` 函数）
+
+### 工具类型
+
+- [ ] 列出 6 个核心工具类型（Partial / Required / Readonly / Pick / Omit / Record）
+- [ ] 用 `Awaited` / `ReturnType` / `Parameters` 派生类型
+- [ ] 用 `satisfies` 保留精确推断
+- [ ] 知道 `Partial` 不是深度的
+
+### 高级类型
+
+- [ ] 写条件类型（`T extends U ? X : Y`）
+- [ ] 写映射类型（`{ [K in keyof T]: ... }`）
+- [ ] 写模板字面量类型
+- [ ] 用 `infer` 提取类型
+
+### AI 协作
+
+- [ ] 识别 AI 生成的代码里 `any` / `as` 的滥用
+- [ ] 判断 AI 生成的泛型是不是"硬塞"（只用一次的泛型）
+- [ ] review 联合类型是否做了穷尽性检查
+
+---
+
+## 12. 延伸阅读
+
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html) **（英文）** — 官方权威文档
+- [TypeScript Handbook: Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html) **（英文）** — 基础类型详解
+- [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html) **（英文）** — 类型收窄完整指南
+- [TypeScript Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html) **（英文）** — 泛型详解
+- [TypeScript Handbook: Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html) **（英文）** — 内置工具类型完整列表
+- [TypeScript Handbook: Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html) **（英文）** — 结构化类型规则
+- [TypeScript Handbook: Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html) **（英文）** — 条件类型 + infer
+- [TypeScript 5.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html) **（英文）** — 最新版本特性
+- [type-challenges](https://github.com/type-challenges/type-challenges) **（英文，含中文）** — TS 类型体操练习题，从 easy 到 hard
+- [TypeScript Performance](https://github.com/microsoft/TypeScript/wiki/Performance) **（英文）** — 写复杂类型时的性能注意事项
+
+> 访问性说明：TypeScript 官方文档是英文，但访问稳定。type-challenges 仓库支持中文 README。
+
+---
+
+下一节：[§4.6 TypeScript 实战与类型设计](/chapter-04/typescript-design) _（待写）_——何时 `type` vs `interface`、何时不用 `enum`、如何让"非法状态无法表示"。
