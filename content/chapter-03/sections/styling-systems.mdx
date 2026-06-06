@@ -1,0 +1,1210 @@
+---
+title: 样式方案选型与样式系统
+chapter: 3
+section: 5
+description: Tailwind / CSS Modules / CSS-in-JS / 无头组件 / shadcn / 设计令牌——选什么、配什么、为什么
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 15
+---
+
+> 这一节讲**一旦写到真实项目就绕不开的问题**——怎么组织样式、怎么和团队协作、怎么和 AI 协作。前面四节讲了 CSS **能怎么写**，§3.5 讲**该怎么组织**。
+
+§3.1-§3.4 把 CSS 语言层、布局、语义、响应式都讲清楚了。但写一个真实项目时，第一个真实问题是：**这堆样式放哪？怎么命名？怎么复用？怎么和组件库 / 设计系统对接？**——这就是"样式方案选型"。
+
+**选错样式方案的代价，往往要等上线半年后才显现**——重构成本陡增、新人上手慢、AI 协作低效、设计系统对接困难。这一节就是给你判断地图。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                        | 直接读                                                |
+> | --------------------------- | ----------------------------------------------------- |
+> | **新人 / 转行者**           | §0 简史 → §1 选型决策图 → §3 CSS Modules vs Tailwind  |
+> | **老前端跟进 2024+ 现状**   | §0.2 转折点 → §4 CSS-in-JS 现状 → §6 shadcn → §8 令牌 |
+> | **团队负责人 / 架构师选型** | §1 选型图 → §3 / §6 / §7 → §10 设计判断暗线           |
+> | **想深入设计令牌**          | §8 设计令牌（整段）+ §10 信息隐藏                     |
+> | **要带 AI 写样式**          | §11 AI 时代写样式的最小集                             |
+>
+> 整节读完约 60-80 分钟；按上面挑读 20-25 分钟。**§3 / §6 / §8 是核心**——它们对应 2026 年最常被讨论的三组选择题（写法、组件分发、设计系统）。
+
+---
+
+## 0. 一段必要的回顾：样式组织的演进史
+
+> 跟前几节一样，先看演进——**今天每一个被推荐的现代方案，都在替换某个 2010 年代的旧解法**。这条线索串起来，选型判断就不再是"信谁的口味"。
+
+### 0.1 一张时间表
+
+| 年代  | 主流方案                                                            | 解决了什么                        | 留下了什么                                          |
+| ----- | ------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------- |
+| ~2005 | 全局 CSS + 命名约定（[BEM](https://getbem.com/)）                   | 给样式起规则                      | 全局污染、命名地狱、协作冲突                        |
+| ~2010 | Sass / Less 预处理器                                                | 变量、嵌套、mixin                 | 仍是全局样式；增加构建依赖                          |
+| ~2014 | [CSS Modules](https://github.com/css-modules/css-modules)           | **局部作用域**——按文件隔离类名    | 仍要写传统 CSS 文件                                 |
+| ~2016 | CSS-in-JS（[styled-components](https://styled-components.com/) 等） | 组件 + 样式同文件                 | 运行时开销、SSR 复杂、[与 RSC 不兼容](#4-css-in-js) |
+| ~2017 | [Tailwind CSS](https://tailwindcss.com/)                            | **原子化**类名 + 配置驱动         | 类名长；初见"反 CSS"心智                            |
+| ~2020 | 设计令牌（design tokens）成熟                                       | 跨方案的"设计系统单一来源"        | 命名分层是新挑战                                    |
+| ~2023 | [shadcn/ui](https://ui.shadcn.com/) 复制粘贴范式                    | **代码进项目**而非进 node_modules | 维护责任落到项目方                                  |
+| 2024+ | RSC + Tailwind 默认组合（Next.js / Remix）                          | 服务端组件场景的标准答案          | CSS-in-JS 在 RSC 下受限的争议                       |
+
+**两条主线值得记住**：
+
+1. **从"全局共享"逐步走向"局部隔离"**——BEM 用命名约定模拟隔离、CSS Modules 用编译做隔离、CSS-in-JS 用 JS 做隔离、Tailwind 用类名工具集做"无需隔离"。每一代都在回答同一个问题：**怎么避免样式互相干扰**。
+
+2. **从"运行时计算"走回"编译时确定"**——CSS-in-JS 顶峰时期把样式逻辑放到运行时（动态主题、props 驱动），但代价是 SSR 慢、bundle 大、与 RSC 冲突。2024 起主流方向是 **Tailwind（编译时）+ CSS 变量（运行时切换）** 的组合——把"什么样式"在编译时确定，"应用哪套"在运行时切换。
+
+### 0.2 转折点：2022-2023 RSC 的影响
+
+React 18 引入服务端组件（RSC）后，**styled-components / Emotion 等运行时 CSS-in-JS 库都明确不支持 RSC**——它们依赖运行时 JS 注入样式，而 RSC 在服务器上完成渲染、不带运行时 JS。这是 2024 年 CSS-in-JS 份额下滑的直接原因。
+
+> 一手参考：[Next.js: CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)（明确列出"App Router 不支持 styled-components / Emotion"）；[styled-components #4025](https://github.com/styled-components/styled-components/issues/4025)（官方对 RSC 的回应）。
+
+> **写给老前端**：如果你最近一次系统选样式方案是 2018-2020 年的 styled-components 或 SCSS 时代，这一节你需要重读。**不是因为旧方案不能用，是因为生态默认组合换了**——新项目从 Tailwind + shadcn + Radix 开始走，能少一半的"自己造轮子"工作。
+
+> **写给新人**：你看到的"选型争论"很多其实是 2018-2020 年的遗留——那时 CSS-in-JS 是 React 圈的默认推荐。现在主流默认换了，**直接学 Tailwind + 设计令牌就可以**——CSS Modules / SCSS 做项目时遇到再补，CSS-in-JS 大概率不需要主动选择。
+
+---
+
+## 1. 一张选型决策图
+
+来了一个项目，先按这棵树问：
+
+```text
+项目类型？
+
+├─ 内容站 / 文档 / 博客
+│  └─ CSS Modules 或 Tailwind 都行
+│     理由：样式复杂度低，两者都能干净完成
+│
+├─ 设计系统重的产品（Linear / Stripe 风格）
+│  └─ Tailwind + shadcn/ui + Radix UI
+│     理由：设计令牌配置驱动，组件按需复制粘贴，AI 协作最佳
+│
+├─ 中后台业务系统（表单 / 表格 / 数据密集）
+│  └─ 完整组件库（Ant Design / Element Plus / MUI）
+│     理由：开箱大量业务组件，快速搭建比定制重要
+│
+├─ 多品牌 / 高度定制的 SaaS
+│  └─ 设计令牌 + Tailwind / 无头组件
+│     理由：令牌层统一，上层可按品牌切换
+│
+└─ 高交互的 SPA（编辑器 / 绘图 / 游戏）
+   └─ CSS Modules / 编译时 CSS-in-JS（vanilla-extract）
+      理由：动态样式计算需要精细控制，Tailwind 约束过强
+```
+
+**几条经验法则**：
+
+1. **无特殊原因选 Tailwind + shadcn**——2024-2026 年新项目的默认组合。特殊原因包括：团队已有成熟的 CSS Modules 实践 / 设计师不接受原子化类名 / 现有代码库是 CSS-in-JS / 明确的动态样式计算需求。
+2. **不要混用两套写法层**——Tailwind + CSS Modules 并存 = 命名冲突 + 优先级大战。选一套写法，团队统一。
+3. **完整组件库 vs 无头组件是互斥选择**——Ant Design 自带样式 + Radix（无头）自己写样式 = 两套设计系统互砍。要么选 Ant 接受它的设计语言，要么选 Radix + shadcn 从头定制。
+4. **设计令牌是跨方案的**——无论选哪套写法，令牌层都该立起来。Tailwind 把令牌写进 `tailwind.config.ts`，CSS Modules 把令牌写成 CSS 变量。
+
+> **"我能不能用 SCSS"**：能，但**没必要**——SCSS 的变量 / 嵌套 / 运算，2024 年的原生 CSS 都有了（CSS 变量、原生嵌套、`calc()`），SCSS 的核心优势只剩"老项目迁移成本"和"习惯"。新项目从原生 CSS 开始走，配合 Tailwind 或 CSS Modules。
+
+---
+
+## 2. 主流方案分档：4 类不要混淆
+
+样式相关的概念容易混淆——先把它们按层级理清：
+
+### 2.1 四个层级
+
+| 层级         | 概念                     | 举例                                      |
+| ------------ | ------------------------ | ----------------------------------------- |
+| **写法层**   | 怎么写样式代码           | 原生 CSS / CSS Modules / SCSS / CSS-in-JS |
+| **方法论**   | 怎么命名和组织           | BEM / OOCSS / Atomic CSS                  |
+| **框架**     | 提供工具链 + 预设类      | Tailwind CSS / UnoCSS / Windi CSS         |
+| **组件分发** | 怎么给项目引入可复用组件 | 组件库 / 无头组件 / shadcn 复制粘贴       |
+
+**为什么容易混淆**：
+
+- "Tailwind" 是框架，但它基于 Atomic CSS 方法论
+- "shadcn" 不是组件库，是组件分发范式（CLI 工具）
+- "CSS Modules" 是写法层，但它可以配合 BEM 方法论使用
+
+**实战里的常见组合**：
+
+```text
+写法层          + 方法论/框架              + 组件分发
+────────────────────────────────────────────────────────
+CSS Modules     + BEM 命名                 + 自建组件
+Tailwind        + Atomic CSS（内置）       + shadcn/ui
+CSS-in-JS       + 自由命名                 + 自建组件
+原生 CSS        + 无（或 BEM）             + 完整组件库（Ant）
+```
+
+**你需要做的选择**（按优先级）：
+
+1. **组件分发**：用完整组件库还是无头组件还是 shadcn？
+2. **写法层**：Tailwind 还是 CSS Modules 还是 CSS-in-JS？
+3. **方法论**（可选）：如果选 CSS Modules，要不要 BEM？
+
+> 本节下面几个小节按这个顺序展开——§3 写法层、§5-§7 组件分发、§8 令牌（跨层）。
+
+---
+
+## 3. CSS Modules vs Tailwind：写法层核心
+
+2024-2026 年，写法层的核心选择就是这两个——它们代表两种相反的心智。
+
+### 3.1 心智对比：传统 vs 原子化
+
+| 维度             | CSS Modules                                            | Tailwind CSS                                     |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| **核心心智**     | 传统 CSS：选择器 + declaration block                   | 原子化类名：一个类名 = 一条样式声明              |
+| **文件组织**     | 样式与组件分文件（`Button.tsx` + `Button.module.css`） | 样式直接在 `className`                           |
+| **学习曲线**     | 几乎为 0（就是 CSS）                                   | 中（需记忆类名映射：`flex` / `items-center` 等） |
+| **复用方式**     | 提取 CSS 类 + `@apply`                                 | 提取组件（React 函数组件）                       |
+| **设计系统对接** | 需自建 CSS 变量                                        | `tailwind.config.ts` 配置驱动                    |
+| **重构成本**     | 高（改类名要跨文件）                                   | 低（删 `className` 即删样式）                    |
+| **团队适配**     | 设计师友好（传统 CSS 心智）                            | 工程师友好（组件化思维）                         |
+| **AI 协作**      | AI 易写，但难判断"这个样式该提取还是内联"              | AI 极擅长（类名组合是机械任务）                  |
+
+### 3.2 CSS Modules：传统心智 + 局部作用域
+
+**核心机制**：编译时把类名转换成唯一标识（如 `.button` → `.Button_button__a3f2k`），避免全局污染。
+
+```css
+/* Button.module.css */
+.button {
+  padding: 0.5rem 1rem;
+  background: var(--color-primary);
+  border-radius: 0.25rem;
+}
+
+.button:hover {
+  background: var(--color-primary-dark);
+}
+```
+
+```tsx
+// Button.tsx
+import styles from "./Button.module.css";
+
+export function Button({ children }) {
+  return <button className={styles.button}>{children}</button>;
+}
+```
+
+**优势**：
+
+- 零学习曲线——就是写 CSS
+- 设计师能直接看懂
+- 可以用任何 CSS 特性（`@layer` / `:has()` / 容器查询等）
+
+**劣势**：
+
+- 样式与组件分文件——改一处要跳两个文件
+- 复用靠"在 CSS 里提取类" + "在 JSX 里组合类名"——心智分裂
+- 全局心智弱——跨组件复用要靠"全局 CSS 变量" + "手动约定"
+
+**何时选**：
+
+- 团队习惯传统 CSS 心智
+- 设计师需要直接修改样式文件
+- 现有代码库是 CSS Modules，迁移成本高
+
+> 一手：[Next.js: CSS Modules](https://nextjs.org/docs/app/building-your-application/styling/css-modules)。
+
+### 3.3 Tailwind CSS：原子化 + 配置驱动
+
+**核心机制**：提供一组**预设的原子类名**——每个类名 = 一条 CSS 声明。组合多个类名表达样式。
+
+```tsx
+// 直接在 className 里写样式，不需要 CSS 文件
+export function Button({ children }) {
+  return (
+    <button className="px-4 py-2 bg-blue-500 hover:bg-blue-700 rounded text-white">
+      {children}
+    </button>
+  );
+}
+```
+
+**类名映射示例**：
+
+- `px-4` = `padding-left: 1rem; padding-right: 1rem`
+- `py-2` = `padding-top: 0.5rem; padding-bottom: 0.5rem`
+- `bg-blue-500` = `background: #3b82f6`（来自 Tailwind 默认色板）
+- `hover:bg-blue-700` = `&:hover { background: #1d4ed8 }`
+
+**优势**：
+
+- 配置驱动设计系统——`tailwind.config.ts` 定义令牌，全局生效
+- AI 协作极好——类名组合是机械任务，AI 准确率极高
+- 重构成本低——删 `className` 就是删样式
+- bundle 极小——PurgeCSS 自动剔除未使用的类
+- 响应式 / 暗色 / 状态写在一起——`md:flex hover:bg-red-500 dark:bg-gray-800`
+
+**劣势**：
+
+- 类名长——复杂组件 `className` 可能 100+ 字符
+- 学习曲线——需记住"哪条 CSS 对应哪个类名"
+- 与传统 CSS 心智冲突——初见会觉得"反 CSS"
+
+**何时选**：
+
+- **新项目默认选这个**（2024-2026 年事实标准）
+- 重视 AI 协作效率
+- 设计系统驱动开发（设计师 ↔ 工程师靠令牌沟通）
+
+**长 className 的应对**：
+
+```tsx
+// ❌ 直接写一长串
+<button className="px-4 py-2 bg-blue-500 hover:bg-blue-700 dark:bg-blue-400 rounded text-white font-medium transition-colors">
+
+// ✅ 提取 React 组件（复用单元 = 组件）
+<Button variant="primary">Click</Button>
+
+// ✅ 用 clsx / cva 组织变体
+const button = cva(
+  'px-4 py-2 rounded font-medium transition-colors',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-blue-500 hover:bg-blue-700 text-white',
+        secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900',
+      },
+    },
+  }
+);
+```
+
+> [`cva`](https://cva.style/docs)（Class Variance Authority）是 Tailwind 生态的事实标准变体管理工具，[shadcn/ui](https://ui.shadcn.com/) 内部就是用它。
+
+> 一手：[Tailwind CSS 官方](https://tailwindcss.com/)；[安装文档](https://tailwindcss.com/docs/installation)；[Next.js 集成](https://nextjs.org/docs/app/building-your-application/styling/tailwind-css)。
+
+### 3.4 三个常见误解
+
+**误解 1：原子化类名 = 复制粘贴 = 难维护**
+
+事实：原子化类名的复用单元从"CSS 类"上升到"React 组件"——你提取 `<Button>` 组件，组件内部的类名就被封装了。**这比"提取 CSS 类被很多组件引用"更易追踪改动影响**——改组件 = 改所有用它的地方。
+
+**误解 2：Tailwind 让 HTML "脏"**
+
+事实：HTML 里出现样式信息是因为**样式逻辑本来就属于组件**——`<Button>` 组件的样式应该和组件代码在一起。Tailwind 让样式和结构在同一个文件，**减少了"改一处要跳多个文件"的摩擦**。这是 React 时代"组件 = UI + 样式 + 行为"心智的延续。
+
+**误解 3：Tailwind 适合所有项目**
+
+事实：**Tailwind 不擅长动态计算样式**——如果你写的是图表 / 编辑器 / 高度运行时计算的组件（比如 `transform: translate(${x}px, ${y}px)`），Tailwind 帮不上忙，回到 CSS Modules + style 属性更好。
+
+### 3.5 我的推荐立场
+
+**新项目无特殊原因选 Tailwind + shadcn + Radix**——这是 2024-2026 年生态默认组合。"特殊原因"包括：
+
+- 团队成员中超过 50% 是设计师 / 视觉工程师，不接受原子化类名
+- 现有代码库是 CSS Modules / SCSS，迁移成本高于收益
+- 项目以高度动态样式计算为主（编辑器 / 图表 / 游戏）
+- 框架 / 平台限制（如某些低代码平台、邮件模板）
+
+**不在"特殊原因"里就选 Tailwind**——它在 AI 协作 / 设计系统对接 / 重构成本三个维度都是当前最优解。
+
+> 这是手册的**显式立场**——不是"各有适用场景"的和稀泥。手册定位是**判断 + 速查**，模糊立场对读者不利。如果你的项目落在"特殊原因"里，回到 §1 选型决策图找替代方案。
+
+> 社区数据参考：[State of CSS 2024](https://2024.stateofcss.com/zh-Hans/)——Tailwind 是过去三年使用率和满意度双第一的 CSS 框架，CSS Modules 也保持稳定份额（两者并存）。
+
+---
+
+## 4. CSS-in-JS：曾经流行，现在份额下滑
+
+CSS-in-JS 是 2017-2021 年 React 生态的"最佳实践"推荐——代表库 [styled-components](https://styled-components.com/) / [Emotion](https://emotion.sh/)。但 2022 年起 React 18 引入 RSC（服务端组件）后，**运行时 CSS-in-JS 都明确不支持 RSC**——这是 2024 年份额下滑的直接原因。
+
+### 4.1 核心机制
+
+CSS-in-JS 把样式写成 JavaScript 对象或模板字符串，**运行时注入到 DOM**：
+
+```tsx
+import styled from "styled-components";
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: ${(props) => (props.primary ? "#3b82f6" : "#e5e5e5")};
+  color: ${(props) => (props.primary ? "#fff" : "#1a1a1a")};
+  border-radius: 0.25rem;
+
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+<Button primary>Click</Button>;
+```
+
+**优势（2017-2021 年的卖点）**：
+
+- 样式 + 组件同文件，真正的"组件封装"
+- 动态主题 / props 驱动样式（如上面 `props.primary`）
+- 自动生成唯一类名，避免冲突
+- TypeScript 类型安全（类型化的 props → 样式）
+
+### 4.2 为什么在 RSC 下不工作
+
+React Server Components（RSC）的核心机制：
+
+- 组件在**服务端**渲染完成
+- 输出 HTML + 少量 JSON（不含组件 JS）
+- 客户端只加载"必须在客户端运行"的部分
+
+运行时 CSS-in-JS 的机制：
+
+- 组件渲染时，JS 代码读取 props → 生成样式 → 注入到 `<style>` 标签
+- 这一套依赖**客户端运行时 JS**
+
+两者冲突：RSC 在服务端渲染完就输出 HTML，**不带 styled-components 的运行时**——客户端收到的 HTML 里没有样式，加载后"闪白"或"无样式"。
+
+> 技术上可以用"提取关键 CSS 到 SSR"的方案（如 styled-components 的 `ServerStyleSheet`），但这让 SSR 变慢、代码复杂，且 Next.js App Router 明确表示不支持——[Next.js 官方文档：CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)。
+
+### 4.3 编译时 CSS-in-JS：vanilla-extract
+
+如果你需要"写 JS 对象、编译成 CSS 文件"，可以用编译时 CSS-in-JS——代表是 [vanilla-extract](https://vanilla-extract.style/)：
+
+```ts
+// button.css.ts
+import { style } from "@vanilla-extract/css";
+
+export const button = style({
+  padding: "0.5rem 1rem",
+  background: "#3b82f6",
+  borderRadius: "0.25rem",
+  ":hover": {
+    opacity: 0.8,
+  },
+});
+```
+
+```tsx
+// Button.tsx
+import { button } from "./button.css";
+
+export function Button({ children }) {
+  return <button className={button}>{children}</button>;
+}
+```
+
+编译后生成真实的 `.css` 文件（类似 CSS Modules），没有运行时开销，支持 RSC。
+
+**何时选 vanilla-extract**：
+
+- 团队习惯 CSS-in-JS 写法，但要上 RSC
+- 需要 TypeScript 类型安全的样式（vanilla-extract 全类型化）
+- 不需要运行时动态计算（运行时切换用 CSS 变量）
+
+### 4.4 什么时候仍然选运行时 CSS-in-JS
+
+**极少数场景仍然合理**：
+
+| 场景                                         | 为什么                                                     |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| 高度动态的主题切换（用户上传配色方案）       | CSS 变量 + Tailwind 办不到——需要运行时解析颜色、生成类     |
+| 纯客户端 SPA（不用 SSR / RSC）               | 没有服务端渲染，运行时 CSS-in-JS 没有冲突                  |
+| 现有代码库是 styled-components，迁移成本巨大 | 维持现状比重写更经济                                       |
+| 组件库（发布给外部用）需要零配置接入         | styled-components 能做到"用户不用配置，直接 import 有样式" |
+
+**如果不在上面四种，不要选运行时 CSS-in-JS**——2024-2026 年的默认是 Tailwind + CSS 变量 + shadcn。
+
+> 一手参考：[styled-components #4025](https://github.com/styled-components/styled-components/issues/4025)（官方对 RSC 支持的讨论）；[Next.js: CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)。
+
+---
+
+## 5. 无头组件（Headless UI）
+
+"无头组件"是 2020 年后成熟的一套理念：**组件库只提供行为 + a11y + 状态管理，不带样式**——样式交给项目方自己写。
+
+### 5.1 核心理念
+
+传统组件库（Ant Design / MUI）的打包方式：
+
+```text
+UI = 行为 + 样式 + a11y + 状态
+你 import Button，得到的是"完整的按钮"（样式固定）
+```
+
+无头组件的打包方式：
+
+```text
+UI = 行为 + a11y + 状态
+你 import Button，得到的是"行为正确的 button 元素"
+样式 = 你自己写（Tailwind / CSS Modules / CSS-in-JS）
+```
+
+**为什么叫"无头"**：headless = 没有视觉呈现（head），只有功能（body）——比喻来自"无头浏览器"（没有 UI 界面的浏览器）。
+
+### 5.2 主流无头组件库
+
+| 库                                                         | 背景                       | 特点                          |
+| ---------------------------------------------------------- | -------------------------- | ----------------------------- |
+| [Radix UI](https://www.radix-ui.com/)                      | Modulz 团队（shadcn 基础） | 最成熟；shadcn 基于它         |
+| [Headless UI](https://headlessui.com/)                     | Tailwind 官方              | 与 Tailwind 天然搭档          |
+| [Ark UI](https://ark-ui.com/)                              | Chakra UI 团队新作         | 跨框架（React / Vue / Solid） |
+| [React Aria](https://react-spectrum.adobe.com/react-aria/) | Adobe                      | a11y 极强；学习曲线陡         |
+
+### 5.3 实例：Radix 的 Dialog
+
+```tsx
+import * as Dialog from "@radix-ui/react-dialog";
+
+<Dialog.Root>
+  <Dialog.Trigger asChild>
+    <button className="px-4 py-2 bg-blue-500 text-white rounded">Open Dialog</button>
+  </Dialog.Trigger>
+
+  <Dialog.Portal>
+    <Dialog.Overlay className="fixed inset-0 bg-black/50" />
+    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded shadow-lg">
+      <Dialog.Title className="text-xl font-bold">Title</Dialog.Title>
+      <Dialog.Description className="mt-2 text-gray-600">Description</Dialog.Description>
+      <Dialog.Close asChild>
+        <button className="mt-4 px-4 py-2 bg-gray-200 rounded">Close</button>
+      </Dialog.Close>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>;
+```
+
+Radix 提供的：
+
+- ✅ 焦点管理（打开时 focus trap、关闭后 focus 回到 trigger）
+- ✅ 键盘交互（Esc 关闭、Tab 循环）
+- ✅ ARIA 属性（`role="dialog"` / `aria-labelledby` 等）
+- ✅ Portal（渲染到 body，避免 z-index 问题）
+
+你自己写的：
+
+- 所有 `className`（样式完全自定义）
+
+### 5.4 无头组件 vs 完整组件库
+
+| 维度         | 无头组件（Radix）                 | 完整组件库（Ant Design） |
+| ------------ | --------------------------------- | ------------------------ |
+| 样式自由度   | 100%（完全自己写）                | 低（需覆盖默认样式）     |
+| 开箱速度     | 慢（每个组件都要自己写样式）      | 快（import 即用）        |
+| 设计系统对接 | 天然（样式从令牌层开始）          | 需覆盖主题变量           |
+| 学习曲线     | 中（需理解组件行为 API）          | 低（文档齐全）           |
+| 适用场景     | 定制产品 / 多品牌 SaaS / 设计系统 | 中后台业务 / 快速搭建    |
+
+**何时选无头组件**：
+
+- 有设计系统，需要样式完全自定义
+- 与 Tailwind / shadcn 配合（天然搭档）
+- 团队有前端设计能力
+
+**何时选完整组件库**：
+
+- 中后台业务系统（表单 / 表格密集）
+- 快速搭建比定制重要
+- 接受"设计语言 = Ant Design / MUI 风格"
+
+> 一手：[Radix UI 文档](https://www.radix-ui.com/primitives/docs/overview/introduction)。
+
+---
+
+## 6. shadcn/ui：复制粘贴范式
+
+[shadcn/ui](https://ui.shadcn.com/) 是 2023 年起迅速崛起的新范式——**它不是组件库，是 CLI 工具 + 代码模板**。
+
+### 6.1 核心心智：代码进项目，不进 node_modules
+
+传统组件库：
+
+```bash
+npm install antd
+```
+
+```tsx
+import { Button } from "antd";
+// Button 组件在 node_modules/antd 里
+// 你不能改它的实现，只能用 props 配置 + 主题覆盖
+```
+
+shadcn 范式：
+
+```bash
+npx shadcn-ui@latest add button
+```
+
+```text
+✓ 创建 src/components/ui/button.tsx
+```
+
+```tsx
+import { Button } from "@/components/ui/button";
+// Button 组件代码就在你的项目里 —— 你可以随便改
+```
+
+**这是范式差异**——shadcn 把组件代码**复制到你的项目**，你拥有完整代码控制权。它内部基于 Radix UI（行为）+ Tailwind（样式）+ cva（变体管理）。
+
+### 6.2 为什么这个范式特别合适 AI 时代
+
+**AI 改 node_modules 难，改项目内代码容易**：
+
+| 场景            | 传统组件库（在 node_modules）              | shadcn（在项目内）                       |
+| --------------- | ------------------------------------------ | ---------------------------------------- |
+| AI 阅读组件实现 | 要让 AI 读 `node_modules/antd/...`（巨大） | AI 直接读 `src/components/ui/button.tsx` |
+| AI 修改组件行为 | 几乎不可能（要 fork 整个库）               | AI 直接编辑文件                          |
+| AI 添加新变体   | 要写包装组件                               | AI 直接加 `variant`                      |
+| 升级风险        | 升级 antd 可能破坏整套样式                 | 不升级也行；升级 = 重新 add 单个组件     |
+| 自定义自由度    | 受限于 props API                           | 100%（代码全在自己手里）                 |
+
+**AI 协作下 shadcn 范式的真正优势**：你和 AI 在同一份代码上工作——AI 能读懂、改对、不破坏。这是传统组件库做不到的。
+
+### 6.3 工作流示例
+
+```bash
+# 1. 初始化（一次）
+npx shadcn-ui@latest init
+
+# 2. 按需添加组件
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add form
+```
+
+每个命令把对应组件代码复制到 `src/components/ui/`：
+
+```text
+src/components/ui/
+├─ button.tsx      ← 你的代码，可以改
+├─ dialog.tsx      ← 你的代码，可以改
+└─ form.tsx        ← 你的代码，可以改
+```
+
+### 6.4 shadcn vs 传统组件库的边界
+
+**何时选 shadcn**：
+
+- 需要设计系统定制（每个组件都要按自己的设计语言改）
+- 用 Tailwind + Radix 组合
+- AI 协作密集的项目
+- 重视长期维护成本（不被组件库版本绑死）
+
+**何时选传统组件库**：
+
+- 中后台业务，开箱大量复杂组件（DatePicker / Table / Form）
+- 团队没有前端设计能力
+- 接受"长得像 Ant / MUI"的 UI
+
+**误区：shadcn 不是替代所有组件库**——它在"基础 UI 元素 + 设计系统"层是最优解，但**复杂业务组件（数据表格 / 高级表单）shadcn 没那么齐全**。Ant Design Pro 这种"开箱即中后台"的产品仍有市场。
+
+### 6.5 维护责任的转移
+
+shadcn 范式的**代价**：组件代码在你项目里，**升级和维护都是你的责任**。
+
+| 情况                      | 传统组件库        | shadcn                                   |
+| ------------------------- | ----------------- | ---------------------------------------- |
+| 安全漏洞（如 Radix 依赖） | `npm update antd` | 你需要自己跟进 Radix 升级                |
+| Bug 修复                  | 等官方发版        | 自己改（或重新 `add`）                   |
+| 一致性                    | 自动一致          | 需要自己维护（多个组件都要按设计令牌走） |
+
+**应对建议**：
+
+- 把 shadcn 添加的组件**当作自己的代码维护**——纳入团队 review 流程
+- 定期看 shadcn 仓库更新（[GitHub](https://github.com/shadcn-ui/ui)）
+- 让 AI 帮你跟进 Radix / Tailwind 的破坏性变更
+
+> 一手：[shadcn/ui 官方](https://ui.shadcn.com/)；[文档](https://ui.shadcn.com/docs)；[GitHub](https://github.com/shadcn-ui/ui)。
+
+---
+
+## 7. 完整组件库：中后台高频选择
+
+完整组件库（Ant Design / Element Plus / Material UI 等）在 2026 年仍是**中后台业务系统的高频选择**——不是过时方案，而是不同场景的最优解。
+
+### 7.1 主流组件库
+
+| 库                                        | 生态  | 设计语言   | 主要场景                    |
+| ----------------------------------------- | ----- | ---------- | --------------------------- |
+| [Ant Design](https://ant.design/)         | React | Ant Design | 中后台业务（中文社区主流）  |
+| [Element Plus](https://element-plus.org/) | Vue 3 | Element    | 中后台业务（中文社区主流）  |
+| [Material UI (MUI)](https://mui.com/)     | React | Material 3 | 国际化产品 / 类 Google 风格 |
+| Naive UI                                  | Vue 3 | 自有       | Vue 3 主推                  |
+| Mantine                                   | React | 自有       | 现代设计 + 极全组件         |
+
+### 7.2 何时选完整组件库
+
+**合理场景**：
+
+- **中后台业务系统**——表单 / 表格 / 树 / 日期选择 / 工作流密集
+- **快速搭建 MVP**——开箱即用比定制重要
+- **团队没有前端设计师**——直接用组件库的设计语言
+- **企业内部系统**——一致性 > 个性化
+
+**反模式场景**：
+
+- **C 端产品强调品牌差异化**——组件库的"通用美感"和你的品牌不匹配
+- **设计系统驱动开发**——组件库的扩展点不够
+- **多品牌 / 主题切换重的 SaaS**——主题覆盖维护成本高
+
+### 7.3 与 Tailwind 配合的陷阱
+
+如果项目里**同时**用 Ant Design + Tailwind，会遇到样式优先级互砍：
+
+```tsx
+// ❌ Tailwind className 不生效（被 Ant 内部样式覆盖）
+<Button className="bg-red-500">Click</Button>
+```
+
+**原因**：Ant Design 内部用 CSS-in-JS（v5）注入样式，特异性可能比 Tailwind 高；不同的引入顺序也会影响优先级。
+
+**应对**：
+
+- 用 Ant Design 的主题机制改样式（`ConfigProvider` + token）
+- 不要试图用 Tailwind "覆盖" Ant 的内部样式
+- 想要高度定制？换无头组件 + Tailwind
+
+### 7.4 升级成本：组件库版本绑定
+
+完整组件库的**隐性成本**：升级风险。
+
+| 风险点               | 例子                                                 |
+| -------------------- | ---------------------------------------------------- |
+| Major 版本破坏性变更 | Ant Design v4 → v5 改了 CSS-in-JS 引擎，整套样式重写 |
+| 设计语言迭代         | Material UI v4 → v5 的 sx prop API 完全不一样        |
+| 组件 API 微调        | 某属性改名，跨项目所有用法都要改                     |
+
+**判断要点**：选组件库前问自己——"如果这个库三年后我们要升级 major 版本，我们承担得起吗？" 答不上 → 考虑 shadcn 范式（代码在自己手里，无版本绑定）。
+
+---
+
+## 8. 设计令牌（design tokens）：跨方案的根
+
+> 这一段是本节的核心——**无论你选什么写法、什么组件分发方式，设计令牌都是基础**。把它立起来，上层方案怎么换都不痛；不立起来，迟早要重构。
+
+### 8.1 什么是设计令牌
+
+设计令牌（design tokens）是**视觉设计决策的命名键值对**——把"颜色"、"字号"、"间距"、"阴影"等设计原语抽象成命名变量，跨设计稿、代码、文档、多平台共享。
+
+**最简形式**：
+
+```css
+:root {
+  /* 颜色 */
+  --color-primary: #3b82f6;
+  --color-text: #1a1a1a;
+
+  /* 间距 */
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+
+  /* 字号 */
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+
+  /* 圆角 */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+}
+```
+
+```css
+.button {
+  background: var(--color-primary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+}
+```
+
+**这不只是"CSS 变量的别名"**——它是**设计系统的单一来源（Single Source of Truth）**。
+
+### 8.2 不只是变量：三层命名
+
+成熟的令牌系统有**三层命名**——这是大部分团队没做对的部分：
+
+```text
+原始层（raw / global）
+  ↓
+语义层（semantic / alias）
+  ↓
+组件层（component-specific）
+```
+
+**展开示例**：
+
+```css
+:root {
+  /* —— 第 1 层：原始令牌（raw） —— */
+  /* 给"颜色本身"起名，不绑定用途 */
+  --blue-50: #eff6ff;
+  --blue-500: #3b82f6;
+  --blue-900: #1e3a8a;
+  --gray-100: #f3f4f6;
+  --gray-900: #111827;
+
+  /* —— 第 2 层：语义令牌（semantic） —— */
+  /* 给"用途"起名，引用原始令牌 */
+  --color-primary: var(--blue-500);
+  --color-primary-hover: var(--blue-900);
+  --color-bg: var(--gray-100);
+  --color-text: var(--gray-900);
+
+  /* —— 第 3 层：组件令牌（component） —— */
+  /* 给"组件具体属性"起名，引用语义令牌 */
+  --button-bg: var(--color-primary);
+  --button-bg-hover: var(--color-primary-hover);
+  --button-text: var(--gray-100);
+}
+```
+
+**为什么要分三层**：
+
+| 场景              | 没分层的代价                      | 分层后的好处                          |
+| ----------------- | --------------------------------- | ------------------------------------- |
+| 改主色（蓝 → 紫） | 全局搜 `#3b82f6`，逐个改          | 改 `--blue-500` 一处                  |
+| 暗色模式          | 给每个组件写一份"暗色版" CSS      | 改 `--color-bg` / `--color-text` 一处 |
+| 多品牌切换        | 整套 CSS 重写                     | 改语义层一处（语义指向不同原始令牌）  |
+| 重构按钮样式      | 找所有用 `--color-primary` 的地方 | 改 `--button-bg` 一处                 |
+
+**实战：暗色模式 + 三层令牌**：
+
+```css
+:root {
+  /* 原始令牌（明暗共用） */
+  --blue-500: #3b82f6;
+  --gray-100: #f3f4f6;
+  --gray-900: #111827;
+
+  /* 语义令牌（按主题切换） */
+  --color-bg: var(--gray-100);
+  --color-text: var(--gray-900);
+}
+
+[data-theme="dark"] {
+  /* 暗色模式只改语义层指向 */
+  --color-bg: var(--gray-900);
+  --color-text: var(--gray-100);
+}
+```
+
+组件代码不需要写"亮色版本 / 暗色版本"——只引用语义令牌，主题切换由 `[data-theme]` 控制。
+
+### 8.3 跨方案落地：CSS 变量 / Tailwind / Style Dictionary
+
+#### 落地方式 1：纯 CSS 变量
+
+适合任何写法（CSS Modules / Tailwind / 原生 CSS）：
+
+```css
+/* tokens.css */
+:root {
+  --blue-500: #3b82f6;
+  --color-primary: var(--blue-500);
+  /* ... */
+}
+```
+
+```tsx
+// Tailwind 中引用 CSS 变量
+<button className="bg-[var(--color-primary)]">Click</button>
+```
+
+#### 落地方式 2：Tailwind 配置
+
+把令牌写进 `tailwind.config.ts`，Tailwind 自动生成对应类名：
+
+```ts
+// tailwind.config.ts
+import type { Config } from "tailwindcss";
+
+export default {
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: "#3b82f6",
+          hover: "#1e3a8a",
+        },
+        bg: "var(--color-bg)", // 引用 CSS 变量
+      },
+      spacing: {
+        2: "0.5rem",
+        4: "1rem",
+      },
+      borderRadius: {
+        sm: "0.125rem",
+        md: "0.25rem",
+      },
+    },
+  },
+} satisfies Config;
+```
+
+```tsx
+<button className="bg-primary hover:bg-primary-hover">Click</button>
+```
+
+#### 落地方式 3：Style Dictionary（多平台输出）
+
+如果你的设计系统需要输出到**多个平台**（Web + iOS + Android），用 [Style Dictionary](https://styledictionary.com/)——一份令牌定义，编译到不同格式：
+
+```json
+// tokens.json
+{
+  "color": {
+    "primary": { "value": "#3b82f6" }
+  }
+}
+```
+
+编译输出：
+
+- Web：`--color-primary: #3b82f6`
+- iOS：`UIColor(red: 0.23, green: 0.51, blue: 0.96, alpha: 1)`
+- Android：`<color name="color_primary">#3b82f6</color>`
+
+> **何时需要 Style Dictionary**：跨 Web / iOS / Android 的设计系统。纯 Web 项目用 CSS 变量 / Tailwind 配置就够。
+
+### 8.4 命名约定的细节
+
+**几条经验**：
+
+1. **数字阶梯优先**——`--space-2` / `--space-4` / `--space-8` 比 `--space-small` / `--space-medium` 更可扩展（要插入新档时不破坏）
+2. **语义层不要带具体值描述**——用 `--color-primary` 而不是 `--color-blue`（颜色未来可能换）
+3. **保持单一维度**——`--color-bg` 不要写成 `--color-bg-light`（"light" 是主题维度，应该在 `[data-theme]` 切换层处理）
+4. **避免过度细分**——`--button-bg-hover-disabled-active` 太长，复合状态用类名组合表达
+
+> **轻量替代方案**：如果你不想自己设计令牌系统，[Open Props](https://open-props.style/) 提供了一组开箱即用的 CSS 令牌（颜色 / 间距 / 字体等），导入即用。适合个人项目 / 原型快速搭建。
+
+> 一手：[MDN: 使用 CSS 自定义属性](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Using_CSS_custom_properties)；[Style Dictionary](https://styledictionary.com/)；[Open Props](https://open-props.style/)。
+
+---
+
+## 9. 三档归位
+
+| 知识点                                        | 归位         | 理由                                |
+| --------------------------------------------- | ------------ | ----------------------------------- |
+| Tailwind 基础类名（px / py / flex 等）        | **必学**     | 2024-2026 年事实标准                |
+| CSS Modules 写法                              | **必学**     | Next.js 默认支持；团队可能选它      |
+| 设计令牌三层命名（原始 / 语义 / 组件）        | **必学**     | 跨方案的根；不立起来迟早重构        |
+| shadcn/ui 的"复制粘贴范式"                    | **必学**     | AI 时代组件分发最优解               |
+| 无头组件（Radix / Headless UI）核心理念       | **必学**     | 与 Tailwind + shadcn 天然搭档       |
+| CSS 变量（`--var-name`）+ `var()`             | **必学**     | 令牌系统落地手段                    |
+| Tailwind 配置驱动设计系统                     | **必学**     | `tailwind.config.ts` 定义令牌       |
+| 为什么 CSS-in-JS 在 RSC 下受限                | **必学**     | 理解 2024 年生态转折                |
+| 选型决策判断（内容站 / 中后台 / SaaS 等）     | **必学**     | 判断比技术细节重要                  |
+| BEM 命名约定                                  | **仍需理解** | CSS Modules 场景可能会用            |
+| 完整组件库（Ant / MUI）的边界                 | **仍需理解** | 中后台高频，知道何时选、何时不选    |
+| vanilla-extract（编译时 CSS-in-JS）           | **仍需理解** | 知道存在，有需求再学                |
+| cva（Class Variance Authority）               | **仍需理解** | shadcn 内部用；自己写变体管理时会用 |
+| Style Dictionary（多平台令牌编译）            | **仍需理解** | 跨 Web / iOS / Android 时用         |
+| 运行时 CSS-in-JS（styled-components）详细 API | **可委托**   | AI 会写；你知道"不适合 RSC"即可     |
+| SCSS / Less 详尽语法                          | **可委托**   | 原生 CSS 已够；遗留项目让 AI 写     |
+| Atomic CSS 方法论完整推导                     | **可委托**   | 知道 Tailwind 基于它即可            |
+
+---
+
+## 10. 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破以下设计判断：
+
+### 信息隐藏（information hiding）：每层抽象都在"藏什么、暴露什么"
+
+样式方案选型的本质是**选择抽象层次**——每一层都在"藏"某些细节、"暴露"某些接口。
+
+| 方案            | 藏了什么                           | 暴露了什么                         | 代价               |
+| --------------- | ---------------------------------- | ---------------------------------- | ------------------ |
+| **设计令牌**    | 具体数值（`#3b82f6`）              | 语义接口（`--color-primary`）      | 需要设计命名约定   |
+| **Tailwind**    | CSS declaration block              | 原子类名（`px-4` / `bg-blue-500`） | 类名长；需学习映射 |
+| **CSS Modules** | 类名作用域（编译时生成唯一标识）   | 普通 CSS 类名                      | 样式与组件分文件   |
+| **shadcn**      | **主动破除"藏"**——代码暴露在项目内 | 完整组件实现                       | 维护责任转移       |
+| **完整组件库**  | 组件实现 + 样式细节（黑盒）        | Props API                          | 控制权低；升级风险 |
+
+**选错抽象层 = 后续技术债的根**：
+
+- **过度抽象**：完整组件库把样式锁死，想定制就只能"覆盖样式 + 魔法 CSS"——维护地狱
+- **抽象不足**：不分离设计令牌，颜色 / 间距到处硬编码——重构时牵一发动全身
+- **合适抽象**：令牌层藏数值、暴露语义；Tailwind 藏 declaration、暴露原子类；shadcn 暴露全部实现——**三层协同工作**
+
+### 抽象的代价 vs 复利
+
+抽象有初始成本（学习 / 配置 / 维护），但带来长期复利（重构容易 / 一致性强 / AI 协作好）。
+
+| 阶段        | 完整组件库（高初始抽象）  | Tailwind + shadcn（低抽象）        |
+| ----------- | ------------------------- | ---------------------------------- |
+| 第 1 周     | 快（开箱即用）            | 慢（要写样式）                     |
+| 第 1-3 个月 | 中等（定制开始受限）      | 快（按自己设计系统积累）           |
+| 半年后      | 慢（重度定制 = 覆盖大战） | 快（样式与组件完全自控）           |
+| 升级时      | 痛（major 版本破坏性大）  | 不痛（代码在自己手里，无版本绑定） |
+
+**判断要点**：
+
+- 项目生命周期 < 6 个月？选高抽象（完整组件库）
+- 项目会持续迭代 1-3 年？选低抽象（Tailwind + shadcn）
+- 不确定？选低抽象——**可逆性更高**（见下）
+
+### 可逆性优先（reversibility first）
+
+选方案时优先选"删得掉"的，不选"删不掉"的。
+
+| 方案        | 可逆性 | 理由                                                 |
+| ----------- | ------ | ---------------------------------------------------- |
+| CSS 变量    | 极高   | 删一个变量，编辑器报错告诉你哪里用了                 |
+| Tailwind    | 高     | 删类名 = 删样式；不影响其他组件                      |
+| shadcn      | 高     | 组件在项目内，想删就删                               |
+| CSS Modules | 中     | 样式与组件分文件，改动要跨文件验证                   |
+| CSS-in-JS   | 中低   | 运行时注入，删除时要检查"是否有其他组件共享这段样式" |
+| 完整组件库  | 低     | 删 Ant Design？整套 UI 重写                          |
+
+**为什么可逆性重要**：
+
+- 决策错了能改——选错方案不等于"项目死刑"
+- 技术栈迁移容易——设计令牌 + Tailwind 迁到 Vue / Svelte 成本远低于 Ant Design
+- AI 协作友好——AI 删代码比"魔改抽象"更准确
+
+**实战建议**：无特殊原因选 Tailwind + shadcn + CSS 变量——三者可逆性都高，删得掉、改得动、AI 写得准。
+
+---
+
+## 11. AI 时代写样式的最小集
+
+| 你想做                              | AI 帮得上吗                                             |
+| ----------------------------------- | ------------------------------------------------------- |
+| 写 Tailwind 类名组合                | ✅ AI 极擅长（机械任务）                                |
+| 写 CSS Modules 样式                 | ✅ AI 易写，但难判断"该提取还是内联"                    |
+| 写 CSS-in-JS（styled-components）   | ✅ AI 会写，但你要 review "是否适合 RSC"                |
+| 选型判断（Tailwind vs CSS Modules） | ❌ 业务上下文 AI 拿不到——列方案、你拍板                 |
+| 设计令牌命名                        | ⚠️ AI 能给候选，但"原始 / 语义 / 组件"分层需要你 review |
+| 改 shadcn 组件实现                  | ✅ shadcn 范式让 AI 改成本极低（代码在项目内）          |
+| 覆盖 Ant Design 组件样式            | ⚠️ AI 会写，但常出"优先级打不过内部样式"的问题          |
+
+**重点强调**：
+
+### Tailwind 是 AI 协作事实标准——为什么
+
+1. **类名组合是机械任务**——`flex items-center justify-between` 没有歧义，AI 准确率极高
+2. **配置驱动 = 明确约束**——AI 知道"哪些类名存在"（从 `tailwind.config.ts` 读），不会编造
+3. **一对一映射**——`px-4` = `padding-left: 1rem; padding-right: 1rem`，AI 不需要推理"这段样式该提取还是内联"
+4. **shadcn 范式加持**——AI 直接编辑项目内组件代码，不需要"理解 node_modules 里的组件库 API"
+
+### 你必须把握的 review 要点
+
+**Tailwind 场景**：
+
+- 类名是否按设计令牌走（`bg-primary` 而非 `bg-blue-500`）
+- 响应式断点是否合理（`md:` / `lg:` 分得对不对）
+- 是否该提取组件（类名超过 100 字符 → 提取）
+
+**CSS Modules 场景**：
+
+- 是否有全局污染风险（`:global()` 用对了吗）
+- 类名是否语义化（`.button-primary` 而非 `.btn1`）
+- 是否复用了设计令牌（`var(--color-primary)` 而非 `#3b82f6`）
+
+**CSS-in-JS 场景**：
+
+- 是否在 RSC 里用了运行时 CSS-in-JS（styled-components / Emotion）
+- 动态样式是否必要（能用 CSS 变量 + Tailwind 解决的不要写 JS）
+
+**完整组件库场景**：
+
+- 覆盖样式是否用了 `!important`（应该用组件库的主题 API）
+- 是否与 Tailwind 混用导致优先级互砍
+
+---
+
+## 12. 翻车库
+
+### 12.1 Tailwind 类名失效——PurgeCSS 误删
+
+**症状**：开发环境正常，构建生产版本后某些 Tailwind 类名样式没生效。
+
+**原因**：Tailwind 在生产构建时会**扫描源代码里出现的类名**，没扫到的会被删除（这是 bundle 小的原因）。如果你的类名是**动态拼接**的，扫描器找不到：
+
+```tsx
+// ❌ 反例：动态拼接，扫描器找不到 `bg-red-500`
+const color = "red";
+const className = `bg-${color}-500`;
+
+// ❌ 反例：模板字符串里嵌字段
+<div className={`bg-${theme}-500`} />;
+```
+
+**修复**：
+
+```tsx
+// ✅ 把所有可能的类名完整写出来
+const variants = {
+  red: "bg-red-500",
+  blue: "bg-blue-500",
+  green: "bg-green-500",
+};
+<div className={variants[color]} />;
+
+// ✅ 或者在 safelist 里声明
+// tailwind.config.ts
+export default {
+  safelist: ["bg-red-500", "bg-blue-500", "bg-green-500"],
+};
+```
+
+### 12.2 CSS Modules 全局类污染
+
+**症状**：CSS Modules 文件里写的 `.button` 影响到了项目其他组件的同名类。
+
+**原因**：用了 `:global()` 而忘了关闭作用域：
+
+```css
+/* ❌ 反例 */
+:global {
+  .button {
+    color: red; /* 全局污染所有 .button */
+  }
+}
+```
+
+**修复**：
+
+```css
+/* ✅ 正确：默认局部作用域，只在需要时显式 :global() */
+.button {
+  color: red; /* 编译为 .Button_button__abc123 */
+}
+
+/* 必须全局时用单选择器 :global() */
+:global(.legacy-button) {
+  color: red;
+}
+```
+
+### 12.3 Next.js App Router 下用 styled-components 报错
+
+**症状**：Next.js 13+ App Router 项目用 `import styled from 'styled-components'` 后页面"闪白"或样式丢失。
+
+**原因**：App Router 默认是 RSC，运行时 CSS-in-JS 不支持。
+
+**修复（按优先级）**：
+
+1. **首选**：迁移到 Tailwind + CSS 变量
+2. **次选**：迁移到 vanilla-extract（编译时 CSS-in-JS）
+3. **兜底**：用 [Next.js 官方 CSS-in-JS 适配方案](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)（要写 Server Component 包装器，复杂）
+
+### 12.4 Ant Design + Tailwind 混用，优先级互砍
+
+**症状**：
+
+```tsx
+<Button className="bg-red-500">Click</Button>
+```
+
+按钮颜色没变红——Ant Design 内部样式优先级更高。
+
+**原因**：Ant Design v5 用 CSS-in-JS 注入样式，特异性比 Tailwind 类高（或加载顺序在后）。
+
+**修复**：
+
+- 用 Ant 的 `ConfigProvider` + token 改主题
+- 不要混用——选一个：要么全 Ant，要么 Tailwind + 无头组件
+- 极少数场景用 `!` 前缀：`<Button className="!bg-red-500">`（不推荐，是 hack）
+
+### 12.5 设计令牌没分层——后期重构灾难
+
+**症状**：项目迭代两年后，要换主色调（蓝 → 紫），全局搜 `--color-primary` 居然有 80 处直接引用——其中一半用法只是"恰好和主色一样"，但语义不该绑死。
+
+**原因**：令牌系统只有一层（`--color-primary`），没有原始层 / 语义层 / 组件层划分——所有"蓝色"都直接用 `--color-primary`，包括"主按钮"和"链接"和"提示标签"——它们语义不同，但绑了同一变量。
+
+**修复**：分层：
+
+```css
+:root {
+  /* 原始 */
+  --blue-500: #3b82f6;
+  --blue-700: #1d4ed8;
+
+  /* 语义 */
+  --color-primary: var(--blue-500);
+  --color-link: var(--blue-700); /* 链接和主按钮可以是不同蓝 */
+
+  /* 组件 */
+  --button-bg: var(--color-primary);
+  --tag-info-bg: var(--color-primary);
+}
+```
+
+之后换主色 → 只改原始层；某个组件不想跟主色 → 改组件层指向；语义层稳定。
+
+### 12.6 shadcn 复制后没有维护机制
+
+**症状**：项目用 shadcn 一年后，Radix UI 出了安全更新，但项目里 shadcn 复制的 `dialog.tsx` 仍然引用旧版 Radix——有人记得要升级吗？
+
+**原因**：shadcn 的"代码进项目" = 维护责任也进项目。没有 `npm update` 能自动跟上 Radix 升级。
+
+**修复**：
+
+- 把 shadcn 添加的组件**纳入 Code Review 流程**——和业务代码同样对待
+- 定期看 [shadcn 仓库](https://github.com/shadcn-ui/ui) 的 changelog
+- Renovate / Dependabot 监控 Radix / Tailwind 版本——内核库升级时手动重新 `npx shadcn-ui@latest add` 对应组件
+
+### 12.7 类名拼写错误，IDE 不报
+
+**症状**：写了 `<div className="flex itmes-center">`（`items` 拼成 `itmes`），IDE 不报错，运行时样式没生效。
+
+**原因**：`className` 是字符串类型——TypeScript / IDE 默认不验证内容。
+
+**修复**：
+
+- 装 [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss) VS Code 插件——会自动补全 + 报拼写错误
+- 配置 ESLint 插件 [eslint-plugin-tailwindcss](https://github.com/francoismassart/eslint-plugin-tailwindcss)——CI 阶段拦截
+
+### 12.8 CSS-in-JS 在客户端组件里仍然用，但 hydration 不一致
+
+**症状**：用 styled-components 在 Next.js 的客户端组件里，控制台报 "Hydration failed because the initial UI does not match what was rendered on the server."
+
+**原因**：服务端渲染时类名 hash 和客户端不一致。
+
+**修复**：按 [Next.js 官方文档](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)配置 `StyledComponentsRegistry`——但这只是缓兵之计，**根治方案是迁出 CSS-in-JS**。
+
+---
+
+## 13. 读完本节你应该能
+
+### 选型判断
+
+- [ ] 给一个项目（说明类型 + 团队规模 + 设计要求），能口头说出推荐的样式方案组合，理由不止"我习惯用"
+- [ ] 解释为什么"无特殊原因新项目选 Tailwind + shadcn + Radix"
+- [ ] 列出选完整组件库（Ant / MUI）合理的场景和反模式场景
+- [ ] 解释 CSS-in-JS 在 RSC 下为什么受限
+
+### 写法层
+
+- [ ] 区分写法层 / 方法论 / 框架 / 组件分发四个层级，给具体例子
+- [ ] 写出 CSS Modules 和 Tailwind 实现同一个 Button 组件的代码
+- [ ] 解释 Tailwind 长 className 的应对方式（提取组件 / cva）
+
+### 组件分发
+
+- [ ] 解释 shadcn/ui 为什么不算"传统组件库"——以及"代码进项目"的好处和代价
+- [ ] 区分无头组件（Radix / Headless UI）和完整组件库（Ant / MUI）的边界
+- [ ] 解释为什么 shadcn 在 AI 时代特别合适
+
+### 设计令牌
+
+- [ ] 写出三层令牌结构（原始 → 语义 → 组件）的代码示例
+- [ ] 解释为什么暗色模式只需要改语义层，不需要改组件代码
+- [ ] 知道何时需要 Style Dictionary，何时 CSS 变量 + Tailwind 配置就够
+
+### 设计判断
+
+- [ ] 用"信息隐藏"心智解释 Tailwind / 完整组件库 / shadcn 三种方案"藏什么暴露什么"
+- [ ] 用"可逆性"心智判断方案选型——为什么删得掉的方案优于删不掉的
+- [ ] 解释抽象的代价 vs 复利曲线——为什么短期项目选高抽象、长期项目选低抽象
+
+---
+
+## 延伸阅读
+
+- [Tailwind CSS 官方文档](https://tailwindcss.com/docs/installation) **（英文）** — 最权威的 Tailwind 学习资源
+- [shadcn/ui 文档](https://ui.shadcn.com/docs) **（英文）** — 复制粘贴范式的事实标准实现
+- [Radix UI Primitives](https://www.radix-ui.com/primitives/docs/overview/introduction) **（英文）** — 无头组件最成熟的实现
+- [Next.js: CSS Modules](https://nextjs.org/docs/app/building-your-application/styling/css-modules) — Next.js 中 CSS Modules 集成
+- [Next.js: CSS-in-JS](https://nextjs.org/docs/app/building-your-application/styling/css-in-js) — 官方对 CSS-in-JS 在 App Router 下限制的说明
+- [MDN: 使用 CSS 自定义属性](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Using_CSS_custom_properties) — CSS 变量的中文权威文档
+- [Style Dictionary](https://styledictionary.com/) **（英文）** — Amazon 主导的多平台设计令牌编译工具
+- [Open Props](https://open-props.style/) **（英文）** — 开箱即用的 CSS 令牌集（Adam Argyle 维护）
+- [State of CSS 2024](https://2024.stateofcss.com/zh-Hans/) — 社区年度调查，看"最近大家在用什么样式方案 / 满意度如何"
+- [vanilla-extract](https://vanilla-extract.style/) **（英文）** — 编译时 CSS-in-JS 的代表
+
+> 访问性说明：MDN 中文版 + State of CSS 中文版直接可访问；其他英文站国内访问稳定。
+
+---
+
+下一节：§3.6 动画与 View Transitions _（待写）_——`transition` / `animation` 三件套，View Transitions API 跨页面动画。
