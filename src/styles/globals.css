@@ -481,3 +481,117 @@
     display: none !important;
   }
 }
+
+/* ============================================================
+   <Term> 术语提示 —— dotted underline + hover 浮窗
+   ============================================================ */
+
+.term {
+  position: relative;
+  display: inline-block;
+}
+
+.term-trigger {
+  text-decoration: underline dotted var(--color-fg-muted);
+  text-underline-offset: 0.2em;
+  cursor: help;
+  transition: color 0.15s ease;
+}
+
+.term-trigger:hover,
+.term-trigger:focus-visible {
+  color: var(--color-accent);
+  text-decoration-color: var(--color-accent);
+  outline: none;
+}
+
+.term-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  width: max-content;
+  max-width: min(320px, calc(100vw - 2rem));
+  padding: 0.75rem 0.875rem;
+
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-fg);
+
+  /* 不被 trigger 的 underline 干扰 */
+  text-decoration: none;
+  cursor: auto;
+
+  /* 出现动画 */
+  animation: term-tooltip-fade 0.12s ease-out;
+}
+
+@keyframes term-tooltip-fade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.term-tooltip-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.term-tooltip-key {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-accent);
+}
+
+.term-tooltip-zh {
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.term-tooltip-brief {
+  color: var(--color-fg);
+}
+
+.term-tooltip-link {
+  align-self: flex-start;
+  font-size: 0.8125rem;
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.term-tooltip-link:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-tooltip {
+    animation: none;
+  }
+}
+
+/* 移动端：让浮窗占满屏幕宽（除两侧 padding） */
+@media (max-width: 480px) {
+  .term-tooltip {
+    /* 仍然居中触发器，但宽度更宽 */
+    max-width: calc(100vw - 1.5rem);
+  }
+}

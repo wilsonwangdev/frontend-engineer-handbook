@@ -18,6 +18,7 @@ import {
   ViewTransitionBasicDemo,
   ThemeToggleCircularRevealDemo,
 } from "@/components/mdx/demos/animations";
+import { Term } from "@/components/mdx/term";
 
 function Table(props: ComponentPropsWithoutRef<"table">) {
   return (
@@ -60,6 +61,7 @@ export const mdxComponents = {
   CardEntranceDemo,
   ViewTransitionBasicDemo,
   ThemeToggleCircularRevealDemo,
+  Term,
   table: Table,
   figure: Figure,
 };
