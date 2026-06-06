@@ -1,0 +1,1243 @@
+---
+title: 异步模型
+chapter: 4
+section: 2
+description: Promise / async-await / 微任务 / 事件循环——AI 时代异步代码 review 的参照系
+tier: essential
+prerequisites:
+  - /chapter-04
+paths:
+  sequential: 18
+---
+
+> 这一节讲 JavaScript 的**异步模型**——Promise / async-await / 微任务调度。这是 AI 写代码最容易出错的领域之一：错误处理漏掉、async 函数里 forEach 不等待、串行 await 应该并行——这些都需要你看代码逻辑才能识别。
+
+§4.1 讲了 JS 语言机制（作用域 / 闭包 / 原型链 / this）。这一节往"运行时行为"再推一层——**JS 是单线程的，但通过事件循环 + Promise / async-await 实现非阻塞**。
+
+**本节核心论点**：
+
+1. **异步错误处理是 AI 最常漏掉的部分**——AI 写 `async` 函数经常忘 `try / catch` 或 `.catch()`
+2. **微任务 vs 宏任务的执行顺序决定 race condition**——React 18 后的批处理、并发渲染都依赖这个理解
+3. **Promise.all / allSettled / race / any** AI 易混用——选错会导致"一个失败全失败"或"等所有完成才返回"
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                             | 直接读                                            |
+> | -------------------------------- | ------------------------------------------------- |
+> | **新人 / 转行者**                | §0 简史 → §1 单线程 → §2 Promise → §4 async-await |
+> | **写过 Promise 但理解不深**      | §2.3 错误传播 → §5 微任务 vs 宏任务               |
+> | **遇到 race condition 想 debug** | §5 微任务 vs 宏任务 → §6 取消请求                 |
+> | **要带 AI 写异步代码**           | §8 AI 最小集 → §9 翻车库                          |
+> | **被异步报错搞崩**               | §9 翻车库（直接搜症状）                           |
+>
+> 整节读完约 50-60 分钟；按上面挑读 15-20 分钟。**§2 Promise**和**§5 微任务 vs 宏任务**是两个核心。
+
+> **与第 2 章 §2.4 事件循环的边界**：第 2 章讲**浏览器侧**事件循环（task queue / requestAnimationFrame / 渲染时机），本节讲**JavaScript 语言侧**异步原语（Promise / async-await / 微任务）。两者交叉处会回链，不重复。
+
+---
+
+## 0. 演进史：回调 → Promise → async-await
+
+> JavaScript 异步语法的演进是**最干净的"语言层逐步收敛"案例**——每一代解决上一代的根本痛点。
+
+| 年代  | 主流写法                                                                             | 解决了什么                       | 留下了什么                             |
+| ----- | ------------------------------------------------------------------------------------ | -------------------------------- | -------------------------------------- |
+| ~2000 | 回调函数（callback）                                                                 | 让单线程能不阻塞                 | 回调地狱（callback hell）：嵌套 5 层深 |
+| 2010  | jQuery `Deferred`、Bluebird 库                                                       | 链式调用替代嵌套                 | 各家 API 不统一；标准缺失              |
+| 2015  | [Promise（ES6）](https://262.ecma-international.org/6.0/#sec-promise-objects) 标准化 | 链式调用 + 错误传播 + 标准化     | 仍有 `.then` 嵌套；错误处理需要小心    |
+| 2017  | async / await（ES2017）                                                              | **写起来像同步、运行起来像异步** | try/catch 错误处理仍是常见漏点         |
+| 2022  | [顶层 await](https://github.com/tc39/proposal-top-level-await)（ES2022）             | ESM 模块顶层可直接 await         | —— 这一代基本没明显遗憾                |
+
+**回调地狱样本**：
+
+```js
+// ❌ 2010 年代代码：嵌套 5 层
+fs.readFile("a.txt", (err, dataA) => {
+  if (err) return handleError(err);
+  fs.readFile("b.txt", (err, dataB) => {
+    if (err) return handleError(err);
+    fs.readFile("c.txt", (err, dataC) => {
+      if (err) return handleError(err);
+      saveResult(dataA + dataB + dataC, (err) => {
+        if (err) return handleError(err);
+        console.log("done");
+      });
+    });
+  });
+});
+```
+
+**现代 async-await 等价代码**：
+
+```js
+// ✅ 2017+ 写法：扁平、可读
+try {
+  const [a, b, c] = await Promise.all([
+    fs.promises.readFile("a.txt"),
+    fs.promises.readFile("b.txt"),
+    fs.promises.readFile("c.txt"),
+  ]);
+  await saveResult(a + b + c);
+  console.log("done");
+} catch (err) {
+  handleError(err);
+}
+```
+
+**两个结论值得记住**：
+
+1. **现代 JS 不写回调**——除了少数 API（如 `addEventListener` / `setTimeout`）仍用回调形式，业务代码全部 Promise + async-await
+2. **错误处理是"形式简化但责任不变"**——回调地狱里的 `if (err)` 都消失了，但你必须主动加 `try/catch` 或 `.catch`，否则错误会被吞没
+
+---
+
+## 1. 异步的"为什么"：JavaScript 是单线程
+
+理解异步前先理解**JavaScript 为什么需要异步**——它不是"性能优化"，是单线程模型的必然选择。
+
+### 1.1 单线程 + 事件循环
+
+JavaScript 引擎（V8 / SpiderMonkey）**只有一个执行线程**——同时只能跑一段代码。这意味着：
+
+```js
+// 如果 fetchData 是同步的（hypothetical）：
+const data = fetchData(); // 阻塞 2 秒
+renderUI(data);
+
+// 这 2 秒里，浏览器无法响应任何用户操作——点击、滚动、输入全部冻结
+```
+
+这显然不可接受。JS 的解法是：**让 IO 操作交给浏览器 / 运行时去做（不占用 JS 线程），完成后通过事件循环把结果回传给 JS**。
+
+```text
+┌─ JS 引擎（单线程） ─┐    ┌─ 浏览器 / Node.js ─┐
+│                     │    │                     │
+│ 调用 fetch(url)  ───┼───→│ 实际发起网络请求    │
+│                     │    │ （在另外的线程）    │
+│ 继续执行其他代码    │    │                     │
+│                     │    │ 请求完成，把结果    │
+│ 事件循环检查队列 ←──┼────│ 放进任务队列        │
+│                     │    │                     │
+│ 取出回调，执行      │    │                     │
+└─────────────────────┘    └─────────────────────┘
+```
+
+**关键洞察**：
+
+- **JS 引擎本身不做 IO**——`fetch` / `setTimeout` / `fs.readFile` 都是浏览器 / Node.js 提供的"宿主 API"，不是 JS 语言的一部分
+- **异步不是并行**——JS 仍然是单线程，只是把"等待"的时间让给其他代码
+- **回调 / Promise / async-await 都是同一个机制的不同语法包装**——底层都是"事件循环 + 任务队列"
+
+> 一手：[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)（英文，权威规范）。
+
+### 1.2 同步 vs 异步：阻塞与非阻塞
+
+```js
+// 同步：阻塞，按顺序执行
+console.log("1");
+const data = syncReadFile("a.txt"); // 假设这里阻塞 1 秒
+console.log("2");
+// 输出顺序：1（等 1 秒）→ 2
+
+// 异步：非阻塞，不等待
+console.log("1");
+asyncReadFile("a.txt", (data) => console.log("2"));
+console.log("3");
+// 输出顺序：1 → 3 → 2（IO 完成后回调）
+```
+
+**经验法则**：
+
+- **CPU 密集任务**用同步代码（数学计算 / 数组排序）——用异步包装反而慢
+- **IO 任务**用异步代码（网络请求 / 文件读写 / 数据库查询）——避免阻塞 UI 或主线程
+
+> 涉及**Web Workers**（让 CPU 密集任务跑在另一个线程）的话题留给第 8 章前沿话题。本章只讨论"标准单线程 + 异步 IO"。
+
+---
+
+## 2. Promise 基础
+
+`Promise` 是 ES6 引入的**异步操作的标准化容器**——表示一个"将来会有值"的对象。
+
+### 2.1 Promise 的三个状态
+
+```text
+       ┌─ pending（进行中）─┐
+       │                     │
+       ↓ resolve(value)       ↓ reject(error)
+
+   fulfilled（已成功）    rejected（已失败）
+```
+
+**关键约束**：
+
+- 状态只能从 `pending` 变到 `fulfilled` 或 `rejected`——**一旦改变就不可逆**
+- `fulfilled` 状态的 Promise 永远绑定一个值
+- `rejected` 状态的 Promise 永远绑定一个错误
+
+```js
+const promise = new Promise((resolve, reject) => {
+  setTimeout(() => {
+    if (Math.random() > 0.5) {
+      resolve("success");
+    } else {
+      reject(new Error("failed"));
+    }
+  }, 1000);
+});
+
+promise
+  .then((value) => {
+    console.log(value); // 'success'
+  })
+  .catch((error) => {
+    console.error(error); // Error: failed
+  });
+```
+
+### 2.2 链式调用：`.then` / `.catch` / `.finally`
+
+每个 `.then` / `.catch` 返回**新的 Promise**——这是链式调用的基础：
+
+```js
+fetch("/api/user")
+  .then((response) => response.json()) // 返回 Promise<user>
+  .then((user) => fetch(`/api/posts?userId=${user.id}`)) // 返回 Promise<response>
+  .then((response) => response.json()) // 返回 Promise<posts>
+  .then((posts) => {
+    console.log(posts);
+  })
+  .catch((error) => {
+    console.error("请求链中任何一步出错都会到这里");
+  })
+  .finally(() => {
+    console.log("无论成败都执行（如关闭 loading）");
+  });
+```
+
+**规则**：
+
+- `.then` 接收两个参数：`onFulfilled` 和 `onRejected`——但常用 `.then(onFulfilled).catch(onRejected)` 分开写
+- `.catch` 是 `.then(undefined, onRejected)` 的简写
+- `.finally` 不接收值，仅做清理工作（关闭 loading / 解锁按钮等）
+
+### 2.3 错误传播：最近的 catch 捕获
+
+**这是 Promise 链最重要也最容易误解的机制**——错误会沿着链向后传播，被**最近的一个 `.catch`** 捕获：
+
+```js
+fetchUser()
+  .then((user) => fetchPosts(user.id)) // 这步出错
+  .then((posts) => render(posts)) // 跳过
+  .then((html) => insertToDom(html)) // 跳过
+  .catch((err) => console.error(err)); // 捕获到 fetchPosts 的错
+```
+
+**关键洞察**：你**不需要在每个 `.then` 后面写 `.catch`**——一个统一的 `.catch` 在链尾就能处理所有上游错误。
+
+#### 错误传播的几个细节
+
+**1. catch 之后链可以恢复**：
+
+```js
+fetchUser()
+  .then((user) => fetchPosts(user.id))
+  .catch((err) => {
+    console.warn("fetchPosts failed, using empty array");
+    return []; // 返回值让链恢复
+  })
+  .then((posts) => render(posts)); // 仍会执行（posts 是空数组）
+```
+
+**2. catch 自己也能抛错**：
+
+```js
+fetchUser()
+  .catch((err) => {
+    throw new Error(`Wrapped: ${err.message}`); // 抛出新错误
+  })
+  .catch((err) => {
+    // 这里捕获到 wrapped 错误
+  });
+```
+
+**3. 未捕获的 Promise 错误会被吞没**：
+
+```js
+// ❌ 反例：没写 .catch，错误被吞没
+fetchUser().then((user) => render(user));
+//          ↑ 如果 fetchUser 失败，控制台会报 "Uncaught (in promise)"
+//             但代码不会崩溃，错误处理被遗漏
+```
+
+**修复**：永远在 Promise 链尾加 `.catch`（或用 async-await + `try/catch`）。
+
+#### 设计判断暗线：错误传播（error propagation）
+
+Promise 的链式 `.catch` 设计借鉴了**异常处理**的层次结构：
+
+| 模型         | 错误处理方式                               |
+| ------------ | ------------------------------------------ |
+| 回调地狱     | 每个回调里手动 `if (err) handleError(err)` |
+| Promise 链   | 一个 `.catch` 在链尾捕获所有上游错误       |
+| async-await  | `try/catch` 块包住 await 表达式            |
+| 异常（Java） | 同步代码的 try/catch 抛递机制              |
+
+**关键设计**：错误**默认向后传播**——这让"快乐路径"代码不被错误处理污染。但代价是：**漏写一个 `.catch`，错误就被吞没**。
+
+> 一手：[MDN: Promise](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise)。
+
+### 2.4 Promise 的不可变性
+
+一旦 Promise 进入 `fulfilled` 或 `rejected` 状态，**值 / 错误就永远不变**：
+
+```js
+const promise = Promise.resolve("A");
+
+promise.then((v) => console.log(v)); // 'A'
+promise.then((v) => console.log(v)); // 'A' —— 同一个值
+promise.then((v) => console.log(v)); // 'A' —— 多次访问无副作用
+```
+
+**这跟 EventEmitter / Observable 不同**——后两者每次订阅都触发新事件，Promise 是"一次性容器"。
+
+**实战影响**：你不能"重新触发"一个 Promise——需要重新调用工厂函数：
+
+```js
+// ❌ 反例：以为能"重新跑"
+const p = fetchData();
+await p;
+await p; // 不会重新请求，直接拿之前的值
+
+// ✅ 正例：每次创建新 Promise
+const fetchAgain = () => fetchData();
+await fetchAgain();
+await fetchAgain(); // 每次都是新请求
+```
+
+---
+
+## 3. Promise 静态方法对比
+
+`Promise` 提供了四个**组合多个 Promise** 的静态方法——AI 写代码时最容易混用的就是这组。
+
+### 3.1 四个方法的语义对比
+
+| 方法                 | 何时 resolve               | 何时 reject                      | 返回值类型                    |
+| -------------------- | -------------------------- | -------------------------------- | ----------------------------- |
+| `Promise.all`        | **所有都成功**             | **任一失败**（立即 reject）      | 成功值数组（按顺序）          |
+| `Promise.allSettled` | **所有都完成**（不管成败） | 永不 reject                      | `{status, value/reason}` 数组 |
+| `Promise.race`       | **第一个完成**（无论成败） | 第一个失败的（如果它先完成）     | 第一个完成的值 / 错误         |
+| `Promise.any`        | **第一个成功**             | **所有都失败**（AggregateError） | 第一个成功的值                |
+
+### 3.2 选型决策图
+
+```text
+你想要什么？
+
+├─ 需要所有结果，任一失败就停
+│  └─ Promise.all
+│     例：并发加载多张图片 / 多个 API，任一失败页面就报错
+│
+├─ 需要所有结果，不管成败
+│  └─ Promise.allSettled
+│     例：批量操作（如批量删除文件），每个独立成败，最后汇总报告
+│
+├─ 多个候选源，任一最快返回的就用
+│  └─ Promise.race
+│     例：超时控制（race 一个 setTimeout）/ 多个 CDN 取最快
+│
+└─ 多个候选源，任一成功就用
+   └─ Promise.any
+      例：备用源策略——主源失败自动 fallback 到备份
+```
+
+### 3.3 各方法的实战用法
+
+#### Promise.all：并发加载多个数据
+
+```js
+// 串行（慢，三个请求依次发）
+const user = await fetchUser(); // 等 1 秒
+const posts = await fetchPosts(); // 等 1 秒
+const comments = await fetchComments(); // 等 1 秒
+// 总耗时：3 秒
+
+// 并行（快，三个请求同时发）
+const [user, posts, comments] = await Promise.all([fetchUser(), fetchPosts(), fetchComments()]);
+// 总耗时：1 秒（取最慢的那个）
+```
+
+**关键陷阱**：`Promise.all` 是 **all-or-nothing**——任一失败，整个 Promise 立即 reject，**其他成功的结果全部丢失**：
+
+```js
+try {
+  const [a, b, c] = await Promise.all([
+    fetchA(), // 成功
+    fetchB(), // 失败
+    fetchC(), // 成功
+  ]);
+} catch (err) {
+  // 只能拿到 fetchB 的错误
+  // fetchA 和 fetchC 的结果完全丢失
+}
+```
+
+#### Promise.allSettled：要所有结果（不管成败）
+
+适合"批量操作，逐个汇报"的场景：
+
+```js
+const results = await Promise.allSettled([
+  deleteFile("a.txt"),
+  deleteFile("b.txt"),
+  deleteFile("c.txt"),
+]);
+
+results.forEach((result, index) => {
+  if (result.status === "fulfilled") {
+    console.log(`${index} 删除成功`);
+  } else {
+    console.warn(`${index} 删除失败:`, result.reason);
+  }
+});
+```
+
+> **何时选 allSettled vs all**：你**关心每个独立结果**且**不希望一个失败影响其他**——选 `allSettled`。否则选 `all`。
+
+#### Promise.race：超时控制最常见
+
+```js
+function fetchWithTimeout(url, ms = 5000) {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
+// 使用
+try {
+  const response = await fetchWithTimeout("/api/slow", 3000);
+} catch (err) {
+  // 3 秒内没返回就抛 timeout
+  // 或者 fetch 自己出错也抛
+}
+```
+
+> **现代写法**：用 `AbortController` + `AbortSignal.timeout()`（2023+）替代 `Promise.race` 做超时——能真正取消请求，不只是"忽略响应"。详见 [§6.1 取消请求](#61-取消请求abortcontroller)。
+
+#### Promise.any：备用源策略
+
+```js
+// 三个 CDN，任一成功就用
+const html = await Promise.any([
+  fetch("https://cdn-a.example.com/index.html"),
+  fetch("https://cdn-b.example.com/index.html"),
+  fetch("https://cdn-c.example.com/index.html"),
+]);
+// 全部失败时抛 AggregateError，包含所有错误
+```
+
+`Promise.any` 是 ES2021 加入的，比 `Promise.race` 更"宽容"——race 第一个失败就 reject，any 要全失败才 reject。
+
+### 3.4 实战经验：默认用什么
+
+| 场景                   | 推荐                                                  |
+| ---------------------- | ----------------------------------------------------- |
+| 加载页面所需的全部数据 | `Promise.all`（任一失败页面崩）                       |
+| 批量操作，关心每个结果 | `Promise.allSettled`                                  |
+| 超时控制               | `AbortController.signal.timeout`（不用 Promise.race） |
+| 多源 fallback          | `Promise.any`                                         |
+| 普通"等一个东西完成"   | `await` 直接等，不用 race / any                       |
+
+> 一手：[MDN: Promise.all](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/all) / [Promise.allSettled](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) / [Promise.race](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/race) / [Promise.any](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise/any)。
+
+---
+
+## 4. async / await
+
+`async` / `await` 是 ES2017 引入的 Promise 语法糖——**让异步代码写起来像同步代码**。
+
+### 4.1 语法糖本质
+
+```js
+// Promise 写法
+function fetchUser() {
+  return fetch("/api/user")
+    .then((res) => res.json())
+    .then((user) => {
+      console.log(user);
+      return user;
+    });
+}
+
+// async-await 等价写法
+async function fetchUser() {
+  const res = await fetch("/api/user");
+  const user = await res.json();
+  console.log(user);
+  return user; // 自动包装成 Promise.resolve(user)
+}
+```
+
+**核心规则**：
+
+- **`async` 函数总是返回 Promise**——`return x` 等价于 `return Promise.resolve(x)`
+- **`await` 只能在 `async` 函数里用**（ESM 顶层除外，见 §4.3）
+- **`await` 会"解包" Promise**——`await promise` 拿到的是 resolved 值，不是 Promise 对象
+
+### 4.2 错误处理：try / catch
+
+```js
+async function fetchData() {
+  try {
+    const response = await fetch("/api/data");
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    // 捕获 fetch / json 任一步的错误
+    console.error("Failed to fetch:", error);
+    throw error; // 重新抛出或处理
+  }
+}
+```
+
+**关键陷阱**：**`async` 函数里没写 `try/catch`，错误会被包进返回的 Promise 的 rejection**：
+
+```js
+async function bad() {
+  throw new Error("oops");
+}
+
+// ❌ 调用者没 catch，错误被吞没
+bad(); // Uncaught (in promise)
+
+// ✅ 调用者负责 catch
+bad().catch((err) => console.error(err));
+
+// 或者用 await + try/catch
+try {
+  await bad();
+} catch (err) {
+  console.error(err);
+}
+```
+
+**经验法则**：
+
+- **`async` 函数内部用 `try/catch` 处理预期错误**（如网络失败、JSON 解析失败）
+- **调用者用 `.catch()` 或 `try/catch` 处理函数返回的 Promise rejection**
+
+### 4.3 顶层 await（top-level await）
+
+ES2022 允许在 **ESM 模块顶层**直接 `await`：
+
+```js
+// ✅ ESM 顶层（不需要包在 async 函数里）
+const config = await fetch("/config.json").then((r) => r.json());
+
+export default config;
+```
+
+**限制**：
+
+- 只在 ESM 模块里可用（`<script type="module">` 或 `.mjs` / `"type": "module"`）
+- 不能在 CommonJS（`require()` / `module.exports`）里用
+
+**何时用**：模块初始化时需要异步加载配置 / 数据——比 IIFE 包装 async 函数更简洁。
+
+> 一手：[TC39: top-level await proposal](https://github.com/tc39/proposal-top-level-await)。
+
+### 4.4 async 函数的几个陷阱
+
+#### 陷阱 1：`return await` 看似多余但有时必要
+
+```js
+async function fetchUser() {
+  return await fetch("/api/user"); // await 多余？
+}
+
+// 等价于
+async function fetchUser() {
+  return fetch("/api/user"); // 直接返回 Promise
+}
+```
+
+**什么时候必须写 `return await`**：在 `try/catch` 里：
+
+```js
+async function fetchWithLog() {
+  try {
+    return await fetch("/api/user"); // ✅ 必须 await
+    // 如果写 return fetch(...) 则 catch 捕获不到 fetch 的错误
+  } catch (err) {
+    console.error("Failed:", err);
+    throw err;
+  }
+}
+```
+
+**原因**：`return fetch(...)` 直接返回 Promise，不会"进入" try 块的执行上下文——Promise rejection 不会被 catch 捕获。`return await` 让 rejection 变成同步抛出，能被 catch 到。
+
+> ESLint 规则 `no-return-await` 会提醒你这个陷阱。
+
+#### 陷阱 2：串行 await 应该并行
+
+```js
+// ❌ 串行（慢）
+async function fetchAll() {
+  const user = await fetchUser(); // 等 1 秒
+  const posts = await fetchPosts(); // 等 1 秒
+  return { user, posts }; // 总耗时 2 秒
+}
+
+// ✅ 并行（快）
+async function fetchAll() {
+  const [user, posts] = await Promise.all([fetchUser(), fetchPosts()]);
+  return { user, posts }; // 总耗时 1 秒
+}
+```
+
+**经验法则**：如果两个 `await` 互不依赖（后者不需要前者的结果），**一定要并行**。
+
+#### 陷阱 3：`forEach` 不等待 `async` 回调
+
+```js
+// ❌ 反例：forEach 不等待
+async function processAll(items) {
+  items.forEach(async (item) => {
+    await processItem(item); // forEach 不等这个 await
+  });
+  console.log("done"); // 会立即执行，不等 processItem 完成
+}
+
+// ✅ 正例：用 for...of
+async function processAll(items) {
+  for (const item of items) {
+    await processItem(item);
+  }
+  console.log("done"); // 等所有 item 都处理完
+}
+
+// ✅ 正例：并行处理
+async function processAll(items) {
+  await Promise.all(items.map((item) => processItem(item)));
+  console.log("done");
+}
+```
+
+**原因**：`forEach` 只是普通函数，不会等待 `async` 回调返回的 Promise。**永远不在 `forEach` 里用 `await`**。
+
+> 一手：[MDN: async function](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/async_function) / [MDN: await](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/await)。
+
+---
+
+## 5. 微任务 vs 宏任务
+
+理解**微任务（microtask）** 和**宏任务（macrotask / task）** 的执行顺序，是 debug race condition 的关键参照系。
+
+### 5.1 两种任务的来源
+
+| 类型       | 来源 API                                                                     |
+| ---------- | ---------------------------------------------------------------------------- |
+| **微任务** | `Promise.then` / `.catch` / `.finally`、`queueMicrotask`、`MutationObserver` |
+| **宏任务** | `setTimeout` / `setInterval`、I/O 回调、UI 事件、`MessageChannel`            |
+
+### 5.2 执行顺序：微任务优先级高
+
+事件循环的核心规则（简化版）：
+
+```text
+1. 执行同步代码到栈空
+2. 清空整个微任务队列（这一步会一直循环到队列空）
+3. 取出一个宏任务执行
+4. 重复步骤 2-3
+```
+
+**关键**：每次执行完一个**宏任务**或同步代码块后，会把**当前所有微任务清空**才继续。
+
+### 5.3 经典执行顺序题
+
+```js
+console.log("1");
+
+setTimeout(() => console.log("2"), 0);
+
+Promise.resolve().then(() => console.log("3"));
+
+console.log("4");
+```
+
+**输出顺序**：`1, 4, 3, 2`
+
+**推导过程**：
+
+1. 同步代码：打印 `1` → 打印 `4`（`setTimeout` 注册到宏任务队列、`.then` 注册到微任务队列）
+2. 同步执行完，清空微任务队列：打印 `3`
+3. 取出一个宏任务：打印 `2`
+
+### 5.4 进阶：嵌套的微任务
+
+```js
+console.log("1");
+
+setTimeout(() => console.log("2"), 0);
+
+Promise.resolve().then(() => {
+  console.log("3");
+  Promise.resolve().then(() => console.log("4"));
+});
+
+console.log("5");
+```
+
+**输出顺序**：`1, 5, 3, 4, 2`
+
+**关键点**：第一个 `.then` 里又注册了新的 `.then`——**新微任务在当前微任务队列清空前会被加入**，所以在 `4` 在 `2` 之前。
+
+### 5.5 实战影响：React 18 自动批处理
+
+React 18 的并发渲染依赖**微任务**调度——多个 setState 调用会被合并到同一个微任务里批处理：
+
+```jsx
+function handleClick() {
+  setCount((c) => c + 1); // 不立即触发渲染
+  setFlag((f) => !f); // 不立即触发渲染
+  setName("Alice"); // 不立即触发渲染
+  // 当前同步代码执行完后，React 在微任务里统一渲染一次
+}
+```
+
+**这就是为什么 React 18 后**：
+
+- 多个 setState 不会触发多次渲染（合并成一次）
+- `useEffect` 在 React 完成 DOM 更新后但浏览器绘制前的微任务里执行
+- `useLayoutEffect` 在 DOM 更新后同步执行（DOM 已变但浏览器没绘制）
+
+### 5.6 何时该理解微任务调度
+
+**必须理解**：
+
+- Debug race condition（异步操作顺序异常）
+- 写自定义 hooks，理解 useEffect / useLayoutEffect 的执行时机
+- 性能优化（避免微任务无限循环卡死 UI）
+
+**不需要深究**：
+
+- 业务代码极少需要手动调度微任务
+- 普通 Promise 链 / async-await 不需要懂这层细节
+
+> 一手：[MDN: Microtask 指南](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide)；[MDN: queueMicrotask](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/queueMicrotask)；[HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)。
+
+> **回链 §2.4 事件循环**：第 2 章讲了浏览器侧的整体事件循环（含 requestAnimationFrame 和渲染管线）。本节聚焦 JS 语言层的微任务 / 宏任务区分，两者结合起来才是完整心智。
+
+---
+
+## 6. 实战模式
+
+### 6.1 取消请求（AbortController）
+
+`AbortController` 是 2017+ 的标准 API——**让你能主动取消进行中的异步操作**：
+
+```js
+const controller = new AbortController();
+const signal = controller.signal;
+
+// 把 signal 传给可取消的 API
+fetch("/api/data", { signal })
+  .then((res) => res.json())
+  .then((data) => console.log(data))
+  .catch((err) => {
+    if (err.name === "AbortError") {
+      console.log("请求被取消");
+    } else {
+      console.error("其他错误:", err);
+    }
+  });
+
+// 在另一个地方取消
+setTimeout(() => controller.abort(), 3000);
+```
+
+**支持 AbortSignal 的 API**：
+
+- `fetch`
+- `addEventListener`（2020+）
+- 大多数现代异步 API
+
+#### 现代超时控制（替代 Promise.race）
+
+```js
+// 2023+ 的标准写法
+fetch("/api/data", {
+  signal: AbortSignal.timeout(5000), // 5 秒超时
+});
+```
+
+> 比 `Promise.race` 优秀的原因：**真正取消请求**——不只是"忽略响应"，浏览器会发送 abort 信号停止网络传输，节省带宽。
+
+### 6.2 React useEffect 清理过期请求
+
+**经典翻车场景**：组件 unmount 后，await 的 Promise 才 resolve，导致在卸载组件上 setState：
+
+```jsx
+// ❌ 反例：组件卸载后 setState
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/user/${userId}`)
+      .then((res) => res.json())
+      .then((data) => setUser(data)); // 组件可能已卸载
+  }, [userId]);
+
+  return user ? <div>{user.name}</div> : <div>Loading...</div>;
+}
+```
+
+**修复**：用 AbortController + 清理函数：
+
+```jsx
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(`/api/user/${userId}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => setUser(data))
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error(err);
+        }
+      });
+
+    return () => controller.abort(); // 组件卸载或 userId 变化时取消
+  }, [userId]);
+
+  return user ? <div>{user.name}</div> : <div>Loading...</div>;
+}
+```
+
+### 6.3 并发限制（手写 Pool）
+
+需要请求 100 个 URL，但服务器限制 10 并发：
+
+```js
+async function pool(items, concurrency, fn) {
+  const results = [];
+  const executing = [];
+
+  for (const item of items) {
+    const p = Promise.resolve().then(() => fn(item));
+    results.push(p);
+
+    if (items.length >= concurrency) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= concurrency) {
+        await Promise.race(executing);
+      }
+    }
+  }
+
+  return Promise.all(results);
+}
+
+// 使用
+const urls = Array.from({ length: 100 }, (_, i) => `/api/item/${i}`);
+const results = await pool(urls, 10, fetch);
+```
+
+**生产环境推荐用现成库**：[`p-limit`](https://github.com/sindresorhus/p-limit)（极轻量、广泛使用）。
+
+### 6.4 重试（指数退避）
+
+网络请求失败时自动重试，每次间隔翻倍：
+
+```js
+async function retry(fn, maxAttempts = 3, baseDelay = 1000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+
+      const delay = baseDelay * 2 ** (attempt - 1); // 1s, 2s, 4s
+      console.warn(`Attempt ${attempt} failed, retry in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+// 使用
+const data = await retry(() => fetch("/api/data").then((r) => r.json()), 3);
+```
+
+### 6.5 异步迭代（for await...of）
+
+ES2018 引入的语法——遍历**异步生成器**或**异步可迭代对象**：
+
+```js
+async function* fetchPages(urls) {
+  for (const url of urls) {
+    const data = await fetch(url).then((r) => r.json());
+    yield data;
+  }
+}
+
+// 用 for await 串行处理
+for await (const page of fetchPages(urls)) {
+  console.log(page);
+  // 拿到一个就立即处理，不用等所有完成
+}
+```
+
+**何时用**：流式处理大量数据（如分页加载、SSE 事件流）——比 `Promise.all` 更省内存。
+
+> 一手：[MDN: AbortController](https://developer.mozilla.org/zh-CN/docs/Web/API/AbortController)；[MDN: for await...of](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/for-await...of)。
+
+---
+
+## 7. 三档归位
+
+| 知识点                                             | 归位         | 理由                                            |
+| -------------------------------------------------- | ------------ | ----------------------------------------------- |
+| Promise 三个状态 + 链式调用                        | **必学**     | 现代 JS 异步的基础                              |
+| Promise 错误传播（最近 catch 捕获）                | **必学**     | 错误处理的关键机制                              |
+| `Promise.all` / `allSettled` / `race` / `any` 区分 | **必学**     | AI 易混用，选错代价大                           |
+| async-await 语法 + try/catch                       | **必学**     | 现代异步代码标配                                |
+| 串行 vs 并行 await                                 | **必学**     | 性能差异 N 倍                                   |
+| 微任务 vs 宏任务执行顺序                           | **必学**     | Debug race condition 必备                       |
+| AbortController 取消请求                           | **必学**     | React useEffect 清理 / 超时控制                 |
+| 顶层 await（top-level await）                      | **必学**     | ESM 模块初始化常见                              |
+| `forEach` 不等待 async 回调                        | **必学**     | 高频翻车点                                      |
+| `return await` 在 try/catch 里的必要性             | **仍需理解** | ESLint 会提醒；知道为什么即可                   |
+| `for await...of` 异步迭代                          | **仍需理解** | 流式处理时用；普通业务不需要                    |
+| 并发限制 / 重试 / 指数退避                         | **仍需理解** | 业务复杂时用；优先用 `p-limit` 等现成库         |
+| Promise A+ 规范细节                                | **仍需理解** | 知道存在；实战不需要看规范                      |
+| 自己实现 Promise（手写 polyfill）                  | **可委托**   | 面试题；生产代码不写                            |
+| Bluebird / Q 等老 Promise 库                       | **不学**     | ES6 Promise 已经够用，老库已边缘化              |
+| Generator + 旧式协程模式                           | **不学**     | async-await 已替代；只在维护老 koa 1.x 代码时见 |
+
+---
+
+## 8. AI 时代写异步的最小集
+
+| 你想做                                  | AI 帮得上吗                                                  |
+| --------------------------------------- | ------------------------------------------------------------ |
+| 把回调改成 Promise / async-await        | ✅ 委托 AI（标准重构任务）                                   |
+| 写 fetch + 错误处理                     | ✅ AI 写得熟，但 review 错误处理是否完整                     |
+| 选 Promise.all 还是 allSettled          | ⚠️ AI 给默认值（通常 all），你要根据"任一失败是否能容忍"判断 |
+| 把串行 await 改成并行                   | ✅ AI 会改，但你要 review "前后是否真的无依赖"               |
+| 写 AbortController 取消逻辑             | ✅ AI 熟悉标准用法                                           |
+| 排查"Promise 没 resolve"卡死            | ❌ Tier 4：调用栈 + 异步追踪需要你看                         |
+| Debug race condition                    | ❌ Tier 4：AI 不知道你的并发场景                             |
+| 决定 useEffect 是否需要 AbortController | ⚠️ AI 默认会加，但你要判断业务是否真的需要                   |
+| 写并发限制 / 重试逻辑                   | ✅ 委托 AI 写基础版（或用 p-limit）                          |
+
+**重点强调**：
+
+### AI 写异步代码时最容易错的三件事
+
+1. **错误处理漏掉**：AI 写 `async` 函数经常没 `try/catch`，或 `.catch()` 只 `console.log` 不重新抛——**review 时必须检查"错误是否被吞没"**
+2. **forEach 里用 await**：AI 偶尔会写 `items.forEach(async ...)` 然后期待"等所有完成"——**改成 `for...of` 或 `Promise.all(items.map(...))`**
+3. **Promise.all 误用**：AI 默认推荐 `Promise.all`，但批量操作场景应该用 `allSettled`——**问自己"任一失败是否要中断全部"**
+
+### 你必须把握的 review 要点
+
+**Promise 链 / async-await 场景**：
+
+- 链尾是否有 `.catch` / 整个 `await` 是否在 try/catch 里
+- 错误处理是否合理（不只是 `console.log`）
+- 串行 await 是否应该并行
+
+**Promise 静态方法选型**：
+
+- `Promise.all` → 任一失败即可全失败的场景
+- `Promise.allSettled` → 关心每个独立结果的批量操作
+- `AbortSignal.timeout()` → 替代 `Promise.race + setTimeout`
+
+**React useEffect 异步**：
+
+- 是否有 AbortController 防止过期 setState
+- 依赖数组是否正确（含 async 函数读到的所有外部变量）
+
+---
+
+## 9. 翻车库
+
+### 9.1 async 函数没 try/catch（错误吞没）
+
+**症状**：async 函数里 await 报错，控制台 "Uncaught (in promise)"，但代码不崩。
+
+**原因**：async 函数里的抛错被包进返回的 Promise rejection——调用者没 catch 就被吞没。
+
+**修复**：函数内加 `try/catch`，或调用者加 `.catch()`：
+
+```js
+// ❌ 反例
+async function fetchData() {
+  const res = await fetch("/api/data"); // 可能失败
+  return res.json();
+}
+
+// ✅ 正例 1：函数内处理
+async function fetchData() {
+  try {
+    const res = await fetch("/api/data");
+    return res.json();
+  } catch (err) {
+    console.error("Failed to fetch:", err);
+    throw err; // 或返回默认值
+  }
+}
+
+// ✅ 正例 2：调用者处理
+fetchData().catch((err) => console.error(err));
+```
+
+### 9.2 forEach 里用 async（不等待）
+
+**症状**：`forEach` 循环里有 `await`，但函数执行完毕时异步操作还没完成。
+
+**原因**：`forEach` 不等待 async 回调返回的 Promise。
+
+**修复**：用 `for...of` 或 `Promise.all(map(...))`：
+
+```js
+// ❌ 反例
+async function processAll(items) {
+  items.forEach(async (item) => {
+    await processItem(item);
+  });
+  console.log("done"); // 立即执行，不等 processItem
+}
+
+// ✅ 正例 1：串行
+async function processAll(items) {
+  for (const item of items) {
+    await processItem(item);
+  }
+  console.log("done");
+}
+
+// ✅ 正例 2：并行
+async function processAll(items) {
+  await Promise.all(items.map((item) => processItem(item)));
+  console.log("done");
+}
+```
+
+### 9.3 串行 await 应该并行
+
+**症状**：多个 await 依次执行，总耗时是各自耗时之和（慢）。
+
+**原因**：await 会暂停执行，等 Promise resolve——不需要依赖的 await 应该并行。
+
+**修复**：用 `Promise.all`：
+
+```js
+// ❌ 反例（总耗时 3 秒）
+const user = await fetchUser(); // 1 秒
+const posts = await fetchPosts(); // 1 秒
+const comments = await fetchComments(); // 1 秒
+
+// ✅ 正例（总耗时 1 秒）
+const [user, posts, comments] = await Promise.all([fetchUser(), fetchPosts(), fetchComments()]);
+```
+
+### 9.4 Promise.all 一个失败全失败（应该用 allSettled）
+
+**症状**：批量操作时，一个失败导致所有成功结果丢失。
+
+**原因**：`Promise.all` 是 all-or-nothing——任一 reject 立即短路。
+
+**修复**：批量操作用 `Promise.allSettled`：
+
+```js
+// ❌ 反例：删除 10 个文件，一个失败其他结果全丢
+const results = await Promise.all(files.map(deleteFile));
+
+// ✅ 正例：每个文件独立成败
+const results = await Promise.allSettled(files.map(deleteFile));
+results.forEach((result, i) => {
+  if (result.status === "fulfilled") {
+    console.log(`${i} 删除成功`);
+  } else {
+    console.warn(`${i} 删除失败:`, result.reason);
+  }
+});
+```
+
+### 9.5 取消 Promise（不能直接 cancel）
+
+**症状**：想取消一个 fetch 请求，但 Promise 没有 `.cancel()` 方法。
+
+**原因**：Promise 本身不可取消——需要用 `AbortController`。
+
+**修复**：传 `signal` 给支持的 API：
+
+```js
+// ❌ 反例
+const promise = fetch("/api/data");
+// 没有 promise.cancel() 方法
+
+// ✅ 正例
+const controller = new AbortController();
+fetch("/api/data", { signal: controller.signal });
+
+// 取消
+controller.abort();
+```
+
+> 详见 [§6.1 取消请求](#61-取消请求abortcontroller)。
+
+### 9.6 React useEffect 没清理过期请求
+
+**症状**：组件卸载后，`setState` 报 "Warning: Can't perform a React state update on an unmounted component"。
+
+**原因**：useEffect 的异步操作在组件卸载后才完成，调用了已卸载组件的 setState。
+
+**修复**：返回清理函数 + AbortController：
+
+```jsx
+// ❌ 反例
+useEffect(() => {
+  fetch("/api/data").then((data) => setState(data));
+}, []);
+
+// ✅ 正例
+useEffect(() => {
+  const controller = new AbortController();
+  fetch("/api/data", { signal: controller.signal })
+    .then((data) => setState(data))
+    .catch((err) => {
+      if (err.name !== "AbortError") console.error(err);
+    });
+
+  return () => controller.abort();
+}, []);
+```
+
+> 详见 [§6.2 React useEffect 清理](#62-react-useeffect-清理过期请求)。
+
+### 9.7 微任务无限循环（卡死页面）
+
+**症状**：页面卡死、UI 无响应、控制台没报错。
+
+**原因**：微任务队列无限增长——浏览器不会渲染直到微任务清空。
+
+```js
+// ❌ 反例：微任务无限循环
+function bad() {
+  Promise.resolve().then(() => bad()); // 立即排入微任务队列
+}
+bad(); // 页面卡死
+```
+
+**修复**：用宏任务（如 `setTimeout`）给浏览器喘息机会：
+
+```js
+// ✅ 正例
+function good() {
+  setTimeout(() => good(), 0); // 每次让出控制权
+}
+good(); // 不会卡死（虽然也是无限循环，但浏览器能渲染）
+```
+
+**经验**：递归异步逻辑不要用 `Promise.then` / `queueMicrotask`——用 `setTimeout` 或 `requestAnimationFrame`。
+
+### 9.8 返回 Promise 链但没 return
+
+**症状**：async 函数里 `.then` 链，但函数提前返回导致链断了。
+
+```js
+// ❌ 反例
+async function fetchAndProcess() {
+  fetch("/api/data")
+    .then((res) => res.json())
+    .then((data) => process(data)); // 没 return
+
+  console.log("done"); // 立即执行，不等 fetch 完成
+}
+
+// ✅ 正例 1：return Promise 链
+async function fetchAndProcess() {
+  return fetch("/api/data")
+    .then((res) => res.json())
+    .then((data) => process(data));
+}
+
+// ✅ 正例 2：用 await
+async function fetchAndProcess() {
+  const res = await fetch("/api/data");
+  const data = await res.json();
+  return process(data);
+}
+```
+
+---
+
+## 10. 读完本节你应该能
+
+### Promise 基础
+
+- [ ] 解释 Promise 的三个状态及不可逆性
+- [ ] 写出 Promise 链的错误传播机制（最近的 catch 捕获）
+- [ ] 区分 `.then(onFulfilled, onRejected)` 和 `.then().catch()`
+- [ ] 解释为什么 Promise 不能"重新触发"
+
+### Promise 静态方法
+
+- [ ] 区分 `Promise.all` / `allSettled` / `race` / `any` 的语义
+- [ ] 给一个批量操作场景，能选对方法
+- [ ] 写出超时控制的两种实现（race vs AbortSignal.timeout）
+
+### async / await
+
+- [ ] 解释 async 函数总是返回 Promise
+- [ ] 写出 async 函数的标准错误处理（try/catch）
+- [ ] 解释何时必须 `return await`（在 try/catch 里）
+- [ ] 区分串行 await 和 `Promise.all` 并行
+- [ ] 解释为什么 `forEach` 里不能用 await
+
+### 微任务 vs 宏任务
+
+- [ ] 列出微任务的来源（Promise / queueMicrotask / MutationObserver）
+- [ ] 列出宏任务的来源（setTimeout / I/O / UI 事件）
+- [ ] 推导一段代码的执行顺序
+- [ ] 解释 React 18 自动批处理为什么基于微任务
+
+### 实战模式
+
+- [ ] 用 AbortController 实现取消请求
+- [ ] 在 React useEffect 里写过期请求清理
+- [ ] 写超时控制（用 AbortSignal.timeout）
+- [ ] 知道何时该用 `for await...of`
+
+### 设计判断
+
+- [ ] 用"错误传播"心智解释 Promise 链 vs 回调地狱的根本差异
+- [ ] 解释为什么 Promise 一旦确定状态不可逆（设计选择）
+
+---
+
+## 11. 延伸阅读
+
+- [MDN: Promise](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Promise) — Promise 中文权威文档
+- [MDN: async function](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/async_function) — async-await 语法详解
+- [MDN: Microtask 指南](https://developer.mozilla.org/zh-CN/docs/Web/API/HTML_DOM_API/Microtask_guide) — 微任务调度权威解释
+- [HTML 规范：事件循环处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model) **（英文）** — 事件循环官方规范
+- [TC39: top-level await proposal](https://github.com/tc39/proposal-top-level-await) **（英文）** — 顶层 await 提案与设计动机
+- [MDN: AbortController](https://developer.mozilla.org/zh-CN/docs/Web/API/AbortController) — 取消异步操作的标准 API
+- [Node.js: process.nextTick](https://nodejs.org/api/process.html#processnexttickcallback-args) **（英文）** — Node 特有的"比微任务还高优先级"队列（深入 Node 时了解）
+
+> 访问性说明：MDN 中文版直接可访问；HTML 规范和 TC39 仓库是英文但访问稳定。
+
+---
+
+下一节：[§4.3 模块系统](/chapter-04/modules) _（待写）_——ESM / 动态 import / Node.js 互操作。
+
+> **动手验证**：把 §5 的执行顺序题复制到浏览器 DevTools 控制台跑——亲手看到输出比"记住规则"有效得多。
