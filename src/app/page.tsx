@@ -44,7 +44,7 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2">
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 items-stretch">
           <FeatureCard
             icon={SearchIcon}
             title="站内搜索"
@@ -114,7 +114,7 @@ function FeatureCard({
   desc: string;
 }) {
   return (
-    <div className="flex h-full gap-3 rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]">
+    <div className="flex gap-3 rounded-lg border border-[var(--color-border)] p-4 transition-colors hover:bg-[var(--color-bg-elevated)]">
       <Icon size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
