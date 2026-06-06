@@ -2,16 +2,13 @@
  * <Term> 客户端交互层。
  *
  * 视觉提示：dotted underline + 微弱前景色变化
- * 触发：hover（桌面）/ focus（键盘）/ click（移动端 + 跳转）
  *
- * 桌面行为（≥ 768px）：
- *   - hover / focus → 显示浮窗（含 brief + "查看详情" 链接）
- *   - 浮窗里点链接 → 跳转 /glossary#<key>
+ * 设备适应策略（基于 W3C Media Queries Level 4）：
+ *   - hover 设备（鼠标 / 触控板）→ hover / focus 显示浮窗
+ *   - 触屏设备（手机 / 平板）→ tap 弹出底部 sheet
  *
- * 移动端行为（< 768px）：
- *   - tap → 底部弹窗滑入（含 key / zh / brief / 详情链接）
- *   - 弹窗外 tap / backdrop click / Escape → 关闭
- *   - 避免桌面浮窗在窄屏被视口截断
+ * 用 `(hover: hover)` 而非 `max-width` 判断设备能力，
+ * 正确区分"窄桌面窗口"（有 hover）和"宽平板"（无 hover）。
  *
  * "鼠标穿越间隙"问题：trigger 和浮窗之间有 0.5rem 视觉间隙；如果鼠标
  * 移开 trigger 时立即关闭，鼠标过桥到浮窗的瞬间会触发关闭。
@@ -36,20 +33,14 @@ const CLOSE_DELAY_MS = 120;
 
 export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => {
+  // hover 能力是设备常量，不会在运行时变化——不需要 state + useEffect 监听
+  const [isTouchDevice] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 767.98px)").matches;
+    return !window.matchMedia("(hover: hover)").matches;
   });
   const containerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipId = useId();
-
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 767.98px)");
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
 
   function scheduleClose() {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -68,7 +59,7 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
     setOpen(true);
   }
 
-  // 移动端点击浮窗外关闭 + Escape
+  // 触屏设备点击浮窗外关闭 + Escape（hover 设备也有此需求）
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
@@ -100,6 +91,8 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
     }
   }
 
+  // 触屏设备屏蔽所有 pointer 事件——只靠 onClick 切换，避免
+  // mouseenter / focus / click 多个 handler 互相打架
   return (
     <span ref={containerRef} className="term">
       <span
@@ -108,10 +101,10 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
         aria-describedby={open ? tooltipId : undefined}
         aria-expanded={open}
         className="term-trigger"
-        onMouseEnter={isMobile ? undefined : openImmediately}
-        onMouseLeave={isMobile ? undefined : scheduleClose}
-        onFocus={isMobile ? undefined : openImmediately}
-        onBlur={isMobile ? undefined : scheduleClose}
+        onMouseEnter={isTouchDevice ? undefined : openImmediately}
+        onMouseLeave={isTouchDevice ? undefined : scheduleClose}
+        onFocus={isTouchDevice ? undefined : openImmediately}
+        onBlur={isTouchDevice ? undefined : scheduleClose}
         onClick={(e) => {
           e.stopPropagation();
           if (open) {
@@ -125,7 +118,7 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
         {label}
       </span>
       {open &&
-        isMobile &&
+        isTouchDevice &&
         createPortal(
           <MobileTermSheet
             termKey={termKey}
@@ -136,7 +129,7 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
           />,
           document.body,
         )}
-      {open && !isMobile && (
+      {open && !isTouchDevice && (
         <span
           id={tooltipId}
           role="tooltip"
@@ -175,7 +168,6 @@ function MobileTermSheet({
   tooltipId: string;
   onClose: () => void;
 }) {
-  // 防止 body 滚动
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -185,13 +177,11 @@ function MobileTermSheet({
 
   return (
     <>
-      {/* 遮罩 */}
       <div
         className="fixed inset-0 z-40 bg-black/40 animate-[term-sheet-fade_0.2s_ease-out]"
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* 底部弹窗 */}
       <div
         id={tooltipId}
         role="dialog"
