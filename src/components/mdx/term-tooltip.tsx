@@ -36,14 +36,16 @@ const CLOSE_DELAY_MS = 120;
 
 export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767.98px)").matches;
+  });
   const containerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipId = useId();
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 767.98px)");
-    setIsMobile(mql.matches);
     const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
