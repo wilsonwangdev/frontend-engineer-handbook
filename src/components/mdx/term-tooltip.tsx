@@ -110,8 +110,8 @@ export function TermTooltip({ termKey, label, zh, brief }: TermTooltipProps) {
         className="term-trigger"
         onMouseEnter={isMobile ? undefined : openImmediately}
         onMouseLeave={isMobile ? undefined : scheduleClose}
-        onFocus={openImmediately}
-        onBlur={scheduleClose}
+        onFocus={isMobile ? undefined : openImmediately}
+        onBlur={isMobile ? undefined : scheduleClose}
         onClick={(e) => {
           e.stopPropagation();
           if (open) {
