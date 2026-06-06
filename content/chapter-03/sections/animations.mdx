@@ -186,7 +186,7 @@ button {
 
 ### 3.1 浏览器渲染管线复习
 
-回顾第 2 章（待写，这里简提）：
+详见 [§2.3 浏览器渲染](/chapter-02/rendering)，这里简提：
 
 ```text
 DOM 变化 → 样式计算 → 布局（Layout）→ 绘制（Paint）→ 合成（Composite）
@@ -477,7 +477,7 @@ View Transitions 在过渡期间，浏览器创建一组**伪元素**：
 
 **搭配 `view-transition-name`**：列表页的产品图和详情页的产品图都标同一个 name，浏览器自动让它"飞过去"。
 
-> 兼容性：Chrome 126+（2024 年 6 月）/ Edge 126+。Safari / Firefox 在 2025-2026 年陆续跟进。降级是直接跳转无动画——渐进增强。
+> 兼容性：Chrome 126+（2024 年 6 月）/ Edge 126+。Safari 18+ 已加入支持，Firefox 仍在跟进。降级是直接跳转无动画——渐进增强。
 
 > 权威参考：[CSS View Transitions Module Level 1](https://drafts.csswg.org/css-view-transitions-1/)（基础）/ [Level 2](https://drafts.csswg.org/css-view-transitions-2/)（跨页面）；[MDN: View Transition API](https://developer.mozilla.org/zh-CN/docs/Web/API/View_Transitions_API)。
 
@@ -603,7 +603,7 @@ h2 {
 }
 ```
 
-> 兼容性：Chrome 115+ / Edge 115+（2023 年 8 月）。Safari 尚未支持（2025 年预计）。降级：动画不播放，元素保持默认样式。
+> 兼容性：Chrome 115+ / Edge 115+（2023 年 8 月）。Safari 18+ / Firefox 仍在跟进中（具体版本以 [Can I Use](https://caniuse.com/css-animation-timeline) 实时数据为准）。降级：动画不播放，元素保持默认样式。
 
 > 权威参考：[MDN: animation-timeline](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timeline)（英文）；[Scroll-driven Animations](https://scroll-driven-animations.style/)（Google Chrome 团队的演示站）。
 
@@ -658,7 +658,7 @@ import { motion } from "framer-motion";
 </motion.div>;
 ```
 
-View Transitions 稳定前，这是 React 生态最简单的跨组件过渡方案——但 2025 年起 React 19.2 内置 `<ViewTransition>` 后，两者逐渐融合。
+View Transitions 稳定前，这是 React 生态最简单的跨组件过渡方案——React 19.2 内置 `<ViewTransition>` 后两者逐渐融合。
 
 > 权威参考：[Framer Motion 文档](https://www.framer.com/motion/)；[Motion One 文档](https://motion.dev/)。
 
@@ -1140,6 +1140,6 @@ function safeTransition(callback) {
 
 ---
 
-下一章：[第 4 章 JavaScript 与 TypeScript](/chapter-04) _（待写）_——语言机制 / 类型系统 / 模块体系。
+下一章：[第 4 章 JavaScript 与 TypeScript](/chapter-04)——语言机制 / 类型系统 / 模块体系。
 
 > **动手练习**：访问 [动画 Playground](/playground/animations) 看全部 11 个可调试示例——按钮 hover、卡片进入、加载动画、骨架屏、手风琴、性能对比、View Transitions、命名捕获、暗色圆形扩散、滚动进度、减动效对比。
