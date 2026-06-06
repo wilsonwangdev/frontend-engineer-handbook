@@ -27,7 +27,7 @@ export default function PlaygroundPage() {
             <Link
               key={topic.id}
               href={`/playground/${topic.id}`}
-              className="group rounded-lg border border-[var(--color-border)] p-5 no-underline transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)]"
+              className="group flex flex-col justify-center rounded-lg border border-[var(--color-border)] p-6 no-underline transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-elevated)] min-h-[120px]"
             >
               <h2 className="text-lg font-semibold text-[var(--color-fg)] group-hover:text-[var(--color-accent)]">
                 {topic.title}
@@ -40,16 +40,6 @@ export default function PlaygroundPage() {
           );
         })}
       </div>
-
-      <footer className="not-prose mt-12 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4 text-sm text-fg-muted sm:p-6">
-        <p>
-          📖{" "}
-          <Link href="/glossary" className="text-[var(--color-accent)] hover:underline">
-            查看术语表 → 词条
-          </Link>{" "}
-          —— 站内统一术语对照
-        </p>
-      </footer>
     </article>
   );
 }
