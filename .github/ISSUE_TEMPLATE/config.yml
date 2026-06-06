@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 内容讨论
+    url: https://github.com/wilsonwangdev/frontend-engineer-handbook/discussions
+    about: 章节内容的建议、讨论、反馈请走 Discussion 而非 Issue

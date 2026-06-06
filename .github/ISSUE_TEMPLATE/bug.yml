@@ -1,0 +1,45 @@
+name: 报告 Bug
+description: 站点功能异常、渲染错误、链接失效等
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 一句话描述你遇到的问题
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 如何触发这个 bug？
+      placeholder: |
+        1. 打开 /chapter-03/animations
+        2. 点击「按钮 Hover 过渡」demo
+        3. 源码区无法展开
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: 出问题的页面 URL
+      placeholder: https://fe.wilsonhandbook.online/chapter-03/animations
+  - type: dropdown
+    id: device
+    attributes:
+      label: 设备
+      options:
+        - 桌面端（≥ 1280px）
+        - 平板（768-1279px）
+        - 手机（< 768px）
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么？
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图
+      description: 如果有的话，拖入截图帮助定位

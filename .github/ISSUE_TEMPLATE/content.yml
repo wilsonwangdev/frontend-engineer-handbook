@@ -1,0 +1,28 @@
+name: 内容建议
+description: 纠错、补充、术语收录、资源推荐
+labels: [content]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: 类型
+      options:
+        - 内容纠错（事实性错误、代码错误）
+        - 内容补充（缺失的重要知识点）
+        - 术语收录（建议新增术语到术语表）
+        - 资源推荐（建议新增到 /resources 精选资源页）
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: 涉及章节 / 页面
+      placeholder: "如：§3.6 动画与 View Transitions"
+  - type: textarea
+    id: detail
+    attributes:
+      label: 详细说明
+      description: 具体是什么问题？你的建议是什么？如有参考来源请附链接
+    validations:
+      required: true
