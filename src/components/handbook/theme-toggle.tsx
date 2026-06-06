@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon } from "lucide-react";
 
 function getTheme(): "light" | "dark" {
@@ -24,11 +24,48 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  function toggle() {
-    const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    applyTheme(next);
-  }
+  const toggle = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const x = event.clientX;
+      const y = event.clientY;
+      const next = theme === "light" ? "dark" : "light";
+
+      if (typeof document.startViewTransition !== "function") {
+        setTheme(next);
+        applyTheme(next);
+        return;
+      }
+
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y),
+      );
+
+      const transition = document.startViewTransition(() => {
+        applyTheme(next);
+      });
+
+      setTheme(next);
+
+      transition.ready
+        .then(() => {
+          document.documentElement.animate(
+            {
+              clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
+            },
+            {
+              duration: 500,
+              easing: "ease-in-out",
+              pseudoElement: "::view-transition-new(root)",
+            },
+          );
+        })
+        .catch(() => {
+          /* 动画 API 异常时静默降级——主题已切换成功 */
+        });
+    },
+    [theme],
+  );
 
   return (
     <button
