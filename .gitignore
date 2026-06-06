@@ -19,6 +19,9 @@ playwright/.cache
 out
 next-env.d.ts
 
+# build artifacts
+public/search-index.json
+
 # production
 build
 dist

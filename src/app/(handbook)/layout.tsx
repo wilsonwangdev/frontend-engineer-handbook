@@ -5,6 +5,7 @@ import { MobileNav } from "@/components/handbook/mobile-nav";
 import { PublicNav } from "@/components/handbook/public-nav";
 import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
 import { ThemeToggle } from "@/components/handbook/theme-toggle";
+import { SearchTrigger } from "@/components/handbook/search";
 import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
 
@@ -34,6 +35,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
             <PublicNav className="hidden md:flex items-center gap-1" />
             <ReadingWidthToggle />
             <ThemeToggle />
+            <SearchTrigger />
             <a
               href="https://github.com/wilsonwangdev/frontend-engineer-handbook"
               target="_blank"
