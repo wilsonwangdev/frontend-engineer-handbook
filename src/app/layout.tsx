@@ -4,12 +4,13 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeScript } from "@/components/ui/theme-script";
 import { ReadingWidthScript } from "@/components/ui/reading-width-script";
 import pkg from "../../package.json";
+import { SITE_URL } from "@/lib/site-url";
 import "@/styles/globals.css";
 
 const SITE_TITLE = "前端工程师手册";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://frontend-engineer-handbook.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_TITLE} · ${pkg.description.replace(/。$/, "")}`,
     template: `%s · ${SITE_TITLE}`,
