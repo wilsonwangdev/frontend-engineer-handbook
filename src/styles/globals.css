@@ -96,6 +96,7 @@
     text-wrap: balance;
     line-height: 1.4;
     letter-spacing: 0;
+    scroll-margin-top: 5rem; /* 为 sticky header + TOC 锚点跳转留空间 */
   }
 
   /* Mixed CJK + Latin spacing */

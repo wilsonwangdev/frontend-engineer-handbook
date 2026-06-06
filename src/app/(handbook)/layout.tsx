@@ -7,6 +7,7 @@ import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
 import { ThemeToggle } from "@/components/handbook/theme-toggle";
 import { SearchTrigger } from "@/components/handbook/search";
 import { ReadingProgress } from "@/components/handbook/reading-progress";
+import { PageTOC } from "@/components/handbook/page-toc";
 import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
 
@@ -51,7 +52,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
         </div>
       </header>
 
-      <div className="handbook-container handbook-shell mx-auto grid grid-cols-1 gap-8 px-4 py-6 sm:px-6 sm:py-10 md:grid-cols-[16rem_minmax(0,1fr)]">
+      <div className="handbook-container handbook-shell mx-auto grid grid-cols-1 gap-8 px-4 py-6 sm:px-6 sm:py-10 md:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_14rem]">
         <aside className="handbook-aside hidden md:block">
           <div className="sticky top-20">
             <Sidebar tree={tree} />
@@ -60,6 +61,11 @@ export default async function HandbookLayout({ children }: { children: React.Rea
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
           {children}
         </main>
+        <aside className="hidden xl:block">
+          <div className="sticky top-20">
+            <PageTOC />
+          </div>
+        </aside>
       </div>
       <BackToTop />
     </div>
