@@ -28,6 +28,19 @@
   --color-accent: oklch(0.55 0.2 250);
 }
 
+/* View Transition for page navigation.
+   Chrome / Edge / Safari 18+ cross-fade between same-origin pages.
+   Unsupported browsers fall back to instant navigation. */
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
 @layer base {
   :root {
     color-scheme: light;
