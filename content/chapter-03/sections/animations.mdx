@@ -376,9 +376,21 @@ document.startViewTransition(() => {
 **关键点**：
 
 - `document.startViewTransition(callback)` 触发过渡
-- `callback` 里执行 DOM 变更（React 里用 `flushSync(() => setState(...))`）
+- `callback` 里执行 DOM 变更
 - 浏览器自动截图前后状态、做交叉淡入淡出
 - 默认动画时长约 250ms，可通过 CSS 自定义
+
+> **React 里的特别注意**：上面 demo 展示的是纯浏览器原生写法。在 React 应用里用 `setState` 时**必须用 [`flushSync`](https://react.dev/reference/react-dom/flushSync) 强制同步更新 DOM**，否则浏览器抓快照时 DOM 还没变：
+>
+> ```tsx
+> import { flushSync } from "react-dom";
+>
+> document.startViewTransition(() => {
+>   flushSync(() => setView("grid")); // 同步更新，浏览器才能抓到差异
+> });
+> ```
+>
+> 上面 demo 的 React 实现就是用这种写法——你可以查看 [demo 源码](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/src/components/mdx/demos/animations-client.tsx) 对照。
 
 **降级**：不支持的浏览器（Firefox < 126 等）退化为直接执行 callback——**无动画但功能不破坏**。这是渐进增强：
 

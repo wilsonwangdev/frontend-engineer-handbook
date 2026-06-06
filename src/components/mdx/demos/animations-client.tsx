@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useRef, type CSSProperties } from "react";
+import { flushSync } from "react-dom";
 
 /* ============================================================
  * 1. ButtonHoverPreview —— transition 基础
@@ -50,7 +51,7 @@ export function ButtonHoverPreview() {
  * ============================================================ */
 
 export function CardEntrancePreview() {
-  const [animKey, setAnimKey] = useState(0);
+  const [animating, setAnimating] = useState(true);
 
   const cardStyle: CSSProperties = {
     width: 280,
@@ -59,8 +60,17 @@ export function CardEntrancePreview() {
     border: "1px solid var(--color-border)",
     borderRadius: 12,
     boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-    animation: "demo-slide-in-up 0.4s ease-out both",
+    // 关键：用 animating 切换 animation 名称——'none' 时清除，下次切回触发 reflow
+    animation: animating ? "demo-slide-in-up 0.4s ease-out both" : "none",
   };
+
+  // 重新播放：先把 animation 设为 'none'，下一帧再恢复——浏览器把这视为"全新的动画"
+  function replay() {
+    setAnimating(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setAnimating(true));
+    });
+  }
 
   return (
     <div>
@@ -71,7 +81,7 @@ export function CardEntrancePreview() {
           100% { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      <div key={animKey} style={cardStyle}>
+      <div style={cardStyle}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>卡片标题</h3>
         <p
           style={{
@@ -85,7 +95,7 @@ export function CardEntrancePreview() {
       </div>
       <button
         type="button"
-        onClick={() => setAnimKey((k) => k + 1)}
+        onClick={replay}
         style={{
           marginTop: "1rem",
           padding: "0.5rem 1rem",
@@ -155,8 +165,10 @@ export function ViewTransitionBasicPreview() {
 
   const handleToggle = (newView: "list" | "grid") => {
     if (typeof document.startViewTransition === "function") {
+      // 关键：startViewTransition 的回调里必须用 flushSync 强制同步更新 DOM
+      // 否则 React 18+ 异步批处理会让 DOM 在回调返回后才更新——浏览器抓不到差异
       document.startViewTransition(() => {
-        setView(newView);
+        flushSync(() => setView(newView));
       });
     } else {
       setView(newView);
@@ -214,6 +226,8 @@ export function ThemeToggleCircularRevealPreview() {
     gap: "1rem",
     position: "relative",
     overflow: "hidden",
+    // 关键：给 demo 容器命名，让 View Transition 把它作为独立"演员"捕获
+    viewTransitionName: "demo-theme-container",
   };
 
   const buttonStyle: CSSProperties = {
@@ -229,23 +243,28 @@ export function ThemeToggleCircularRevealPreview() {
   const handleToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
     const x = event.clientX;
     const y = event.clientY;
+    const rect = containerRef.current?.getBoundingClientRect();
 
     if (typeof document.startViewTransition !== "function") {
       setIsDark((v) => !v);
       return;
     }
 
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y),
-    );
+    // 计算圆形扩散半径——以 demo 容器的对角线为半径，覆盖整个容器
+    const localX = rect ? x - rect.left : x;
+    const localY = rect ? y - rect.top : y;
+    const w = rect?.width ?? window.innerWidth;
+    const h = rect?.height ?? window.innerHeight;
+    const endRadius = Math.hypot(Math.max(localX, w - localX), Math.max(localY, h - localY));
 
     const transition = document.startViewTransition(() => {
-      setIsDark((v) => !v);
+      // flushSync 强制同步更新 DOM，让 View Transition 抓到新旧状态差异
+      flushSync(() => setIsDark((v) => !v));
     });
 
     transition.ready
       .then(() => {
+        // 给命名的 demo 容器（::view-transition-new(demo-theme-container)）加圆形扩散动画
         document.documentElement.animate(
           {
             clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
@@ -253,12 +272,12 @@ export function ThemeToggleCircularRevealPreview() {
           {
             duration: 500,
             easing: "ease-in-out",
-            pseudoElement: "::view-transition-new(root)",
+            pseudoElement: "::view-transition-new(demo-theme-container)",
           },
         );
       })
       .catch(() => {
-        /* 动画 API 失败时静默降级 */
+        /* 动画 API 失败时静默降级——不影响主题切换 */
       });
   };
 
@@ -277,9 +296,9 @@ export function ThemeToggleCircularRevealPreview() {
           lineHeight: 1.5,
         }}
       >
-        从点击位置圆形扩散（demo 内只切换 demo 容器）
+        从点击位置圆形扩散（仅切换 demo 容器内主题）
         <br />
-        Chrome / Edge / Safari 17.4+ 支持，其他浏览器降级直接切换
+        Chrome / Edge / Safari 18+ 支持；不支持的浏览器降级直接切换
       </p>
     </div>
   );
