@@ -40,7 +40,7 @@ export const chapterPlan: PlannedChapter[] = [
   { id: "10", title: "动手实践", type: "chapter", published: false },
   { id: "A", title: "框架对照（Vue / Svelte / Solid）", type: "appendix", published: false },
   { id: "B", title: "精选一手资源 + 经典书目", type: "appendix", published: false },
-  { id: "C", title: "中英术语对照表", type: "appendix", published: false },
+  { id: "C", title: "中英术语对照表", type: "appendix", published: true, url: "/glossary" },
   { id: "D", title: "实战避坑录", type: "appendix", published: false },
 ];
 
