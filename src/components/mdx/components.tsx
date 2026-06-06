@@ -12,6 +12,12 @@ import {
   NotificationBadgeDemo,
   SkeletonCardDemo,
 } from "@/components/mdx/demos/layout-classics";
+import {
+  ButtonHoverDemo,
+  CardEntranceDemo,
+  ViewTransitionBasicDemo,
+  ThemeToggleCircularRevealDemo,
+} from "@/components/mdx/demos/animations";
 
 function Table(props: ComponentPropsWithoutRef<"table">) {
   return (
@@ -50,6 +56,10 @@ export const mdxComponents = {
   AvatarStackDemo,
   NotificationBadgeDemo,
   SkeletonCardDemo,
+  ButtonHoverDemo,
+  CardEntranceDemo,
+  ViewTransitionBasicDemo,
+  ThemeToggleCircularRevealDemo,
   table: Table,
   figure: Figure,
 };

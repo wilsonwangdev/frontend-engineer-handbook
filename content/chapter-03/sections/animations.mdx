@@ -1,0 +1,1133 @@
+---
+title: 动画与 View Transitions
+chapter: 3
+section: 6
+description: transition / animation / View Transitions API——让界面"动起来"的现代答案
+tier: essential
+prerequisites:
+  - /chapter-03
+paths:
+  sequential: 16
+---
+
+> 这一节讲**让界面"动起来"**——不是装饰性动效，而是状态切换的连续性表达。前面五节讲了"静态页面怎么写"，§3.6 讲"状态变化时怎么过渡"。
+
+§3.1-§3.5 把 CSS 语言层、布局、语义、响应式、样式组织都讲清楚了。但真实应用里，**界面不是静止的**——按钮 hover、卡片展开、页面切换、主题切换——这些状态变化如果是"瞬间跳变"，用户会失去空间感（"我从哪来、要去哪"）；如果加上合适的过渡动画，体验会平滑很多。
+
+**这一节的差异化价值**：[View Transitions API](https://drafts.csswg.org/css-view-transitions-1/) 在 2024-2025 年从实验变标准，主流浏览器全支持——它替代了过去"手写 FLIP 计算"的旧方案，让跨页面 / 跨视图的元素过渡变成**浏览器原生能力**。但中文教程几乎没跟上。
+
+> **怎么读这一节**（建议）：
+>
+> | 你是                                       | 直接读                                                  |
+> | ------------------------------------------ | ------------------------------------------------------- |
+> | **新人 / 转行者**                          | §0 简史 → §1 动画心智 → §2 三件套 → §5 View Transitions |
+> | **写过 CSS 动画但没用过 View Transitions** | §5 View Transitions（整段）→ §6 暗色切换圆形扩散        |
+> | **被产品要求做"页面切换平滑"**             | §5 View Transitions → §7 滚动驱动动画                   |
+> | **关心 a11y 合规**                         | §9 减动效：不是关动效                                   |
+> | **要带 AI 写动画**                         | §11 AI 时代写动画的最小集                               |
+>
+> 整节读完约 50-60 分钟；按上面挑读 15-20 分钟。**§5 View Transitions 是核心**——这是本手册与英文教程的差异化点之一（中文资料少）。
+
+---
+
+## 0. 一段必要的回顾：Web 动画的演进
+
+> 跟前几节一样，先看演进——**今天每一个被推荐的现代写法，都在替换某个 2010 年代的旧解法**。串起来看，新写法就不再是"凭空记忆"。
+
+| 年代  | 主流手段                                                                                  | 解决了什么               | 留下了什么                                |
+| ----- | ----------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------- |
+| ~2005 | jQuery `.animate()`                                                                       | JS 驱动动画              | 性能差（JS 主线程阻塞）                   |
+| ~2010 | CSS3 `transition` / `animation`                                                           | 浏览器接管调度，60fps    | 只能动 CSS 属性；跨元素过渡难             |
+| ~2015 | [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) | JS 控制 + 浏览器调度     | 仍需手写时间轴逻辑                        |
+| ~2017 | [FLIP 技术](https://aerotwist.com/blog/flip-your-animations/)（Paul Lewis 提出）          | 元素位置切换的高性能方案 | 手写计算 First-Last-Invert-Play，代码复杂 |
+| ~2020 | [Framer Motion](https://www.framer.com/motion/) / Motion One                              | React 时代的声明式动画   | 仍是 JS 库，bundle 增大                   |
+| 2024+ | [View Transitions API](https://drafts.csswg.org/css-view-transitions-1/)                  | **浏览器原生跨状态过渡** | 浏览器兼容（Safari 刚支持，IE 永不支持）  |
+
+**两条主线值得记住**：
+
+1. **从"JS 手写调度"逐步走向"浏览器接管调度"**——jQuery 时代动画是 JS 每帧改 style，CSS 动画把调度交给浏览器（合成线程），Web Animations API 让 JS 声明意图、浏览器调度，View Transitions 更进一步——你只说"从 A 状态到 B 状态"，浏览器自动捕获前后 DOM、计算过渡。
+
+2. **从"单个属性插值"走向"整体状态捕获"**——`transition` 只能动单个 CSS 属性（如 `opacity: 0 → 1`），FLIP 手动捕获元素的 First / Last 位置、手写 Invert + Play，View Transitions 把"捕获前后状态 + 自动计算过渡"封装成浏览器 API——代码从 50 行降到 5 行。
+
+> **写给老前端**：如果你最近一次系统学动画是 2015-2018 年的 CSS `animation` + FLIP 时代，这一节需要重读。**不是因为旧方案不能用，是因为 View Transitions API 在 2024 年稳定后改变了"跨页面 / 跨视图过渡"的标准答案**。
+
+> **写给新人**：你看到的"动画选型争论"很多是 2017-2020 年的遗留——那时跨页面过渡要手写 FLIP 或引 Framer Motion。现在浏览器原生支持 View Transitions，**直接学 CSS `transition` + `animation` + View Transitions API 就够**——FLIP 技术不需要主动学（除非维护遗留代码），JS 动画库大概率不需要主动选。
+
+---
+
+## 1. 动画的基本心智：连续性表达
+
+动画不是装饰——它是**状态切换的连续性表达**。好动画让用户保持空间感，坏动画是干扰甚至 a11y 灾难。
+
+### 1.1 三个目的
+
+| 目的           | 例子                                     | 反例（不该做）                               |
+| -------------- | ---------------------------------------- | -------------------------------------------- |
+| **连续性**     | 菜单展开时从上往下滑出，而非突然出现     | 模态框突然"闪"在屏幕中央，用户不知道它从哪来 |
+| **反馈**       | 按钮点击时缩小 0.95 倍，告诉用户"点到了" | 提交表单后无任何视觉反馈，用户怀疑"点上了吗" |
+| **引导注意力** | 新消息通知从右上角滑入，自然吸引视线     | 全屏闪烁 3 次——过度吸引，干扰当前任务        |
+
+### 1.2 三个反模式
+
+| 反模式                  | 为什么是问题                                             | 如何避免                                        |
+| ----------------------- | -------------------------------------------------------- | ----------------------------------------------- |
+| **装饰性动画**          | 没有信息价值——纯粹"让页面动起来"，分散注意力             | 问自己：去掉这个动画，功能还能理解吗？能 = 删掉 |
+| **阻碍交互**            | 动画时间过长（如 1s 的淡入），用户必须等动画播完才能操作 | 动画时长 < 300ms；或允许动画中途点击            |
+| **违反 reduced-motion** | 用户明确要求"减少动画"，你仍然播放大幅度位移 / 缩放      | `@media (prefers-reduced-motion: reduce)` 降级  |
+
+**一条经验法则**：动画应该**可跳过**——按 Esc / 再次点击 / 滚动页面都能立刻中断动画，进入最终状态。强制播完的动画 = 劫持控制权。
+
+### 1.3 动画时长的经验数字
+
+| 场景               | 推荐时长   | 理由                             |
+| ------------------ | ---------- | -------------------------------- |
+| 按钮 hover / focus | 150-200ms  | 快速反馈                         |
+| 小元素进入 / 退出  | 200-300ms  | 舒适感知，不拖沓                 |
+| 页面 / 路由切换    | 300-400ms  | 给用户"换场景"的心理准备         |
+| 大面积状态切换     | 400-500ms  | 足够展示"从哪到哪"，但不等待太久 |
+| 装饰性长动画       | **不要做** | 超过 500ms 的动画几乎都是干扰    |
+
+> **物理感与缓动函数**：真实世界的物体不是"匀速移动"，是"先加速、后减速"——CSS 的 `ease` / `ease-out` / `cubic-bezier()` 模拟这种物理感。§2.2 会展开。
+
+---
+
+## 2. 三件套：transition / animation / @keyframes
+
+CSS 动画有两套机制——**`transition`（状态变化时插值）** 和 **`animation`（复杂时间轴）**。90% 的业务场景用 `transition` 就够，`animation` 留给"需要多个关键帧"的复杂动画。
+
+### 2.1 `transition`：状态变化时自动插值
+
+**核心机制**：你只声明"哪些属性要过渡、过渡多久、缓动函数"——浏览器在属性值变化时**自动插值**。
+
+<ButtonHoverDemo />
+
+**关键点**：
+
+- `transition` 写在**默认状态**（不是 `:hover` 里）——这样 hover 进入和离开都有过渡
+- `transition: all` 是懒写法——明确列出属性（`background, transform`）性能更好
+- `0.2s` = 200ms——动画时长；`ease` 是缓动函数（先快后慢）
+
+**可过渡的属性**：并非所有 CSS 属性都能插值——`display: none → block` 不能过渡（瞬间跳变），但 `opacity: 0 → 1` / `transform: scale(0) → scale(1)` 可以。
+
+> **2024 新特性**：`transition-behavior: allow-discrete` 让 `display` 也能配合过渡——§4 展开。
+
+### 2.2 缓动函数（easing function）
+
+`transition` 的第三个参数是**缓动函数**——控制"插值速度曲线"。
+
+| 值                             | 含义                         | 何时用                         |
+| ------------------------------ | ---------------------------- | ------------------------------ |
+| `linear`                       | 匀速（数学插值）             | 颜色渐变 / 旋转 spinner        |
+| `ease`（默认）                 | 先快后慢（物理感）           | 大部分场景                     |
+| `ease-in`                      | 先慢后快                     | 元素退出（加速消失）           |
+| `ease-out`                     | 先快后慢（比 `ease` 更明显） | 元素进入（快速到位、缓缓停住） |
+| `ease-in-out`                  | 两头慢中间快                 | 大幅度位移（如滑动抽屉）       |
+| `cubic-bezier(x1, y1, x2, y2)` | 自定义贝塞尔曲线             | 品牌动效 / 特殊物理感          |
+
+**自定义缓动**：[cubic-bezier.com](https://cubic-bezier.com/) 可视化调试工具——拖动曲线实时看效果。
+
+```css
+button {
+  /* 自定义"弹性"缓动：快速到位、轻微回弹 */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+```
+
+> **物理感的来源**：`ease` / `ease-out` 模拟"弹簧 / 摩擦力"——真实世界没有匀速运动，人眼习惯非线性。用 `linear` 的动画会显得"机械"。
+
+### 2.3 `animation` + `@keyframes`：复杂时间轴
+
+当你需要**多个关键帧**（如"0% → 50% → 100%"）或**循环播放**，用 `animation`。
+
+<CardEntranceDemo />
+
+**关键点**：
+
+- `@keyframes` 定义"时间轴"（0% / 50% / 100% 各是什么状态）
+- `animation` 应用到元素上：`名称 时长 缓动 延迟 次数 方向 填充`
+- `animation-fill-mode: both`——动画开始前停在 0% 状态、结束后停在 100% 状态（不回跳）
+
+**循环动画**：
+
+```css
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite; /* infinite = 无限循环 */
+}
+```
+
+### 2.4 `transition` vs `animation`：选型决策图
+
+```text
+需要多个关键帧（0% / 50% / 100%）？
+├─ 是 → animation + @keyframes
+└─ 否 → 往下
+
+需要循环播放？
+├─ 是 → animation + infinite
+└─ 否 → 往下
+
+只是"状态 A → 状态 B"的插值？
+└─ 是 → transition
+```
+
+**经验法则**：90% 的业务场景（按钮 hover / 卡片展开 / 淡入淡出）用 `transition` 就够。`animation` 留给 loading spinner / 骨架屏闪烁 / 品牌动效片头。
+
+---
+
+## 3. 性能基础：什么属性能动得流畅
+
+**核心论点**：只动 `transform` / `opacity`，避免动 `width` / `height` / `top` / `left` / `margin`——前者走合成线程（60fps），后者触发重排 / 重绘（卡顿）。
+
+### 3.1 浏览器渲染管线复习
+
+回顾第 2 章（待写，这里简提）：
+
+```text
+DOM 变化 → 样式计算 → 布局（Layout）→ 绘制（Paint）→ 合成（Composite）
+```
+
+- **布局（Layout）**：计算元素位置 / 尺寸（改 `width` / `top` / `margin` 触发）
+- **绘制（Paint）**：把元素"画"到位图（改 `color` / `background` 触发）
+- **合成（Composite）**：把多个层合并输出（改 `transform` / `opacity` 只触发这一步）
+
+**为什么 `transform` 快**：`transform` 不改变布局——元素在"合成层"上直接平移 / 缩放 / 旋转，跳过布局和绘制。合成线程独立于主线程，60fps 稳定。
+
+### 3.2 实战对比
+
+| 写法                           | 性能                      | 为什么                             |
+| ------------------------------ | ------------------------- | ---------------------------------- |
+| `transform: translateX(100px)` | ✅ 60fps                  | 只走合成，不触发布局               |
+| `left: 100px`                  | ❌ 可能卡顿               | 触发布局（整个子树重新计算位置）   |
+| `opacity: 0`                   | ✅ 60fps                  | 只走合成                           |
+| `visibility: hidden`           | ✅ 无性能问题，但不能插值 | 瞬间跳变，不能用 transition        |
+| `width: 200px → 400px`         | ❌ 触发布局 + 绘制        | 尺寸变化，周围元素位置也要重新计算 |
+| `transform: scale(2)`          | ✅ 60fps                  | 缩放是在合成层做的"数学变换"       |
+
+**改写案例**：
+
+```css
+/* ❌ 反例：动 left，触发布局 */
+.modal {
+  position: fixed;
+  left: 50%;
+  transition: left 0.3s;
+}
+.modal.open {
+  left: 0;
+}
+
+/* ✅ 正例：动 transform，只走合成 */
+.modal {
+  position: fixed;
+  left: 0;
+  transform: translateX(-100%); /* 初始在左侧屏幕外 */
+  transition: transform 0.3s;
+}
+.modal.open {
+  transform: translateX(0);
+}
+```
+
+### 3.3 `will-change`：提前告诉浏览器"我要动这个属性"
+
+```css
+.card {
+  will-change: transform; /* 浏览器提前创建合成层 */
+}
+```
+
+**何时用**：
+
+- 即将播放的复杂动画（如页面切换动画开始前）
+- 频繁触发的动画（如鼠标跟随效果）
+
+**何时不用**：
+
+- **不要默认加到所有元素**——`will-change` 占用内存（提前创建合成层）
+- 动画结束后应移除 `will-change`（`element.style.willChange = 'auto'`）
+
+**经验法则**：只有**明确遇到性能瓶颈**时才加 `will-change`——过早优化反而浪费内存。
+
+> 一手：[MDN: will-change](https://developer.mozilla.org/zh-CN/docs/Web/CSS/will-change)；[CSS Triggers](https://csstriggers.com/)（查哪个属性触发布局 / 绘制 / 合成）。
+
+---
+
+## 4. 进入 / 退出动画的 CSS 现代解
+
+传统问题：`display: none` 的元素无法过渡——因为 `display` 不是可插值属性，元素要么在、要么不在。
+
+### 4.1 旧方案：JS 监听 mount / unmount
+
+React 时代常见写法：
+
+```tsx
+const [isOpen, setIsOpen] = useState(false);
+const [shouldRender, setShouldRender] = useState(false);
+
+// 进入：先渲染（display: block），再加 class 触发动画
+// 退出：先移除 class 播动画，动画结束后卸载（display: none）
+```
+
+代码复杂，且需要精确同步 CSS `transition-duration` 和 JS 延迟。
+
+### 4.2 新方案：`@starting-style` + `transition-behavior`
+
+2024 年稳定的两个新特性让"进入 / 退出动画"纯 CSS 完成：
+
+#### `@starting-style`（元素首次渲染的初始样式）
+
+```css
+.dialog {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+/* 首次渲染时，从这个状态开始 */
+@starting-style {
+  .dialog {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+```
+
+元素插入 DOM 时，浏览器自动从 `@starting-style` 过渡到默认样式——**零 JS，纯 CSS 进入动画**。
+
+#### `transition-behavior: allow-discrete`（让 `display` 也能配合过渡）
+
+```css
+.dialog {
+  display: none; /* 默认隐藏 */
+  opacity: 0;
+  transition:
+    opacity 0.3s,
+    display 0.3s;
+  transition-behavior: allow-discrete; /* 关键 */
+}
+
+.dialog.open {
+  display: block;
+  opacity: 1;
+}
+```
+
+过去 `display: none → block` 会瞬间跳变，现在配合 `transition-behavior: allow-discrete` 可以让 `display` 在过渡结束时才切换——**退出动画也能纯 CSS 完成**。
+
+> 兼容性：Chrome 117+ / Edge 117+ / Safari 17.4+（2024 年 3 月）。降级：不支持的浏览器直接跳变（无动画），渐进增强。
+
+> 一手：[MDN: @starting-style](https://developer.mozilla.org/en-US/docs/Web/CSS/@starting-style)（英文版——中文版尚未跟进）；[MDN: transition-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-behavior)（英文版）。
+
+---
+
+## 5. View Transitions API：浏览器原生跨状态过渡
+
+> 这一段是本节的核心——**View Transitions API 在 2024-2025 年从实验变标准，是 2026 年页面切换 / 视图切换的现代答案**。它替代了过去手写 FLIP 计算的整套方案。
+
+### 5.1 解决了什么
+
+**经典问题**：用户从列表页点击进入详情页——列表里的图片应该"飞"到详情页的图片位置（保持空间感），而不是页面突然刷新。
+
+**旧方案：FLIP 技术**（2017 年由 Paul Lewis 提出）：
+
+```js
+// 1. First：记录元素切换前的位置
+const first = element.getBoundingClientRect();
+
+// 2. Last：DOM 变更后，记录新位置
+applyDomChange();
+const last = element.getBoundingClientRect();
+
+// 3. Invert：用 transform 把元素"反向位移"到 First 位置
+const dx = first.left - last.left;
+const dy = first.top - last.top;
+element.style.transform = `translate(${dx}px, ${dy}px)`;
+
+// 4. Play:动画到 transform: none
+element.animate({ transform: ["", "translate(0, 0)"] }, { duration: 300, easing: "ease-out" });
+```
+
+代码复杂、要手动同步多元素、跨页面更难。
+
+**新方案：View Transitions API**——浏览器原生捕获前后状态：
+
+```js
+document.startViewTransition(() => {
+  applyDomChange(); // 任何 DOM 变更
+});
+```
+
+5 行代码，浏览器自动捕获前后状态、生成过渡动画。
+
+### 5.2 同页面 View Transitions（基础用法）
+
+最简单的场景：同一页面内，状态切换有动画。
+
+<ViewTransitionBasicDemo />
+
+**关键点**：
+
+- `document.startViewTransition(callback)` 触发过渡
+- `callback` 里执行 DOM 变更（React 里用 `flushSync(() => setState(...))`）
+- 浏览器自动截图前后状态、做交叉淡入淡出
+- 默认动画时长约 250ms，可通过 CSS 自定义
+
+**降级**：不支持的浏览器（Firefox < 126 等）退化为直接执行 callback——**无动画但功能不破坏**。这是渐进增强：
+
+```js
+function transitionTo(callback) {
+  if (!document.startViewTransition) {
+    callback(); // 降级：直接执行
+    return;
+  }
+  document.startViewTransition(callback);
+}
+```
+
+### 5.3 命名捕获：让特定元素跟随过渡
+
+默认 View Transitions 是**整页交叉淡入淡出**——但你可能想让"列表里的某张图飞到详情页"。这需要**命名捕获**（`view-transition-name`）：
+
+```css
+/* 列表页和详情页都给图片同一个 view-transition-name */
+.product-image {
+  view-transition-name: product-hero;
+}
+```
+
+浏览器看到前后两次过渡都有 `view-transition-name: product-hero` 的元素，会**自动从 A 位置 / 尺寸过渡到 B 位置 / 尺寸**——FLIP 技术的全部工作交给浏览器。
+
+**重要约束**：同一时刻**每个 `view-transition-name` 只能对应一个元素**——如果列表里有 10 张图，给每张图独立 name（如 `product-${id}`），不能全用 `product-hero`。
+
+```tsx
+{
+  products.map((p) => (
+    <img key={p.id} src={p.image} style={{ viewTransitionName: `product-${p.id}` }} />
+  ));
+}
+```
+
+详情页的对应图片也用同样的 name：
+
+```tsx
+<img src={product.image} style={{ viewTransitionName: `product-${product.id}` }} />
+```
+
+### 5.4 自定义过渡动画：伪元素
+
+View Transitions 在过渡期间，浏览器创建一组**伪元素**：
+
+```text
+::view-transition                    根伪元素
+└── ::view-transition-group(name)    每个命名捕获的组
+    └── ::view-transition-image-pair(name)
+        ├── ::view-transition-old(name)  旧状态截图
+        └── ::view-transition-new(name)  新状态截图
+```
+
+通过 CSS 自定义这些伪元素的动画：
+
+```css
+/* 自定义"产品图"的过渡动画——比默认更慢、自定义缓动 */
+::view-transition-old(product-hero),
+::view-transition-new(product-hero) {
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 默认过渡（其他元素）保持快速 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+}
+```
+
+### 5.5 跨页面 View Transitions（Cross-Document）
+
+2024 年起 Chrome 126+ 支持**跨页面 View Transitions**——多页应用（MPA）也能拥有 SPA 般的过渡：
+
+```css
+/* 在两个页面都加这一行 */
+@view-transition {
+  navigation: auto;
+}
+```
+
+之后**任何同源页面跳转**（点击 `<a>` 链接、表单提交）都会自动触发 View Transition——前一页 DOM 截图、新页加载后做过渡。
+
+**搭配 `view-transition-name`**：列表页的产品图和详情页的产品图都标同一个 name，浏览器自动让它"飞过去"。
+
+> 兼容性：Chrome 126+（2024 年 6 月）/ Edge 126+。Safari / Firefox 在 2025-2026 年陆续跟进。降级是直接跳转无动画——渐进增强。
+
+> 一手：[CSS View Transitions Module Level 1](https://drafts.csswg.org/css-view-transitions-1/)（基础）/ [Level 2](https://drafts.csswg.org/css-view-transitions-2/)（跨页面）；[MDN: View Transition API](https://developer.mozilla.org/zh-CN/docs/Web/API/View_Transitions_API)。
+
+### 5.6 React 19.2 `<ViewTransition>` 组件简提
+
+React 19.2（2025 年发布）内置 [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) 组件——把 View Transitions 包装成 React 风格 API：
+
+```tsx
+import { unstable_ViewTransition as ViewTransition } from "react";
+
+<ViewTransition>{showDetail ? <Detail /> : <List />}</ViewTransition>;
+```
+
+React 自动调用 `flushSync` + `startViewTransition`——你不用自己处理。
+
+> 这是本站 ROADMAP M3 标注会上的特性——第 5 章 React 与 Next.js 会从框架角度展开。本节只点到 API 存在。
+
+---
+
+## 6. 暗色模式切换的 View Transition 圆形扩散
+
+经典案例：用户点按钮切换暗色模式，整个页面从点击位置**圆形扩散**到新主题——这是 View Transitions API 的"杀手级应用"。
+
+<ThemeToggleCircularRevealDemo />
+
+**实现原理**：
+
+1. **捕获点击位置**（`clientX` / `clientY`）
+2. **用 View Transition 触发主题切换**
+3. **自定义 CSS 动画**：用 `clip-path: circle()` 从点击位置扩散
+
+```tsx
+function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
+  const x = event.clientX;
+  const y = event.clientY;
+  const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+  const transition = document.startViewTransition(() => {
+    document.documentElement.dataset.theme =
+      document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  });
+
+  transition.ready.then(() => {
+    document.documentElement.animate(
+      {
+        clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
+      },
+      {
+        duration: 500,
+        easing: "ease-in-out",
+        pseudoElement: "::view-transition-new(root)",
+      },
+    );
+  });
+}
+```
+
+**关键点**：
+
+- `Math.hypot()` 计算从点击位置到屏幕四角的最远距离——让圆形足够大覆盖全屏
+- `pseudoElement: '::view-transition-new(root)'`——给新主题的伪元素加动画
+- `transition.ready` Promise 等浏览器准备好伪元素后再开始 `animate()`
+
+> 这是 ROADMAP M3 标注的"暗色切换：View Transition 圆形扩散动画"对应实现。完整代码在上面 demo 的展开源码里。
+
+---
+
+## 7. 滚动驱动动画（scroll-driven animations）
+
+传统方案：监听 `scroll` 事件、用 JS 改 style——性能差，且与主线程阻塞绑定。
+
+**2024 年稳定方案**：`animation-timeline: scroll()` / `view()`——让 CSS 动画**跟随滚动进度**播放。
+
+### 7.1 滚动进度条
+
+```css
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: var(--color-accent);
+  transform-origin: 0 0;
+  animation: grow-progress linear;
+  animation-timeline: scroll(root); /* 跟随页面滚动 */
+}
+
+@keyframes grow-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+```
+
+**效果**：页面滚动到顶部时进度条 `scaleX(0)`（宽度 0），滚动到底部时 `scaleX(1)`（宽度 100%）——零 JS。
+
+### 7.2 `animation-timeline` 的两种模式
+
+| 模式           | 含义                   | 何时用                          |
+| -------------- | ---------------------- | ------------------------------- |
+| `scroll(root)` | 跟随整页滚动进度       | 进度条 / 返回顶部按钮淡入       |
+| `view()`       | 跟随元素进入视口的进度 | 滚动到标题时淡入 / 视差滚动效果 |
+
+**进入视口时淡入**：
+
+```css
+h2 {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fade-in-up linear;
+  animation-timeline: view(); /* 元素进入视口时播放 */
+  animation-range: entry 0% entry 100%; /* 从进入开始到完全进入 */
+}
+
+@keyframes fade-in-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+> 兼容性：Chrome 115+ / Edge 115+（2023 年 8 月）。Safari 尚未支持（2025 年预计）。降级：动画不播放，元素保持默认样式。
+
+> 一手：[MDN: animation-timeline](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timeline)（英文）；[Scroll-driven Animations](https://scroll-driven-animations.style/)（Google Chrome 团队的演示站）。
+
+> **动手练习**：在 [动画 Playground](/playground/animations) 看全部 11 个可调试示例（含滚动进度条 / 视差滚动等）。
+
+---
+
+## 8. JS 动画库：何时仍然需要
+
+CSS `transition` / `animation` + View Transitions 能覆盖 90% 的业务场景——但有些场景仍需 JS 动画库。
+
+### 8.1 主流库
+
+| 库                                              | 适用场景                                        | 特点                                 |
+| ----------------------------------------------- | ----------------------------------------------- | ------------------------------------ |
+| [Framer Motion](https://www.framer.com/motion/) | React 项目的声明式动画                          | `layout` 动画（自动 FLIP）/ 手势支持 |
+| [Motion One](https://motion.dev/)               | 轻量替代 Framer Motion（用 Web Animations API） | bundle 小（5KB）、性能好             |
+| [GSAP](https://gsap.com/)                       | 复杂时间轴动画 / 商业工具站                     | 功能极全、商用需付费                 |
+| [Lottie](https://airbnb.io/lottie/)             | 设计师导出 After Effects 动画                   | 复杂矢量动画、跨平台                 |
+| [Anime.js](https://animejs.com/)                | 轻量 JS 动画引擎                                | 适合单页项目 / 创意站                |
+
+### 8.2 选型决策
+
+```text
+CSS 能做到吗？
+├─ 能（transition / animation / View Transitions）→ 用 CSS
+└─ 不能 → 往下
+
+需要 React 声明式 API 吗？
+├─ 是 → Framer Motion / Motion One
+└─ 否 → 往下
+
+需要复杂时间轴 / 序列动画？
+├─ 是 → GSAP
+└─ 否 → 往下
+
+设计师给了 After Effects 文件？
+├─ 是 → Lottie
+└─ 否 → Anime.js（或回到 CSS）
+```
+
+### 8.3 Framer Motion 的 `layout` 动画
+
+Framer Motion 的杀手级特性：**`layout` prop 自动 FLIP**——元素位置 / 尺寸变化时自动过渡。
+
+```tsx
+import { motion } from "framer-motion";
+
+<motion.div layout>
+  {/* 任何导致 div 位置变化的 React 状态更新，都会自动过渡 */}
+  {isExpanded && <p>展开内容</p>}
+</motion.div>;
+```
+
+View Transitions 稳定前，这是 React 生态最简单的跨组件过渡方案——但 2025 年起 React 19.2 内置 `<ViewTransition>` 后，两者逐渐融合。
+
+> 一手：[Framer Motion 文档](https://www.framer.com/motion/)；[Motion One 文档](https://motion.dev/)。
+
+### 8.4 一条经验法则
+
+**CSS 能做的不要用 JS**——原因：
+
+- CSS 动画走合成线程，JS 动画走主线程（受 JS 阻塞影响）
+- bundle 更小（CSS 无额外依赖）
+- SSR / 静态导出友好（不依赖运行时 JS）
+
+**仅在以下场景选 JS 库**：
+
+- CSS 语法表达不了（如"根据鼠标位置插值"）
+- 需要声明式 React API（Framer Motion 的 `layout`）
+- 复杂时间轴动画（GSAP 的 `timeline()`）
+- 设计师交付物是 After Effects（Lottie）
+
+---
+
+## 9. 减动效：不是关动效
+
+§3.4 已经讲过 `prefers-reduced-motion` 的基础降级写法。这里深化一个被忽略的判断：**"减少动画"不等于"关闭所有动画"**——前庭功能障碍者主要受**位移 / 缩放**影响，**淡入淡出**通常仍可接受。
+
+### 9.1 反例：粗暴的全局关闭
+
+```css
+/* ❌ 反例：所有动画都关掉 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+**问题**：`hover` 时按钮颜色"渐变" → 也被关掉，变成"瞬间跳变"——视觉反馈消失，用户不知道"鼠标在按钮上"。
+
+### 9.2 正例：区分位移 vs 颜色 / 透明度
+
+```css
+/* ✅ 正例：只关闭"会引起眩晕"的动画 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* 关掉位移 / 缩放 / 旋转 */
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* 但保留"必要的视觉反馈" */
+.button {
+  transition: background 0.2s; /* 颜色渐变保留 */
+}
+.button:hover {
+  background: var(--color-primary-hover);
+}
+```
+
+**判断标准**：
+
+| 动画类型                      | reduced-motion 是否关闭 | 理由                        |
+| ----------------------------- | ----------------------- | --------------------------- |
+| 大幅度位移（页面切换 / 滑动） | ✅ 关闭                 | 引起眩晕                    |
+| 缩放（弹出 / 缩放）           | ✅ 关闭                 | 视觉空间变化大              |
+| 旋转 / 翻转                   | ✅ 关闭                 | 引起方向感失调              |
+| 视差滚动（parallax）          | ✅ 关闭                 | 多层位移，最容易眩晕        |
+| 颜色渐变（hover / focus）     | ❌ 保留                 | 视觉反馈必要、不引起眩晕    |
+| 淡入淡出（opacity）           | ❌ 保留                 | 通常可接受（除非时长 > 1s） |
+| Loading spinner（小尺寸）     | ❌ 保留                 | 进度反馈必要、面积小        |
+
+### 9.3 替代方案：用淡入淡出代替位移
+
+```css
+/* 默认：滑动进入 */
+.toast {
+  transform: translateX(100%);
+  transition: transform 0.3s;
+}
+.toast.show {
+  transform: translateX(0);
+}
+
+/* reduced-motion：换成淡入 */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transform: none; /* 不位移 */
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .toast.show {
+    opacity: 1;
+  }
+}
+```
+
+**核心原则**：reduced-motion 不是"放弃过渡"，是**用更温和的方式表达同一个状态变化**。
+
+> WCAG 2.1 SC 2.3.3 强制项——忽略这条在某些司法管辖区可能被诉讼。回链：[§3.4 prefers-\* 全家桶](/chapter-03/responsive-web#45-prefers--全家桶暗色只是偏好查询的一种)。
+
+---
+
+## 10. 三档归位
+
+| 知识点                                        | 归位         | 理由                                            |
+| --------------------------------------------- | ------------ | ----------------------------------------------- |
+| `transition` 属性 + 缓动函数                  | **必学**     | 90% 的业务场景靠它                              |
+| `@keyframes` + `animation`                    | **必学**     | 循环动画 / 多关键帧的现代答案                   |
+| `transform` / `opacity` 走合成线程的性能心智  | **必学**     | "什么属性能动得流畅"是动画的根                  |
+| `transition-duration` 经验数字（150-400ms）   | **必学**     | 时长是动画好坏的关键变量                        |
+| View Transitions API 基础（同页面）           | **必学**     | 2024 后跨视图过渡的标准答案                     |
+| `view-transition-name` 命名捕获               | **必学**     | "图片飞过去"等高频效果的实现机制                |
+| `prefers-reduced-motion` 区分位移 vs 颜色     | **必学**     | a11y 必备，不是简单"全关掉"                     |
+| `@starting-style` + `transition-behavior`     | **必学**     | 2024 后进入 / 退出动画纯 CSS 实现               |
+| 跨页面 View Transitions（`@view-transition`） | **仍需理解** | Chrome 126+ 才稳定，主流采用还需 1-2 年         |
+| `animation-timeline: scroll() / view()`       | **仍需理解** | 滚动驱动动画的现代答案；Safari 未支持时降级     |
+| Framer Motion `layout` 动画                   | **仍需理解** | React 19.2 后逐渐被 `<ViewTransition>` 替代     |
+| FLIP 技术手写实现                             | **仍需理解** | 知道概念即可；View Transitions 稳定后不需要手写 |
+| `cubic-bezier()` 自定义缓动                   | **仍需理解** | 业务里偶尔需要；用工具站调即可                  |
+| `will-change` 性能优化                        | **仍需理解** | 知道存在 + 不要默认开                           |
+| Web Animations API（`element.animate()`）     | **仍需理解** | View Transitions 内部用，知道存在即可           |
+| GSAP / Lottie / Anime.js 等 JS 动画库         | **可委托**   | AI 会写；选型时知道何时用即可                   |
+| jQuery `.animate()` / 旧式 JS 动画            | **不学**     | 已被 CSS / Web Animations API 全面替代          |
+
+---
+
+## 11. 设计判断暗线
+
+按 [SPEC-0013](https://github.com/wilsonwangdev/frontend-engineer-handbook/blob/main/specs/0013-design-principles-as-undercurrent/spec.md) 的暗线规则，本节点破以下设计判断：
+
+### 声明式动画（declarative animation）：意图 vs 调度
+
+动画的演进史本质是**从"命令式调度"走向"声明式意图"**：
+
+| 时代             | 写法                                    | 你做的是                   | 浏览器做的是                  |
+| ---------------- | --------------------------------------- | -------------------------- | ----------------------------- |
+| jQuery           | `$el.animate({ left: '100px' }, 300)`   | 每帧改 style               | 啥都不管（主线程阻塞）        |
+| CSS              | `transition: left 0.3s`                 | 声明"left 变化时插值 0.3s" | 自动调度合成线程              |
+| FLIP             | 手写 First-Last-Invert-Play             | 手动算位置、手写 transform | 调度                          |
+| View Transitions | `startViewTransition(() => { 改 DOM })` | 声明"从 A 状态到 B 状态"   | 自动捕获、自动 FLIP、自动过渡 |
+
+**心智升级**：你不再需要"告诉浏览器怎么动"，只需"告诉浏览器要从哪到哪"——**这是声明式取代命令式的延续**（回链 §3.1 布局主线）。
+
+View Transitions API 的本质是**把 FLIP 技术的命令式实现封装成声明式 API**——浏览器成为动画引擎的唯一调度者。
+
+### 可访问性 = 不强加（non-imposition）
+
+动画对部分用户（前庭功能障碍者、光敏性癫痫患者）是伤害，不是"锦上添花的美化"。**可访问性的核心原则：不强加自己的偏好给所有人**。
+
+| 场景                                      | 强加 vs 尊重                                      |
+| ----------------------------------------- | ------------------------------------------------- |
+| 所有页面切换都有大幅度位移动画            | ❌ 强加——前庭功能障碍者必须忍受眩晕才能用你的网站 |
+| 默认有动画，`prefers-reduced-motion` 降级 | ✅ 尊重——用户明确告诉你"我不行"，你回应了         |
+| 禁用缩放（`maximum-scale=1`）             | ❌ 强加——低视力用户连放大都不行                   |
+| 暗色模式只能全局切换                      | ❌ 强加——用户想白天亮、晚上暗，你只给一个开关     |
+
+**这不是"额外善举"，是对用户自主权的基本尊重**——Web 的开放性包含"我有权拒绝你的美化"。
+
+### 性能与意图的协同：合成层不是"优化技巧"
+
+很多教程把"只动 `transform` / `opacity`"当成"性能优化技巧"——这是误导。**它不是"优化技巧"，是浏览器告诉你"哪些属性是为动画设计的"**。
+
+| 属性               | 触发               | 为什么设计成这样                               |
+| ------------------ | ------------------ | ---------------------------------------------- |
+| `width` / `height` | 布局 + 绘制 + 合成 | 尺寸变化影响周围元素位置，必须重算布局         |
+| `left` / `top`     | 布局 + 绘制 + 合成 | 位置变化影响 z-index / 遮挡关系，必须重算布局  |
+| `transform`        | 只合成             | **设计为"可独立变换层"**——不影响文档流         |
+| `opacity`          | 只合成             | **设计为"可独立透明层"**——不改变布局和绘制内容 |
+
+`transform` / `opacity` 不是"碰巧快"，是**浏览器设计时就预留了"动画专用通道"**——合成线程独立于主线程，专门处理这两类属性。
+
+**用对属性 = 理解浏览器的意图**，不是"记住一条优化规则"。
+
+---
+
+## 12. AI 时代写动画的最小集
+
+| 你想做                                     | AI 帮得上吗                                              |
+| ------------------------------------------ | -------------------------------------------------------- |
+| 写 `transition` / `animation` 基础语法     | ✅ AI 极擅长                                             |
+| 写 View Transitions 包装代码               | ✅ AI 会写标准模板（含降级）                             |
+| 选缓动函数（`ease` / `ease-out` / 自定义） | ⚠️ AI 给默认值，你要 review "符不符合物理感"             |
+| 写 `view-transition-name` 命名捕获         | ✅ AI 会写，但你要 review "name 是否冲突"                |
+| 判断该不该用 JS 动画库                     | ❌ 业务上下文 AI 拿不到——列方案、你拍板                  |
+| 写复杂时间轴（GSAP / Framer Motion）       | ⚠️ AI 会写语法，但"动画节奏 / 物理感"需要你调            |
+| 写 `@starting-style` 进入动画              | ✅ AI 熟悉 2024 新特性                                   |
+| 写 reduced-motion 降级                     | ⚠️ AI 会写全局关闭，你要 review "是否区分了位移 vs 颜色" |
+
+**重点强调**：
+
+### AI 写动画时最容易错的两件事
+
+1. **时长错配**：AI 默认给 `300ms`，但按钮 hover 应该是 `150-200ms`、页面切换应该是 `400ms`——AI 不知道"这个动画在什么场景"。
+
+2. **reduced-motion 粗暴全关**：AI 会给你 `* { animation-duration: 0.01ms !important; }`——但这会把颜色渐变 / 必要反馈也关掉。你必须 review 并改成"只关位移 / 缩放"。
+
+### 你必须把握的 review 要点
+
+**`transition` / `animation` 场景**：
+
+- 时长是否符合经验数字（150-400ms）
+- 缓动函数是否有物理感（`linear` 是否误用）
+- 是否只动 `transform` / `opacity`（有没有误动 `width` / `left`）
+
+**View Transitions 场景**：
+
+- 降级代码是否写了（`if (!document.startViewTransition)`）
+- `view-transition-name` 是否有冲突（列表里多个元素是否 name 唯一）
+- 是否在 React 里用了 `flushSync`（同步 state 更新）
+
+**reduced-motion 场景**：
+
+- 是否区分了"位移 / 缩放"vs"颜色 / 透明度"
+- Loading spinner / 进度条是否保留了（必要反馈）
+
+---
+
+## 13. 翻车库
+
+### 13.1 动 `width` / `height` 导致卡顿
+
+**症状**：展开 / 收起动画时卡顿，尤其在低端设备。
+
+**原因**：动 `width` / `height` 触发布局重排——周围元素位置都要重新计算。
+
+**修复**：
+
+```css
+/* ❌ 反例 */
+.expandable {
+  width: 100px;
+  transition: width 0.3s;
+}
+.expandable.expanded {
+  width: 300px;
+}
+
+/* ✅ 正例：用 transform: scaleX() */
+.expandable {
+  transform: scaleX(0.33); /* 100/300 */
+  transform-origin: left;
+  transition: transform 0.3s;
+}
+.expandable.expanded {
+  transform: scaleX(1);
+}
+```
+
+### 13.2 忘了 `prefers-reduced-motion` 降级
+
+**症状**：用户在 iOS / macOS 开启"减少动态效果"后，页面仍然有大幅度位移动画——导致眩晕投诉。
+
+**原因**：没写降级 CSS。
+
+**修复**：
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    transform: none !important; /* 关掉位移 */
+    opacity: 0; /* 改用淡入淡出 */
+    transition: opacity 0.3s;
+  }
+  .page-transition.active {
+    opacity: 1;
+  }
+}
+```
+
+### 13.3 View Transitions 在不支持的浏览器报错
+
+**症状**：Firefox < 126 / Safari < 18 用户页面白屏。
+
+**原因**：直接调用 `document.startViewTransition()` 而未检测支持。
+
+**修复**：
+
+```js
+function safeTransition(callback) {
+  if (!document.startViewTransition) {
+    callback(); // 降级：直接执行
+    return;
+  }
+  document.startViewTransition(callback);
+}
+```
+
+### 13.4 `position: fixed` + `transform` 导致子元素跑位
+
+**症状**：给 `position: fixed` 的元素加 `transform` 后，它的子元素（也是 `fixed`）跑位了。
+
+**原因**：`transform` 创建了新的**包含块**——子元素的 `fixed` 定位相对于它而非 viewport。
+
+**修复**：
+
+- 不要给 `fixed` 元素加 `transform`
+- 或者改子元素用 `absolute`（相对父元素定位）
+
+```css
+/* ❌ 反例 */
+.modal {
+  position: fixed;
+  transform: scale(0.9); /* 创建包含块 */
+}
+.modal-close {
+  position: fixed; /* 相对 .modal 定位了，不是 viewport */
+  top: 10px;
+  right: 10px;
+}
+
+/* ✅ 正例：子元素用 absolute */
+.modal-close {
+  position: absolute; /* 相对 .modal */
+  top: 10px;
+  right: 10px;
+}
+```
+
+### 13.5 `@keyframes` 名称冲突
+
+**症状**：两个组件都定义了 `@keyframes fade-in`，其中一个动画表现不符合预期。
+
+**原因**：`@keyframes` 是全局作用域——后定义的覆盖先定义的。
+
+**修复**：
+
+- 用 CSS Modules（自动生成唯一类名，包括 keyframes）
+- 手动加前缀：`@keyframes modal-fade-in` / `@keyframes toast-fade-in`
+
+### 13.6 `transition` 同时改 `opacity` 和 `visibility`
+
+**症状**：淡出动画播到一半时元素突然消失。
+
+**原因**：`visibility: hidden` 不可插值——瞬间跳变。
+
+**修复**：
+
+```css
+/* ❌ 反例 */
+.tooltip {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.3s,
+    visibility 0.3s;
+}
+.tooltip.hidden {
+  opacity: 0;
+  visibility: hidden; /* 瞬间隐藏，opacity 动画被打断 */
+}
+
+/* ✅ 正例 1：只用 opacity（元素仍占空间）*/
+.tooltip {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+.tooltip.hidden {
+  opacity: 0;
+  pointer-events: none; /* 阻止交互 */
+}
+
+/* ✅ 正例 2：用 transition-behavior: allow-discrete */
+.tooltip {
+  opacity: 1;
+  display: block;
+  transition:
+    opacity 0.3s,
+    display 0.3s;
+  transition-behavior: allow-discrete;
+}
+.tooltip.hidden {
+  opacity: 0;
+  display: none; /* 过渡结束后才切换 */
+}
+```
+
+### 13.7 动画过程中 `z-index` 意外变化
+
+**症状**：卡片 hover 放大时被其他卡片遮挡。
+
+**原因**：`transform` 创建了新的**堆叠上下文**——原来的 `z-index` 相对关系变了。
+
+**修复**：
+
+```css
+/* ❌ 反例：hover 时才加 z-index */
+.card:hover {
+  transform: scale(1.05);
+  z-index: 10; /* 太晚了，堆叠上下文已创建 */
+}
+
+/* ✅ 正例：默认就给 z-index */
+.card {
+  position: relative;
+  z-index: 1; /* 提前声明 */
+  transition: transform 0.2s;
+}
+.card:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+```
+
+### 13.8 `view-transition-name` 冲突导致动画混乱
+
+**症状**：列表页进入详情页时，多张图片同时"飞"——视觉混乱。
+
+**原因**：多个元素用了相同的 `view-transition-name`，浏览器不知道该捕获哪个。
+
+**修复**：
+
+```tsx
+/* ❌ 反例：所有产品图都用同一个 name */
+{
+  products.map((p) => <img src={p.image} style={{ viewTransitionName: "product-image" }} />);
+}
+
+/* ✅ 正例：每个产品图独立 name */
+{
+  products.map((p) => <img src={p.image} style={{ viewTransitionName: `product-${p.id}` }} />);
+}
+```
+
+---
+
+## 14. 读完本节你应该能
+
+### 基础动画
+
+- [ ] 写出 `transition` 让按钮 hover 时颜色 + 缩放过渡
+- [ ] 区分 `transition` 和 `animation` —— 什么时候用哪个
+- [ ] 解释为什么动 `transform` / `opacity` 比动 `width` / `top` 流畅
+- [ ] 给一个动画场景，能说出推荐的时长（按钮 / 卡片 / 页面切换）
+
+### 现代特性
+
+- [ ] 写出 `@starting-style` 让元素首次渲染时有进入动画
+- [ ] 写出 `transition-behavior: allow-discrete` 让 `display: none` 也能配合过渡
+- [ ] 写出 View Transitions API 基础用法 + 降级判断
+- [ ] 解释 `view-transition-name` 命名捕获的作用 + 冲突约束
+
+### 进阶应用
+
+- [ ] 实现暗色切换的圆形扩散动画（点击位置 → `clip-path: circle()`）
+- [ ] 写出滚动驱动动画（`animation-timeline: scroll()`）实现进度条
+- [ ] 区分跨页面 View Transitions 和同页面 View Transitions
+
+### 可访问性
+
+- [ ] 解释为什么 reduced-motion 不能"全局关闭所有动画"
+- [ ] 列出哪些动画该关、哪些动画该保留（位移 vs 颜色）
+- [ ] 给一个滑动 toast 通知，能写出 reduced-motion 降级（改成淡入淡出）
+
+### 设计判断
+
+- [ ] 用"声明式 vs 命令式"心智解释 jQuery → CSS → View Transitions 的演进
+- [ ] 解释为什么"只动 `transform` / `opacity`" 不是优化技巧而是浏览器意图
+- [ ] 解释"可访问性 = 不强加"——动画对部分用户是伤害
+
+---
+
+## 延伸阅读
+
+- [MDN: 使用 CSS 动画](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_animations/Using_CSS_animations) — 中文权威基础
+- [MDN: 使用 CSS 过渡](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_transitions/Using_CSS_transitions) — 中文 transition 详解
+- [MDN: View Transition API](https://developer.mozilla.org/zh-CN/docs/Web/API/View_Transitions_API) — 中文版 View Transitions 文档
+- [CSS View Transitions Module Level 1](https://drafts.csswg.org/css-view-transitions-1/) **（英文）** — W3C 工作草案
+- [Scroll-driven Animations](https://scroll-driven-animations.style/) **（英文）** — Google Chrome 团队的滚动动画演示站
+- [FLIP your animations](https://aerotwist.com/blog/flip-your-animations/) **（英文）** — Paul Lewis 提出 FLIP 的原文（理解 View Transitions 的内部机制）
+- [cubic-bezier.com](https://cubic-bezier.com/) **（英文）** — 缓动函数可视化调试工具
+- [CSS Triggers](https://csstriggers.com/) **（英文）** — 查每个 CSS 属性触发布局 / 绘制 / 合成
+- [Framer Motion 文档](https://www.framer.com/motion/) **（英文）** — React 时代声明式动画库
+- [Motion One 文档](https://motion.dev/) **（英文）** — 轻量替代 Framer Motion
+
+> 访问性说明：MDN 中文版直接可访问；其他英文站访问稳定。FLIP 原文是经典论文，值得每个写动画的工程师读一遍。
+
+---
+
+下一章：[第 4 章 JavaScript 与 TypeScript](/chapter-04) _（待写）_——语言机制 / 类型系统 / 模块体系。
+
+> **动手练习**：访问 [动画 Playground](/playground/animations) 看全部 11 个可调试示例——按钮 hover、卡片进入、加载动画、骨架屏、手风琴、性能对比、View Transitions、命名捕获、暗色圆形扩散、滚动进度、减动效对比。
