@@ -104,8 +104,9 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
 3. **改而非加 / 不留半成品**：优先编辑现有文件，不建 `v2` 平行文件。
    有视觉提示就必须有完整功能闭环，否则改纯展示或完全不做——
    详见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R6。
-4. **原子提交**：一个 commit 只解决一件事。切换 concern 前先落地当前改动。
-   详见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
+4. **原子提交（硬规则）**：一个 commit 只解决一件事，不跨关注点混装。
+   提交前必须向用户展示分组方案并获确认。违反即撤回。切换 concern
+   前先落地当前改动。详见 [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R2 / R3 / R4。
 5. **同一 commit 内更新文档**：加命令 → 更新命令表；做载入性决策
    → 新增 SPEC。harness 文档膨胀会拖慢 agent——扩文档前过
    [SPEC-0008](specs/0008-pre-action-reflexive-checklist/spec.md) R5，
