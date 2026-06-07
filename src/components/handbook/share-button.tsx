@@ -45,7 +45,7 @@ export function ShareButton({ title, description }: Props) {
       type="button"
       onClick={handleShare}
       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
-      aria-label="复制链接"
+      aria-label={canShare ? "分享此页面" : "复制链接"}
     >
       {copied ? (
         <>
@@ -55,7 +55,7 @@ export function ShareButton({ title, description }: Props) {
       ) : (
         <>
           <Share2 size={14} strokeWidth={1.75} />
-          <span>复制链接</span>
+          <span>{canShare ? "分享" : "复制链接"}</span>
         </>
       )}
     </button>
