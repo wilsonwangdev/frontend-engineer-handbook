@@ -11,9 +11,9 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: "术语", href: "/glossary" },
-  { label: "示例", href: "/playground" },
-  { label: "资源", href: "/resources" },
+  { label: "术语表", href: "/glossary" },
+  { label: "试验场", href: "/playground" },
+  { label: "精选资源", href: "/resources" },
   { label: "常见问题", href: "/appendix-d" },
 ];
 

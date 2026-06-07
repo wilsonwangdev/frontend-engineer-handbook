@@ -4,9 +4,10 @@ import { NAV_ITEMS } from "./public-nav";
 describe("NAV_ITEMS", () => {
   it("contains all expected public pages", () => {
     const labels = NAV_ITEMS.map((item) => item.label);
-    expect(labels).toContain("术语");
-    expect(labels).toContain("示例");
-    expect(labels).toContain("资源");
+    expect(labels).toContain("术语表");
+    expect(labels).toContain("试验场");
+    expect(labels).toContain("精选资源");
+    expect(labels).toContain("常见问题");
   });
 
   it("all items have valid hrefs", () => {
