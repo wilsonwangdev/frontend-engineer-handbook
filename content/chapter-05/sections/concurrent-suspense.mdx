@@ -1,0 +1,308 @@
+---
+title: 并发渲染与 Suspense
+chapter: 5
+section: 2
+description: useTransition / useDeferredValue / Suspense 边界——React 18 从"同步不可中断"到"异步可中断"的渲染模型升级
+tier: essential
+prerequisites:
+  - /chapter-05/react-mental-model
+paths:
+  sequential: 26
+---
+
+## 0. 一段必要的回顾：为什么 React 18 要引入并发
+
+2013-2021 年，React 的渲染模型是**同步不可中断**的。意思是：一旦 React 开始渲染一棵组件树，它必须一口气渲染完——中途不能停下来处理别的事。
+
+这个模型在大多数情况下没问题——React 渲染很快，用户无感。但有一个场景会暴露缺陷：**当一次状态更新触发了昂贵的重新计算时，用户的输入（打字、点击）会被卡住**。
+
+具体来说，你输入一个搜索关键词，React 开始渲染包含大量筛选结果的列表——这个渲染可能需要几十毫秒。在这几十毫秒里，你继续打字，但 React 还在忙上一次渲染——你的按键事件排队等待。表现出来的就是**输入框卡顿、光标不跟手**。
+
+2022 年 React 18 引入的<strong>并发渲染（concurrent rendering）</strong>解决了这个问题。核心思想很简单：**把"紧急的更新"和"不紧急的更新"区分开**——打字、点击这类交互是高优先级，搜索结果列表的渲染是低优先级。React 可以中断低优先级渲染，先处理高优先级更新，再回来继续。
+
+> **为什么不直接从 `useTransition` 开始学？** 因为如果不知道"同步渲染卡住输入"这个具体痛点，你会把 `useTransition` 当成"一个降低性能的 API"——那就完全理解反了。它不是让事情变慢——它是**让慢的事情不阻塞快的事情**。
+
+---
+
+## 1. 同步渲染的问题：一个具体的例子
+
+想象一个搜索页面：上面一个输入框，下面一个展示 10,000 条结果的列表。每条结果需要渲染一个卡片组件。
+
+```jsx
+function SearchPage() {
+  const [query, setQuery] = useState("");
+  const results = filterResults(allData, query); // 过滤 10,000 条——耗时操作
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      <ResultList results={results} />
+    </div>
+  );
+}
+```
+
+问题：每次你在输入框里打一个字，`setQuery` 触发重新渲染 → `filterResults` 跑一遍（假设 20ms）→ `<ResultList>` 渲染几千个卡片。如果你打字很快（每 50ms 一个字符），React 的**同步渲染**会让你的按键被 20ms 的计算阻塞——光标跟不上了。
+
+用代码术语说：`setQuery` 的更新和输入框的视觉更新是**同一个优先级**——React 不会区别"输入框显示新字符"和"列表显示新结果"，它把它们当作同一个渲染批次。**紧急的输入反馈被不紧急的结果渲染拖累了**。
+
+---
+
+## 2. useTransition：标记非紧急更新
+
+`useTransition` 是 React 18 提供的 Hook，用来**把某次状态更新标记为"低优先级"**：
+
+```jsx
+function SearchPage() {
+  const [query, setQuery] = useState("");
+  const [deferredQuery, setDeferredQuery] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function handleChange(e) {
+    const value = e.target.value;
+    setQuery(value); // 高优先级：立即更新输入框
+    startTransition(() => {
+      setDeferredQuery(value); // 低优先级：可被中断
+    });
+  }
+
+  const results = filterResults(allData, deferredQuery);
+
+  return (
+    <div>
+      <input value={query} onChange={handleChange} />
+      {isPending && <span>（更新中...）</span>}
+      <ResultList results={results} />
+    </div>
+  );
+}
+```
+
+关键点：
+
+- **`setQuery`**（输入框的值）——正常更新，高优先级。React 立即处理，保证输入跟手。
+- **`startTransition(() => setDeferredQuery(value))`**——低优先级。React 可能在处理到一半时被新的键盘输入中断，丢弃未完成的渲染，用新的值重新开始。
+- **`isPending`**——`true` 表示"有一个低优先级更新正在处理中"，可以用这个状态显示一个加载指示器。
+
+`useTransition` 不改变"最终结果"——`deferredQuery` 最终会更新到和 `query` 相同的值。它只改变**到达最终结果的路径**：`query` 立即更新，`deferredQuery` 在不阻塞输入的前提下尽快更新。
+
+> **类比**：你在餐厅点菜。`setQuery` 是告诉服务员"我要这个"——服务员立刻记下。`startTransition` 是告诉厨房"开始做这道菜"——厨房可以同时接其他桌的点单，你这道菜做好之前如果有新的点单（新的键盘输入），厨房可以放弃正在做的旧菜重新做。
+
+---
+
+## 3. useDeferredValue：延迟一个值的更新
+
+`useDeferredValue` 是 `useTransition` 的"只读版本"。`useTransition` 需要你控制**什么时候**更新状态，`useDeferredValue` 只需要你告诉 React **哪个值是低优先级的**：
+
+```jsx
+function SearchPage({ query }) {
+  // 父组件传来 query（可能是高优先级更新）
+  const deferredQuery = useDeferredValue(query);
+  // deferredQuery 是 query 的"延迟副本"——在高优先级更新完成后再跟上
+  const results = filterResults(allData, deferredQuery);
+
+  return <ResultList results={results} />;
+}
+```
+
+`useDeferredValue` vs `useTransition`：
+
+| Hook               | 适用场景                            | 谁控制状态                                   |
+| ------------------ | ----------------------------------- | -------------------------------------------- |
+| `useTransition`    | **你**控制状态更新的时机            | 你有 `setState` 的访问权                     |
+| `useDeferredValue` | **父组件**传下来的 props 变化太频繁 | 你没有 `setState` 的访问权（props 是只读的） |
+
+**选型规则**：你写的组件里有 `setState` → 用 `useTransition`；你从父组件接收了一个高频变化的 prop → 用 `useDeferredValue`。
+
+---
+
+## 4. Suspense：声明式的"等一等"
+
+### 4.1 旧世界：命令式加载
+
+在 React 18 之前，处理异步数据加载的典型模式是"先判断状态，再渲染"：
+
+```jsx
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/users/${userId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setUser(d);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  if (loading) return <Spinner />;
+  return <UserCard user={user} />;
+}
+```
+
+这种写法有一个隐性缺陷：**渲染与数据获取紧耦合**。`UserProfile` 必须同时管理"数据在哪"和"UI 长什么样"——每个需要异步数据的组件都重复这个模式。
+
+### 4.2 新世界：先把 Promise 传进来，再用 `use()` 读
+
+React 18 的 `Suspense` 把"等数据"从组件内部提到组件外部。关键是：**Promise 不在组件内部创建——在外部创建好，通过 props 传进来**。
+
+先看完整流程——三部曲：
+
+**第一步**：在组件外部发起请求，拿到一个 Promise。
+
+```jsx
+// 组件外部（比如路由层、数据层）
+const userPromise = fetch(`/api/users/123`).then((r) => r.json());
+```
+
+**第二步**：把 Promise 作为 prop 传给组件。组件内部用 `use()` 读取——如果 Promise 还没 resolve，React 暂停这个组件。
+
+```jsx
+function UserProfile({ userPromise }) {
+  const user = use(userPromise); // 暂停点：Promise 没完成就停在这里
+  return <h1>{user.name}</h1>;
+}
+```
+
+**第三步**：用 `<Suspense>` 包住组件，声明"Promise 没完成时显示什么"。
+
+```jsx
+<Suspense fallback={<Spinner />}>
+  <UserProfile userPromise={userPromise} />
+</Suspense>
+```
+
+**当 `use(userPromise)` 执行时**：Promise 未 resolve → React 暂停渲染 → 向上找最近的 `<Suspense>` → 显示 `fallback`。Promise resolve → React 重新渲染 → `use()` 返回数据 → 组件正常出现。
+
+> **最容易误解的地方**：`use()` 不是"在里面 fetch"。它是**读取**一个已经在外面创建好的 Promise。如果你在组件内部写 `use(fetch(...))`，每次渲染都会创建新的 Promise，React 检测到 Promise 变了就会无限重新渲染——这是最常犯的错误。
+
+### 4.3 为什么不能像 `useEffect` 那样写
+
+对比一下——**这是错误的写法**：
+
+```jsx
+// ❌ 错误：Promise 在组件内部创建
+function UserProfile({ userId }) {
+  const user = use(fetch(`/api/users/${userId}`).then((r) => r.json()));
+  // 每次渲染都创建新 Promise → 无限循环
+  return <h1>{user.name}</h1>;
+}
+```
+
+每次 `UserProfile` 渲染，`fetch(...)` 都创建一个全新的 Promise。React 看到 Promise 变了 → 重新渲染 → 又创建新 Promise → 无限循环。
+
+**正确的做法**：Promise 必须在组件外部创建，然后传进来。
+
+```jsx
+// ✅ 正确：Promise 在外部创建
+// 方式 1：父组件创建
+function Parent() {
+  const promise = fetch(`/api/users/123`).then((r) => r.json());
+  return <UserProfile userPromise={promise} />;
+}
+
+// 方式 2：路由层创建（Next.js 自动处理）
+// 方式 3：全局缓存层（React.cache 包装）
+```
+
+**总结**：`useEffect` 是"我在组件里发请求"（命令式），`use()` + `Suspense` 是"Promise 传进来，我负责读"（声明式）。前者在组件内部管理异步流程，后者把异步流程从组件中剥离出去。
+
+---
+
+## 5. Suspense 边界：在哪划这条线
+
+`<Suspense>` 的一个关键设计决策是**边界放在哪**。边界太粗（整个页面一个 Suspense）→ 一个接口慢导致整个页面空白。边界太细（每个组件一个 Suspense）→ 页面碎片化加载，视觉杂乱。
+
+几条经验法则：
+
+1. **路由级别放一个**——页面导航用 `loading.tsx`（Next.js 自动处理），这是最粗的边界
+2. **独立数据块各放一个**——侧边栏、主内容、评论区各自独立加载——一个慢不影响其他
+3. **不要为每个 `use()` 单独包 `Suspense`**——太细了，视觉上会像"页面在跳"
+
+```jsx
+function Dashboard() {
+  return (
+    <div>
+      <Suspense fallback={<SidebarSkeleton />}>
+        <Sidebar />
+      </Suspense>
+      <Suspense fallback={<MainSkeleton />}>
+        <MainContent />
+      </Suspense>
+      <Suspense fallback={<CommentsSkeleton />}>
+        <Comments />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+> **为什么要多个 Suspense？** 如果侧边栏的 API 慢（500ms），而主内容的 API 快（100ms），主内容会先渲染出来——用户不用等侧边栏就能开始阅读。这就是并发渲染带来的**流式（streaming）效果**。
+
+---
+
+## 6. 并发渲染的"这不是魔法"
+
+理解三个关键限制：
+
+1. **并发渲染不会让你的代码变快**——`filterResults` 该跑多久还是跑多久。并发做的只是**让慢的事情不阻塞快的事情**。
+2. **`useTransition` 只在 React 18+ 的并发模式下有效**——在旧版 React 里，`startTransition` 和普通 `setState` 行为一样。
+3. **不是所有更新都需要 `startTransition`**——只有**用户输入 → 触发昂贵计算 → UI 阻塞**这个特定模式才需要。普通的按钮点击、表单提交不需要。
+
+---
+
+## 7. 设计判断暗线
+
+- **优先级分离**：`useTransition` / `useDeferredValue` 的本质是**把"紧急"和"非紧急"分开**。这不是性能优化——它是**交互设计**：用户的操作必须得到即时反馈，后台计算可以等。
+- **声明式 > 命令式**：`Suspense` 把"加载态"从组件内部的 `if (loading)` 移到外部的 `fallback`——组件只描述"正常态"，加载态由框架统一管理。这是 React 声明式理念在异步场景的自然延伸。
+- **可中断性**：并发渲染的根本创新不是"任务优先级"——操作系统几十年前就有了。它是**把 UI 渲染变得可中断**——之前没有任何 UI 框架能在渲染中途暂停去做别的事。
+
+---
+
+## 8. AI 时代写并发代码的最小集
+
+### 你必须把握的部分
+
+- **`useTransition` 的判断**：AI 会写 `startTransition` 的代码，但不知道**哪个状态更新该包进去**。你需要判断："这个更新会触发昂贵的重新计算吗？"
+- **Suspense 边界位置**：AI 会倾向给每个 `use()` 包一个 `Suspense`——你需要决定边界的粗细。判断标准：这个数据块是"独立加载"还是"应该一起出现"？
+- **`use()` 的 Promise 来源**：AI 可能在组件内部创建 Promise（违反规则）——你需要审查每个 `use()` 的参数是否在组件外部创建。
+
+### 你可以委托 AI 的部分
+
+- **`useTransition` 的基础用法**：AI 能写完整的三段式（`setQuery` + `startTransition` + `isPending`）
+- **Suspense fallback 组件**：`<Spinner />`、`<Skeleton />`——纯展示组件
+- **`useDeferredValue` 配合 memo**：AI 知道"两者一起用"的模式
+
+### 你对 AI 写的并发代码最容易错的事
+
+1. **AI 会过度使用 `useTransition`**——不需要并发优化的场景（比如一个表单的提交按钮）也包 `startTransition`。并发有开销——只在**昂贵计算阻塞用户输入**的场景用。
+2. **AI 会在 `useTransition` 里忘记错误处理**——`startTransition` 中的更新如果抛错，不会冒泡到 ErrorBoundary。你需要单独处理。
+
+---
+
+## 9. 三档归位
+
+| 你应该能                                              | 对应 Tier |
+| ----------------------------------------------------- | :-------: |
+| 解释"同步渲染为什么会卡输入"                          |   必学    |
+| 用 `useTransition` 解决输入框卡顿                     |   必学    |
+| 区分 `useTransition` 和 `useDeferredValue` 的适用场景 |   理解    |
+| 在组件树中设计合理的 `Suspense` 边界                  |   理解    |
+| 解释 `use()` Hook 和传统的 `useEffect` 异步模式的区别 |   理解    |
+| 审查 AI 写的 `startTransition` 是否正确标记了优先级   |   理解    |
+| 为已有页面添加增量迁移到 `Suspense` 的方案            | 可委托 AI |
+| 写 `Suspense` fallback 骨架屏组件                     | 可委托 AI |
+
+---
+
+## 10. 延伸阅读
+
+- [React 官方：useTransition](https://react.dev/reference/react/useTransition)
+- [React 官方：Suspense](https://react.dev/reference/react/Suspense)
+- [React 官方：use()](https://react.dev/reference/react/use)
+- [React 18 工作组讨论](https://github.com/reactwg/react-18/discussions) —— React 核心团队与社区关于并发渲染、Suspense 的技术讨论（50+ 主题）
+
+---
+
+下一节：§5.3 服务端组件与客户端组件（编写中）——RSC 心智模型 / "use client" 边界 / 流式渲染。

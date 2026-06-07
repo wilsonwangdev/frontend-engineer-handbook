@@ -88,3 +88,23 @@ const isoDateString = z
 各踩一次，属于 agent 行为模式缺陷而非技术栈问题。
 
 完整事故：[journal/2026-05-20-mobile-layout-verification-gap.md](../journal/2026-05-20-mobile-layout-verification-gap.md)
+
+### G.5 Markdown 粗体 + CJK 括号解析错误
+
+**现象**：`**中文（English）**` 渲染结果异常——粗体未闭合、括号丢失、或后续文字被吞。
+
+**原因**：Markdown 解析器遇到 `）**`（全角右括号紧接两个星号）会误判为"星号属于括号内容的一部分"，导致粗体边界识别错误。只发生在 `**...（...English...）**` 的嵌套模式。
+
+**修复**：用 HTML `<strong>` 标签替代 Markdown `**` 语法：
+
+```md
+<!-- ❌ 错误 -->
+
+**并发渲染（concurrent rendering）**
+
+<!-- ✅ 正确 -->
+
+<strong>并发渲染（concurrent rendering）</strong>
+```
+
+**何时触发**：当粗体内容包含 CJK 全角括号且括号内有英文单词。
