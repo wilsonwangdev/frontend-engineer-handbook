@@ -1,0 +1,397 @@
+---
+title: React 心智模型
+chapter: 5
+section: 1
+description: 组件 = 组合而非继承，状态 = 组件的内存，副作用 = 与外部世界的连接——React 框架的三根支柱
+tier: essential
+prerequisites:
+  - /chapter-04/js-core
+  - /chapter-04/async-model
+paths:
+  sequential: 22
+---
+
+## 0. 一段必要的回顾：你在写 jQuery 的什么
+
+2008 年，一个典型的"点击按钮、显示/隐藏一段内容"是这样写的：
+
+```javascript
+// jQuery 写法（命令式：你告诉浏览器"怎么做"）
+$("#show-more-btn").on("click", function () {
+  $("#detail-content").slideDown(300);
+});
+```
+
+这个写法有一个根本问题：**DOM 本身就是状态**。当 `#detail-content` 被隐藏时，"它是隐藏的"这个信息只存在于 DOM 节点上——`display: none`。你的 JavaScript 变量里没有存储"当前显示还是隐藏"。如果你有 3 个按钮控制 3 段内容，你需要 3 组 `show/hide` 调用，而且这些调用之间没有约束——你可以"先展开再隐藏同一个元素"，代码不报错但逻辑乱了。
+
+React 在 2013 年做的事很简单——**把公式反过来**：
+
+```jsx
+// React 写法（声明式：你告诉浏览器"应该长什么样"）
+function ExpandableSection() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen(!isOpen)}>展开详情</button>
+      {isOpen && <div>这里是详细内容...</div>}
+    </div>
+  );
+}
+```
+
+关键区别不在语法——在**谁拥有真相**。jQuery 里真相藏在 DOM 里（`$('#detail-content').is(':visible')`），React 里真相在变量里（`isOpen`）。**当真相在变量里时**，你可以用 JS 的全部能力来管理它——传给别的函数、存到 localStorage、写测试断言——不需要"先查 DOM 再判断"。
+
+这个转变叫 **声明式 UI（declarative UI）**。公式是 `UI = f(state)`——**UI 是状态的函数**。你描述"当 `isOpen = false` 时这个组件长什么样、当 `isOpen = true` 时它长什么样"，React 负责让 DOM 匹配你的描述。
+
+> **为什么不直接从 Hooks 开始学？** 因为如果不先理解"声明式"这件事，你会把 `useState` 当成"一个能存值的函数"——那就完全错过了 React 的设计意图。`useState` 不只是"存值"，它是**让你把"UI 应该长什么样"表达为"状态是什么"的唯一入口**。
+
+---
+
+## 1. 组件：组合，不是继承
+
+### 1.1 什么是组件
+
+组件是 React 的基本构建块——**一个返回 UI 描述的函数**。
+
+```jsx
+function ProfileCard({ name, bio }) {
+  return (
+    <article className="profile-card">
+      <h2>{name}</h2>
+      <p>{bio}</p>
+    </article>
+  );
+}
+```
+
+`ProfileCard` 接收 `name` 和 `bio` 作为输入（props），返回一段 JSX 作为输出。它是一个**纯函数**——相同的输入永远产生相同的输出，不修改外部变量，不产生副作用。
+
+> **Prop（属性）** 是"properties"的缩写，是组件外部传入的参数。React 里数据从父组件流向子组件，叫**单向数据流**——子组件不修改 props，只读取。这个约束是 React 可预测性的根基。
+
+### 1.2 组合，不是继承
+
+面向对象编程里有"继承"——`Dog` 继承 `Animal`，获得 `eat()` 和 `sleep()` 方法。React 不走这条路。
+
+React 的复用方式是**组合（composition）**——把小组件拼成大组件：
+
+```jsx
+function UserDashboard({ user }) {
+  return (
+    <div className="dashboard">
+      <ProfileCard name={user.name} bio={user.bio} />
+      <ActivityFeed activities={user.recentActivities} />
+      <NotificationBadge count={user.unreadCount} />
+    </div>
+  );
+}
+```
+
+`UserDashboard` 没有继承 `ProfileCard`——它**使用**了 `ProfileCard`。三个子组件各管各的，组合在一起就是完整的仪表盘。
+
+为什么 React 选组合而不是继承？因为 UI 组件的职责是"渲染一段界面"——不是"拥有某种行为"。一个按钮不需要继承"可点击的基类"——它只需要接收 `onClick` prop 然后渲染 `<button>`。
+
+> **判断标志**：如果你发现自己写了"继承某个组件的所有 props 再加两个"的代码，停下来——用组合就够了。React 生态里几乎不存在需要继承的场景。
+
+### 1.3 组件的两类数据：Props vs State
+
+React 组件有两种数据来源，区分清楚很重要：
+
+| 概念  | 谁控制       | 组件内部能改吗    | 变化时会发生什么     |
+| ----- | ------------ | ----------------- | -------------------- |
+| props | 父组件传入   | 不能（只读）      | React 重新渲染该组件 |
+| state | 组件自己管理 | 能（通过 setter） | React 重新渲染该组件 |
+
+简单记法：**props 是"父母给的"（不能改），state 是"自己管的"（能改）**。
+
+```jsx
+// name 来自父组件（props，只读）
+// isOnline 由组件自己管理（state，可改）
+function ContactCard({ name }) {
+  // ← props
+  const [isOnline, setIsOnline] = useState(true); // ← state
+
+  return (
+    <div>
+      <span>{name}</span>
+      <button onClick={() => setIsOnline(!isOnline)}>{isOnline ? "在线" : "离线"}</button>
+    </div>
+  );
+}
+```
+
+---
+
+## 2. 状态：组件的内存
+
+### 2.1 useState：状态的基本单位
+
+`useState` 是 React 里最常用的 Hook——它给函数组件加上"记忆"。
+
+```jsx
+const [count, setCount] = useState(0);
+//      ↑        ↑               ↑
+//    当前值   更新函数        初始值（只在首次渲染使用）
+```
+
+`useState` 返回一个数组：第一个元素是当前值，第二个元素是更新函数。调用 `setCount(5)` 会做两件事：更新 `count` 的值为 5，然后触发组件重新渲染。
+
+**关键规则**：状态更新是**异步的**。在同一个事件处理函数里连续调用两次 `setCount`，React 会把它们合并成一次更新：
+
+```jsx
+function handleClick() {
+  setCount(count + 1); // count = 0 → 期望变成 1
+  setCount(count + 1); // count = 0 → 期望变成 2？实际还是 1
+}
+// 两次 setCount 都读到的是"闭包里的旧 count = 0"
+// 正确做法：用函数式更新
+function handleClickCorrect() {
+  setCount((c) => c + 1); // React 拿到 c = 0 → 返回 1
+  setCount((c) => c + 1); // React 拿到 c = 1 → 返回 2 ✅
+}
+```
+
+> 这就是第 4 章讲的闭包陷阱（closure trap）在 React 里的具体表现。`count` 是 `useState` 返回的快照值——在当前渲染中是稳定的，不会因为你在别处调了 `setCount` 就变化。理解这一点是理解 React 的基础。
+
+### 2.2 useState vs useReducer：何时升级
+
+当状态逻辑变复杂时，`useState` 会散落成多个独立的状态变量——这会导致**多个状态之间没有约束**。
+
+```jsx
+// 不好：三个独立状态，但"加载中 + 错误出现"不应该同时成立
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState(null);
+const [data, setData] = useState(null);
+```
+
+`useReducer` 把状态和状态转换逻辑集中到一处：
+
+```jsx
+const [state, dispatch] = useReducer(reducer, {
+  loading: false,
+  error: null,
+  data: null,
+});
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "FETCH_START":
+      return { loading: true, error: null, data: null }; // 原子操作：三种状态同时更新
+    case "FETCH_SUCCESS":
+      return { loading: false, error: null, data: action.payload };
+    case "FETCH_ERROR":
+      return { loading: false, error: action.error, data: null };
+    default:
+      return state;
+  }
+}
+```
+
+**选型判断**：单个独立值用 `useState`；多个值之间有逻辑依赖（"A 和 B 不能同时为 true"）时用 `useReducer`。在你的项目中，90% 的状态都是 `useState` 就够了——剩下的 10% 才需要 `useReducer`。
+
+> **为什么不用 Redux？** 曾经（2015-2018 年）React 生态里所有状态都放 Redux。现在 `useReducer` + Context 覆盖了大部分"集中状态管理"的需求。Redux Toolkit 仍然健在，但**不再是默认选项**——§5.5 会详细对比。
+
+---
+
+## 3. 副作用：与外部世界的连接
+
+### 3.1 什么是副作用
+
+纯函数只做一件事：输入 → 输出。但每个应用都需要**副作用（side effect）**——不能只用纯函数完成的事：
+
+- 从服务器获取数据（`fetch`）
+- 读写 `localStorage`
+- 操作 DOM（设置焦点、测量元素尺寸）
+- 订阅外部事件（WebSocket、`window.resize`）
+
+`useEffect` 是 React 为副作用提供的标准入口：
+
+```jsx
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // 副作用：获取数据
+    fetch(`/api/users/${userId}`)
+      .then((res) => res.json())
+      .then(setUser);
+  }, [userId]); // ← 依赖数组：userId 变化时重新执行
+
+  if (!user) return <p>加载中...</p>;
+  return <h1>{user.name}</h1>;
+}
+```
+
+### 3.2 依赖数组（dependency array）
+
+`useEffect` 的第二个参数叫依赖数组——它告诉 React"这个 effect 依赖哪些值"：
+
+| 依赖数组       | 行为                                   |
+| -------------- | -------------------------------------- |
+| `[userId]`     | `userId` 变化时重新执行（最常见）      |
+| `[]`（空数组） | 只在组件首次渲染后执行一次（"挂载时"） |
+| 不传第二个参数 | 每次渲染后都执行（基本不要这样写）     |
+
+> **最常见的 bug**：忘记把依赖加进数组——你的 effect 读到了旧的闭包值。React 官方推荐用 [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks) 的 `exhaustive-deps` 规则自动检查——**永远不要手动禁这个规则**。
+
+### 3.3 清理函数：你借了什么要还什么
+
+如果 effect 订阅了事件、创建了定时器、打开了连接——必须在清理函数里取消：
+
+```jsx
+useEffect(() => {
+  const handleResize = () => console.log(window.innerWidth);
+  window.addEventListener("resize", handleResize);
+
+  return () => {
+    // ← 清理函数：下次 effect 执行前或组件卸载时运行
+    window.removeEventListener("resize", handleResize);
+  };
+}, []);
+```
+
+这条原则很简单：**你在 effect 里"借"了什么，就在清理函数里"还"回去**。事件监听、定时器、WebSocket 连接——都需要清理。HTTP 请求虽然不需要（请求发了就发了），但如果组件已卸载还调用 `setState` 会导致内存泄漏——React 18+ 会自动忽略卸载后的状态更新，但你最好不要依赖这个。
+
+---
+
+## 4. Hooks 规则：两条铁律
+
+React 的 Hooks 有两条规则，违反会导致难以调试的 bug：
+
+### 规则 1：只在组件顶层调用 Hooks
+
+不要在条件语句、循环、嵌套函数里调用 Hooks。**每次渲染时 Hooks 的调用顺序必须完全一致**——React 用调用顺序来追踪"每个 Hook 对应哪个状态"。
+
+```jsx
+// ❌ 错误：Hook 在条件里——调用顺序不一致
+function Bad({ showExtra }) {
+  const [name, setName] = useState("");
+  if (showExtra) {
+    const [extra, setExtra] = useState(""); // 有时调用，有时不调用
+  }
+}
+
+// ✅ 正确：Hook 在顶层——无论如何都调用
+function Good({ showExtra }) {
+  const [name, setName] = useState("");
+  const [extra, setExtra] = useState(""); // 始终调用
+}
+```
+
+### 规则 2：只在 React 函数里调用 Hooks
+
+只能在 React 函数组件或自定义 Hook 里调用 Hooks——不能在普通的 JavaScript 函数里调用。
+
+上面这两条规则是 React 验证 Hooks 是否正确的基线。你的 linter 会帮你检查——不要关掉 `react-hooks/rules-of-hooks` 规则。
+
+---
+
+## 5. 自定义 Hook：复用状态逻辑
+
+当多个组件有相同的状态模式时，可以提取自定义 Hook：
+
+```jsx
+// 自定义 Hook：封装"数据获取"的通用模式
+function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(url)
+      .then((res) => res.json())
+      .then((d) => {
+        if (!cancelled) setData(d);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+// 使用：三行代码解决数据获取
+const { data: user, loading, error } = useFetch(`/api/users/${userId}`);
+```
+
+自定义 Hook 的本质：**把组件之间共享的状态逻辑提取为函数——函数名以 `use` 开头**（这是 React 识别它是 Hook 的约定）。自定义 Hook 内部可以调用其他 Hooks。
+
+---
+
+## 6. 三件套 Review 检查清单
+
+写 React 组件时，问自己三个问题：
+
+1. **组件名反映了它做什么吗？** `UserProfile` 比 `Box1` 好一百倍。组件名是给三个月后的自己看的。
+2. **状态是最小化的吗？** 如果 `fullName = firstName + ' ' + lastName`，那只需要存 `firstName` 和 `lastName`——`fullName` 是派生值，不要存成 state。
+3. **副作用有清理吗？** 每个 `useEffect` 都应该问"如果组件在这个 effect 完成前卸载了，会发生什么？"
+
+---
+
+## 7. 设计判断暗线
+
+本节贯穿几条核心设计判断：
+
+- **声明式 > 命令式**：React 选择"描述结果"而不是"描述步骤"。这不是"更高级的语法糖"——它改变了**真相的存储位置**（从 DOM 移到 JS 变量），使得测试、调试、复用都变得可控。
+- **组合 > 继承**：React 的组件模型选择组合——UI 组件是"拼积木"而不是"继承链"。这与 OOP 的继承传统不同，但更适合 UI 的"嵌套 + 插槽"结构。
+- **单向数据流**：props 从父到子，state 只属于组件自己。这个约束不是限制——它是你理解"这个组件的状态可能从哪里被修改"的唯一线索。如果数据可以双向流动，任何 bug 都可能来自任何地方。
+- **Hooks 规则的本质**：两条规则不是"React 官方在教条"——它们是 React 用调用顺序追踪 Hook 的实现细节。理解"为什么有规则"比背"规则是什么"更重要。
+
+---
+
+## 8. AI 时代写 React 的最小集
+
+### 你必须把握的部分
+
+- **拆分组件的判断力**：AI 能写单个组件，但不知道你的业务边界在哪里。`UserAvatar` + `UserProfile` + `UserSettings` 三个组件应该怎么拆？AI 的建议是猜测——你的判断才是正确答案。
+- **状态放在哪里**：AI 会倾向把所有状态放在最近的组件里——但你可能知道"这个状态之后会跨页面共享"，应该提升到更高层级或放入状态管理库。
+- **副作用依赖数组的 review**：AI 会写 `useEffect`，但经常漏掉依赖或加不必要的依赖。你需要审查每一个 `useEffect` 的依赖数组——这是最容易出问题的地方。
+
+### 你可以委托 AI 的部分
+
+- **基础展示组件**：`<Avatar />`、`<Badge />`、`<Card />`——纯展示、无状态的组件，AI 写得比你好（语法正确、样式完整）
+- **表单字段 + 校验规则**：`<EmailInput />` + "必须包含 @"——AI 会写完整的 `useState` + `onChange` + 错误提示
+- **数据获取 Hook**：`useFetch`、`useLocalStorage`——模板化的 Hook，AI 写初版你 review 边界情况
+
+### 你对 AI 写的 React 代码最容易错的两件事
+
+1. **AI 会在不需要 `useEffect` 的地方用 `useEffect`**。很多计算可以直接在渲染期间完成（`const fullName = firstName + ' ' + lastName`），不需要 `useEffect` + state——AI 经常过度使用。
+2. **AI 会忘记 `key` prop**。任何 `.map()` 出来的 JSX 都需要 `key`——AI 有时会省略或用数组 index 代替（index 在列表顺序会变时是有害的）。你应该 review 每一个 `.map()`。
+
+---
+
+## 9. 三档归位
+
+| 你应该能                              | 对应 Tier |
+| ------------------------------------- | :-------: |
+| 解释声明式 UI 和命令式 UI 的区别      |   必学    |
+| 用 `useState` + props 写一个表单      |   必学    |
+| 解释"组合比继承更好"在 UI 中的含义    |   必学    |
+| 写一个带依赖数组的 `useEffect`        |   必学    |
+| 区分何时用 `useState` vs `useReducer` |   理解    |
+| 提取自定义 Hook 复用逻辑              |   理解    |
+| 审查 AI 生成的 `useEffect` 依赖       |   理解    |
+| 设计新功能的组件拆分方案              | 可委托 AI |
+| 写展示型组件（`<Avatar />` 等）       | 可委托 AI |
+| 写数据获取 Hook（`useFetch`）         | 可委托 AI |
+
+---
+
+## 10. 延伸阅读
+
+- [React 官方教程：Quick Start](https://react.dev/learn) —— 2023 年重写版，推荐直接读英文版
+- [Dan Abramov: React as a UI Runtime](https://overreacted.io/react-as-a-ui-runtime/) —— 深入理解 React 的运行时模型
+- [useEffect 完全指南](https://overreacted.io/a-complete-guide-to-useeffect/) —— Dan Abramov 的长文，值得完整读一遍
+
+---
+
+下一节：§5.2 并发渲染与 Suspense（编写中）——useTransition / useDeferredValue / Suspense 边界。
