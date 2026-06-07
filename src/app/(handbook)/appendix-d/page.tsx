@@ -40,7 +40,10 @@ export default function AppendixDPage() {
           <p className="mt-1 text-sm text-fg-muted">{desc}</p>
           <div className="mt-4 space-y-6">
             {items.map((item) => (
-              <div key={item.title} className="rounded-lg border border-[var(--color-border)] p-4">
+              <div
+                key={item.title}
+                className="not-prose rounded-lg border border-[var(--color-border)] p-4"
+              >
                 <h3 className="text-sm font-semibold">{item.title}</h3>
                 <dl className="mt-2 space-y-2 text-sm">
                   <div>
