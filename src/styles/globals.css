@@ -99,6 +99,18 @@
     scroll-margin-top: 5rem; /* 为 sticky header + TOC 锚点跳转留空间 */
   }
 
+  @keyframes heading-anchor-fade {
+    0% {
+      opacity: 1;
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
   /* Mixed CJK + Latin spacing */
   :is(p, li, h1, h2, h3, h4, h5, h6, span) {
     --auto-spacing: 0.125em;

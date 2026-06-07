@@ -8,6 +8,8 @@ import rehypePrettyCode from "rehype-pretty-code";
 import { getAllDocs, getDocBySlug, getAdjacentDocs } from "@/lib/content";
 import { mdxComponents } from "@/components/mdx/components";
 import { TierBadge } from "@/components/handbook/tier-badge";
+import { ShareButton } from "@/components/handbook/share-button";
+import { HeadingAnchor } from "@/components/handbook/heading-anchor";
 
 const prettyCodeOptions = {
   // 双主题——CSS 通过 [data-theme] 切换；与本站现有 :root[data-theme="dark"] 暗色变量一致
@@ -81,10 +83,12 @@ export default async function HandbookPage({ params }: PageProps) {
           <TierBadge tier={doc.frontmatter.tier} />
           <span>约 {doc.readingMinutes} 分钟</span>
           {doc.lastModified && <span>上次更新于 {doc.lastModified}</span>}
+          <ShareButton title={doc.frontmatter.title} description={doc.frontmatter.description} />
         </div>
       </header>
 
       <MdxBody slug={slug} source={doc.source} />
+      <HeadingAnchor />
 
       <nav
         aria-label="章节导航"
