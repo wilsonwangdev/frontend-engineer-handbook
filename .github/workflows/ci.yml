@@ -35,20 +35,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check sequential numbers
-        run: pnpm check-seq
-
-      - name: Check frontmatter
-        run: pnpm check-fm
-
-      - name: Type check
-        run: pnpm type-check
-
-      - name: Lint (oxlint)
-        run: pnpm lint
-
-      - name: Format check (oxfmt)
-        run: pnpm format:check
+      - name: Static checks (parallel)
+        run: |
+          pnpm check-seq &
+          pnpm check-fm &
+          pnpm type-check &
+          pnpm lint &
+          pnpm format:check &
+          wait
 
       - name: Test (vitest)
         run: pnpm test
