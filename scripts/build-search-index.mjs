@@ -21,12 +21,11 @@ function stripMarkdown(md) {
     .trim();
 }
 
-function excerpt(text, maxLen = 300) {
-  const cleaned = stripMarkdown(text);
-  if (cleaned.length <= maxLen) return cleaned;
-  const cut = cleaned.slice(0, maxLen);
-  const lastSpace = cut.lastIndexOf(" ");
-  return lastSpace > maxLen * 0.7 ? cut.slice(0, lastSpace) : cut;
+/** 从 markdown 中提取所有标题文本（## / ###），用于增加搜索命中率 */
+function extractHeadings(md) {
+  const matches = md.match(/^#{2,3}\s+(.+)$/gm);
+  if (!matches) return "";
+  return matches.map((m) => m.replace(/^#{2,3}\s+/, "")).join(" ");
 }
 
 async function collectMdxFiles() {
@@ -65,7 +64,7 @@ async function collectMdxFiles() {
           description: data.description || "",
           url: `/${dir.name}/${slug}`,
           type: "section",
-          text: [data.description, excerpt(content)].filter(Boolean).join(" "),
+          text: [data.description, extractHeadings(content), stripMarkdown(content)].filter(Boolean).join(" "),
         });
       }
     } catch {

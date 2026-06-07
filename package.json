@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/build-search-index.mjs && next build",
+    "build": "node scripts/check-sequential.mjs && node scripts/build-search-index.mjs && next build",
     "start": "next start",
     "lint": "oxlint",
     "format": "oxfmt",
@@ -18,7 +18,8 @@
     "test:e2e:local": "PLAYWRIGHT_SKIP_WEBSERVER=1 playwright test",
     "smoke": "node scripts/smoke.mjs",
     "links": "node scripts/check-links.mjs",
-    "ci": "pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
+    "check-seq": "node scripts/check-sequential.mjs",
+    "ci": "pnpm run check-seq && pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
     "prepare": "husky"
   },
   "dependencies": {
