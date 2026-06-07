@@ -17,6 +17,8 @@ test.describe("Share", () => {
 
   test("heading anchor click copies URL with fragment", async ({ page }) => {
     await page.goto("/chapter-05/react-mental-model");
+    // Wait for HeadingAnchor's MutationObserver to add the button
+    await page.waitForSelector(".heading-anchor-btn", { timeout: 5000 });
     const heading = page.locator(".prose-cn h2").first();
     await heading.hover();
     await heading.locator(".heading-anchor-btn").click();
@@ -25,10 +27,18 @@ test.describe("Share", () => {
   });
 
   test("anchored URL scrolls to correct position", async ({ page }) => {
-    await page.goto("/chapter-05/react-mental-model#2-状态组件的内存");
-    // The heading should be visible in the viewport
-    const heading = page.locator("#2-状态组件的内存");
-    await expect(heading).toBeVisible();
+    await page.goto("/chapter-05/react-mental-model");
+    // CSS selector can't start with digit — use attribute selector
+    const heading = page.locator('[id="2-状态组件的内存"]');
+    // Navigate via click to trigger smooth scroll
+    const toc = page.locator('nav[aria-label="页面目录"]');
+    const links = await toc.locator("a").all();
+    // Click a mid-page TOC link to trigger smooth scroll
+    if (links.length >= 5) {
+      await links[4]!.click();
+      await page.waitForTimeout(600);
+    }
+    await expect(heading).toBeVisible({ timeout: 3000 });
     // It should be scrolled into view (not at the very top due to scroll-margin-top)
     const box = await heading.boundingBox();
     expect(box).toBeTruthy();
