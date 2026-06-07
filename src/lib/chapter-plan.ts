@@ -47,7 +47,7 @@ export const chapterPlan: PlannedChapter[] = [
     url: "/resources",
   },
   { id: "C", title: "中英术语对照表", type: "appendix", published: true, url: "/glossary" },
-  { id: "D", title: "实战避坑录", type: "appendix", published: false },
+  { id: "D", title: "实战避坑录", type: "appendix", published: true, url: "/appendix-d" },
 ];
 
 /** 完整发布的章数（partial 不计；它"在路上"但不是"完成") */
