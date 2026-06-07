@@ -423,13 +423,13 @@
 
     & a {
       color: var(--color-accent);
-      text-decoration: underline;
-      text-underline-offset: 0.2em;
-      text-decoration-thickness: 1px;
-      transition: text-decoration-thickness 0.15s;
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+      padding-bottom: 0.05em;
+      transition: border-bottom-width 0.15s;
 
       &:hover {
-        text-decoration-thickness: 2px;
+        border-bottom-width: 2px;
       }
     }
   }

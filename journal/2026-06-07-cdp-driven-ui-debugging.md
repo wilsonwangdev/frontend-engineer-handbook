@@ -64,3 +64,31 @@ style.lineHeight;
 
 这个 workflow 应该在项目 memory 中持久化，确保跨会话 agent 遇到
 UI 问题时优先走 CDP 测量路径。
+
+---
+
+## 追加：text-decoration 跨浏览器不一致问题
+
+**现象**：`text-underline-offset` + `text-decoration-skip-ink: auto` 在
+不同浏览器中对 descender（g/y/p 等字母降部）的处理不一致——部分浏览器
+降部仍会"切断"下划线。
+
+**根因**：`text-decoration-skip-ink` 的实现依赖字体的 ink 边界检测，不同
+渲染引擎（Blink/WebKit/Gecko）对"何处算 ink"的判断不同。
+
+**通用修复**：用 `border-bottom` 替代 `text-decoration`。边框始终绘制在
+元素 box 下方，不受文字字形影响：
+
+```css
+a {
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 0.05em;
+}
+a:hover {
+  border-bottom-width: 2px;
+}
+```
+
+**内容价值**：可升级到附录 D（实战避坑录），作为 CSS 实现细节的典型案例。
+目前在 journal 为首次记录，等 ≥2 次同类问题累积后触发升级。
