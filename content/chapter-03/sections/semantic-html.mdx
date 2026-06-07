@@ -112,7 +112,7 @@ DNA。值得新人知道的几条线：
 1. **a11y 投入产出**：[微软 2017 年内部研究](https://design.microsoft.com/inclusive)
    显示——为残障用户优化的产品，**对所有人**的可用性提升约 7-12%
 2. **修复成本曲线**：a11y bug **设计阶段修复** 1×、**开发阶段修复** 6×、
-   **上线后修复** 100× ([Deque "Shifting Left" 白皮书](https://www.deque.com/shift-left-accessibility/) **（英文）**)。
+   **上线后修复** 100×（Deque "Shifting Left" 白皮书，已不再提供在线版本）。
    这条曲线和"软件 bug 越晚修越贵"是同一个量级——但 a11y 经常被
    推到上线后才补，于是付了最高那档代价
 
@@ -342,7 +342,7 @@ ARIA 的前提，也是后面所有判断的基础。
 ```
 
 精确参考：[MDN · 表单可访问性指南](https://developer.mozilla.org/zh-CN/docs/Learn_web_development/Extensions/Forms/How_to_structure_a_web_form#%E5%88%A9%E7%94%A8_label_%E6%A0%87%E7%AD%BE%E5%85%83%E7%B4%A0%E5%A4%9A%E4%B8%AA%E8%A1%A8%E5%8D%95%E6%8E%A7%E4%BB%B6) +
-[Adam Silver · Form Design Patterns](https://adamsilver.io/articles/where-to-put-button-form/) **（英文）**——
+[Adam Silver · Form Design Patterns](https://adamsilver.io/blog/where-to-put-button-form/) **（英文）**——
 表单 a11y 设计的事实标准来源。
 
 ### 2.4 图像：alt 不是"图片描述"，是"在没有图的时候这格放什么字"
@@ -616,7 +616,7 @@ ARIA 一共三类属性，理解这个分类就懂了 80%：
 - 案例 1：保持 `disabled` 单独使用；只有需要"灰但可聚焦讲解"的特殊
   场景才用 `aria-disabled="true"` + `tabindex="0"`
 - 案例 2：让 `aria-label` 与可见文字**首词一致**（推荐做法见
-  [W3C · Visible label and accessible name](https://www.w3.org/WAI/WCAG22/Techniques/general/G208) **（英文）**）
+  [W3C · Visible label and accessible name](https://www.w3.org/WAI/WCAG22/Techniques/general/G208) **（英文）**
 - 案例 3：用 `inert` 属性（现代浏览器原生支持）替代 `aria-hidden`，
   它会**同时**禁用焦点和阅读器
 
@@ -631,7 +631,7 @@ ARIA 一共三类属性，理解这个分类就懂了 80%：
 - WAI 官方的可工作示例
 
 **实战建议**：直接用 [Radix UI](https://www.radix-ui.com/) /
-[React Aria](https://react-spectrum.adobe.com/react-aria/) /
+[React Aria](https://react-aria.adobe.com/) /
 [Headless UI](https://headlessui.com/) 等"无头组件库"——它们就是
 APG 的工程化封装，比自己照着 APG 写要稳得多。第 5 章会从 React
 视角再讲一遍这些库。
@@ -742,7 +742,7 @@ skip link 设计的事实标准来源。
 **反例**：模态打开后焦点还在背景按钮上——用户按 Tab 跑出模态、看
 不到光标在哪、按 ESC 没反应。这是 a11y 翻车率最高的组件。
 
-精确参考：[Heydon Pickering · A Modal Dialog · Focus management](https://inclusive-components.design/a-modal-dialog/) **（英文）** +
+精确参考：[Heydon Pickering · A Todo List（含 focus 管理）](https://inclusive-components.design/a-todo-list/) **（英文）** +
 [MDN · `inert` 属性](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Global_attributes/inert) —— 现代浏览器把"模态外的元素全部
 disable"做到了一行属性，是 focus trap 的进阶武器。
 
@@ -925,7 +925,7 @@ WCAG AA 要求正文对比度 ≥ 4.5:1。**英文字体可以靠 weight 400 还
 / 引文）测两到三个阅读器再发版。
 
 精确参考：[W3C i18n WG · Internationalization Activity](https://www.w3.org/International/) **（英文）** +
-[CJK 排版陷阱（State of HTML 2024）](https://2024.stateofhtml.com/zh-Hans/typography/)——
+[State of HTML 2024 调查结果](https://2024.stateofhtml.com/zh-Hans/)——
 中文 Web 在国际化与可访问性的交叉点。
 
 ---
@@ -984,7 +984,7 @@ WCAG AA 要求正文对比度 ≥ 4.5:1。**英文字体可以靠 weight 400 还
 - 打开后焦点落在第一项，关闭后回到触发按钮
 
 **别自己写**——直接用 [Radix UI · Dropdown Menu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu) **（英文）** 或
-[React Aria · Combobox](https://react-spectrum.adobe.com/react-aria/Combobox.html) **（英文）**，
+[React Aria · Combobox](https://react-aria.adobe.com/Combobox) **（英文）**，
 完整 APG 实现 + 经过 Deque 审计。
 
 ### 翻车 2：模态遮罩没焦点陷阱
@@ -1154,7 +1154,7 @@ focus trap + ESC 关闭，2024 起全主流支持。
   中文 a11y 入口；按主题导航
 - [W3C WAI-ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
   **（英文）** — 自造组件前的标配参考；30+ 模式都有完整代码 + 键盘交互
-- [WCAG 2.2 中文版](https://www.w3.org/Translations/WCAG22-zh/) —
+- [WCAG 2.2](https://www.w3.org/TR/WCAG22/) **（英文）** —
   万一被合规问起来直接引这个
 - [The A11y Project](https://www.a11yproject.com/) **（英文）** —
   社区维护的 a11y 速查 + 检查清单
