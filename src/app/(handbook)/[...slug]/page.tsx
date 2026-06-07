@@ -8,7 +8,6 @@ import rehypePrettyCode from "rehype-pretty-code";
 import { getAllDocs, getDocBySlug, getAdjacentDocs } from "@/lib/content";
 import { mdxComponents } from "@/components/mdx/components";
 import { TierBadge } from "@/components/handbook/tier-badge";
-import { SITE_URL } from "@/lib/site-url";
 import { ShareButton } from "@/components/handbook/share-button";
 import { HeadingAnchor } from "@/components/handbook/heading-anchor";
 
@@ -55,13 +54,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const doc = await getDocBySlug(slug);
   if (!doc) return {};
-  const ogUrl = `${SITE_URL}/og?title=${encodeURIComponent(doc.frontmatter.title)}&chapter=${doc.frontmatter.chapter}&desc=${encodeURIComponent(doc.frontmatter.description)}`;
   return {
     title: doc.frontmatter.title,
     description: doc.frontmatter.description,
-    openGraph: {
-      images: [{ url: ogUrl, width: 1200, height: 630 }],
-    },
   };
 }
 
