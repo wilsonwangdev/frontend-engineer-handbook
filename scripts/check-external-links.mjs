@@ -14,10 +14,7 @@ import { resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
-const ANYSEARCH_CLI = resolve(
-  REPO_ROOT,
-  "../../.claude/skills/anysearch/scripts/anysearch_cli.py",
-);
+const ANYSEARCH_CLI = resolve(REPO_ROOT, "../../.claude/skills/anysearch/scripts/anysearch_cli.py");
 
 function extractUrls(text) {
   const urls = new Set();
@@ -32,9 +29,17 @@ function extractUrls(text) {
 
 async function checkUrl(url) {
   try {
-    const proc = Bun.spawn(["python3", ANYSEARCH_CLI, "search", `site:${new URL(url).hostname} ${new URL(url).pathname.split("/").pop()}`], {
-      stdout: "pipe",
-    });
+    const proc = Bun.spawn(
+      [
+        "python3",
+        ANYSEARCH_CLI,
+        "search",
+        `site:${new URL(url).hostname} ${new URL(url).pathname.split("/").pop()}`,
+      ],
+      {
+        stdout: "pipe",
+      },
+    );
     const output = await new Response(proc.stdout).text();
     // If the search returns results containing our URL, it's likely valid
     const found = output.includes(url) || output.includes(new URL(url).pathname.replace(/\/$/, ""));
