@@ -20,33 +20,40 @@ export async function GET(request: NextRequest) {
         width: 1200,
         height: 630,
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
         justifyContent: "center",
         background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
         color: "white",
         fontFamily: fontData ? '"Noto Sans SC"' : "system-ui, sans-serif",
-        padding: 80,
       }}
     >
-      {chapter && (
-        <p style={{ fontSize: 22, fontWeight: 400, color: "#94a3b8", margin: 0 }}>
-          第 {chapter} 章 · 前端工程师手册
-        </p>
-      )}
-      <h1
+      <div
         style={{
-          fontSize: 64,
-          fontWeight: 700,
-          margin: "20px 0 16px",
-          color: "#f1f5f9",
-          lineHeight: 1.2,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          maxWidth: 560,
         }}
       >
-        {title}
-      </h1>
-      <p style={{ fontSize: 28, color: "#94a3b8", margin: 0, maxWidth: 800, lineHeight: 1.4 }}>
-        {desc}
-      </p>
+        {chapter && (
+          <p style={{ fontSize: 26, fontWeight: 400, color: "#94a3b8", margin: 0 }}>
+            第 {chapter} 章 · AI 时代中文精编手册
+          </p>
+        )}
+        <h1
+          style={{
+            fontSize: 64,
+            fontWeight: 700,
+            margin: chapter ? "16px 0 12px" : "0 0 12px",
+            color: "#f1f5f9",
+            lineHeight: 1.15,
+          }}
+        >
+          {title}
+        </h1>
+        <p style={{ fontSize: 26, color: "#94a3b8", margin: 0, lineHeight: 1.3 }}>{desc}</p>
+      </div>
     </div>
   );
 

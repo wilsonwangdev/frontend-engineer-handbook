@@ -51,7 +51,7 @@ export default async function Image() {
         </p>
         <h1
           style={{
-            fontSize: 84,
+            fontSize: 64,
             fontWeight: 700,
             margin: "20px 0 16px",
             letterSpacing: "-0.02em",
