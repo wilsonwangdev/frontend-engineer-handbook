@@ -1,0 +1,228 @@
+---
+title: 样式方案
+chapter: 5
+section: 6
+description: Tailwind CSS（推荐）/ CSS Modules / styled-components 对比——2025 年 React 项目怎么写样式
+tier: essential
+prerequisites:
+  - /chapter-05/react-mental-model
+  - /chapter-03/styling-systems
+paths:
+  sequential: 30
+---
+
+## 0. 一段必要的回顾：从 CSS-in-JS 到原子化 CSS
+
+第 3 章 §3.5 讲了 CSS 语言层的样式方案选型——原生 CSS vs 预处理器 vs CSS-in-JS vs 设计令牌。那一节是**语言层取舍**：不管你用什么框架，写 CSS 都要面对这些选择。
+
+这一节讲**框架层集成**——React 项目里 Tailwind / CSS Modules / styled-components 分别怎么用、怎么选。和第 3 章不同：这里不纠结"原生 CSS 语法够不够"，而是聚焦**React 组件模型下的样式组织方式**。
+
+2020-2025 年最大的变化：社区从 CSS-in-JS（styled-components 主导）转向原子化 CSS（Tailwind 主导）。这个转变的驱动力是 React 本身的变化——服务端组件不支持运行时 CSS-in-JS，而 Tailwind 在编译时生成 CSS，天然兼容 RSC。
+
+> **如果你只记得一件事**：2025 年开始一个新 React 项目，默认选 Tailwind + shadcn/ui。除非有明确的理由选别的——团队已有 CSS Modules 成熟实践、或设计师不接受原子化类名、或项目是高度动态样式的编辑器类应用。
+
+---
+
+## 1. Tailwind CSS：原子化优先
+
+Tailwind 不是"另一种写 CSS 的方式"——它是**把样式拆成最小的可复用单元（原子类），直接在 HTML 里组合**。
+
+```tsx
+function PricingCard({ plan }) {
+  return (
+    <div className="rounded-lg border bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-gray-900">{plan.name}</h2>
+      <p className="mt-2 text-3xl font-bold">${plan.price}/月</p>
+      <button className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+        开始试用
+      </button>
+    </div>
+  );
+}
+```
+
+**为什么推荐作为默认选择**：
+
+1. **RSC 兼容**——编译时生成 CSS 文件，不依赖运行时 JS。服务端组件里直接用，没有"这个库不支持 RSC"的问题。
+2. **设计系统天然载体**——`tailwind.config.ts` 里的 `theme` 对象就是你的设计令牌。颜色、间距、字体全部集中配置，AI 写组件时从配置取值，不会出现"这个蓝是哪个蓝"的问题。
+3. **AI 协作最佳**——AI 训练数据里 Tailwind 代码占比极高，生成质量远高于 CSS Modules 或 styled-components。你给 AI 一个设计稿截图，它输出的 Tailwind 代码通常是正确的。
+4. **按需编译**——只生成项目实际使用到的类，打包体积 ≈ 5KB gzip。
+
+**局限**：
+
+- 类名长——一个按钮可能有 8 个类。习惯了就好，但不习惯的团队成员初期会抵触。
+- 不适合极度复杂的动态样式——编辑器、绘图工具这类应用用 CSS Modules 或 CSS-in-JS 更灵活。
+
+---
+
+## 2. CSS Modules：局部作用域的传统方案
+
+CSS Modules 的本质：**每个组件的样式文件只作用于这个组件**——类名在编译时被哈希化，不会全局冲突。
+
+```tsx
+// Button.module.css
+.primary {
+  background: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+
+// Button.tsx
+import styles from "./Button.module.css";
+
+function Button() {
+  return <button className={styles.primary}>点击</button>;
+}
+// 编译后：<button class="Button_primary_abc123">点击</button>
+```
+
+**什么时候选 CSS Modules**：
+
+- ✅ 团队已经用 CSS Modules 多年，没有迁移意愿
+- ✅ 需要写大量自定义 CSS（设计师有独特的设计语言，Tailwind 预设不够用）
+- ✅ 社区库或老项目维护
+- ❌ 新项目无特殊理由——Tailwind 通常是更好的选择
+
+**和 Tailwind 的关系**：两者可以共存——Tailwind 负责 80% 的常规样式（间距、颜色、排版），CSS Modules 负责剩下的 20%（复杂动画、特殊布局）。不推荐，但技术上可行。
+
+---
+
+## 3. styled-components：曾经的王者，现在的特定场景工具
+
+2017-2020 年 styled-components 是 React 社区的默认样式方案。核心优势：**样式和组件在同一个文件里，用 JS 变量驱动样式变化**。
+
+```tsx
+import styled from "styled-components";
+
+const Button = styled.button`
+  background: ${(props) => (props.$primary ? "#3b82f6" : "#e5e7eb")};
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+`;
+
+<Button $primary>点击</Button>;
+```
+
+**为什么不再推荐作为默认**：
+
+1. **不支持服务端组件**——styled-components 依赖运行时 JS 注入样式，在 RSC 里无法使用。需要 `"use client"` + `StyledComponentsRegistry` 包装器。
+2. **运行时开销**——每个 styled 组件在浏览器里都要执行 JS 来生成 CSS。Tailwind 和 CSS Modules 在编译时就完成了。
+3. **AI 协作较差**——训练数据中 styled-components 的占比在下降，AI 生成质量不如 Tailwind。
+
+**什么时候仍然值得用**：
+
+- ✅ 编辑器、设计工具等需要高度动态样式（颜色取色器、主题实时切换）的应用
+- ✅ 老项目维护——不加新东西，不需迁移
+- ❌ 2025 年新项目——不推荐作为起点
+
+> **和 §4.3 的关系**：第 4 章 §4.4 介绍了 ES2020+ 新特性，其中的 Tagged Templates（`styled.button\`...\``）就是 styled-components 的底层机制。
+
+---
+
+## 4. 选型决策：三张速查表
+
+### 4.1 根据项目类型选
+
+| 项目类型                     | 推荐                             | 理由                  |
+| ---------------------------- | -------------------------------- | --------------------- |
+| 新项目（无历史包袱）         | Tailwind + shadcn/ui             | RSC 兼容、AI 协作最佳 |
+| 老项目已有 CSS Modules       | 继续用                           | 迁移成本 > 收益       |
+| 老项目已有 styled-components | 继续用                           | 等待需要 RSC 时再评估 |
+| 设计系统重的产品             | Tailwind + 设计令牌              | 配置驱动，一致性高    |
+| 编辑器/绘图等高度动态样式    | CSS Modules 或 styled-components | Tailwind 约束过强     |
+
+### 4.2 根据团队能力选
+
+| 团队情况             | 推荐                             |
+| -------------------- | -------------------------------- |
+| 团队熟悉 Tailwind    | Tailwind                         |
+| 团队熟悉 CSS Modules | CSS Modules（保持）              |
+| 团队有资深设计师     | Tailwind（设计师可以直接改配置） |
+| 团队以 AI 辅助为主   | Tailwind（AI 生成质量最高）      |
+
+### 4.3 根据技术约束选
+
+| 约束             | 影响                                |
+| ---------------- | ----------------------------------- |
+| 需要服务端组件   | ❌ styled-components 不可用         |
+| 需要最小打包体积 | ✅ Tailwind（按需编译）             |
+| 需要 SSR 高性能  | ✅ Tailwind / CSS Modules（编译时） |
+
+---
+
+## 5. shadcn/ui：不是组件库，是组件代码进项目
+
+shadcn/ui 是 2023 年后最值得关注的 React 样式生态变化。它不是一个 `npm install` 的库——它是**复制粘贴组件源代码到你的项目里**。
+
+```
+npx shadcn-ui@latest add button
+```
+
+执行后在 `src/components/ui/button.tsx` 生成一个完整的 Button 组件——你可以直接修改它的源码。它用 Tailwind 写样式，用 Radix UI 做无障碍基础。
+
+**为什么推荐 shadcn/ui + Tailwind 组合**：
+
+1. 代码是你的——不需要等上游更新，想改就改
+2. 按需引入——不会为了用一个 Button 引入整个组件库
+3. AI 协作友好——AI 熟悉 shadcn 的代码风格，能基于已有的 components/ui 扩展新组件
+
+---
+
+## 6. 设计判断暗线
+
+- **编译时优先**：Tailwind 和 CSS Modules 有一个共同优势——样式在编译时确定，运行时零开销。这不是巧合——React 社区在经历了 styled-components 的运行时代价后，整体向编译时迁移。
+- **约束带来一致性**：Tailwind 的"限制"（不能用任意值）在团队协作中反而是优势——所有人的组件用同一套间距尺度和色板，不会出现 13px / 14px / 15px 三种不统一的字号。
+- **工具链与框架协同演化**：CSS-in-JS 的兴衰和 React 的架构变化直接相关——2017 年 JS 驱动一切时它是最好的方案，2024 年 RSC 把计算推回服务端后它被边缘化。理解这种协同关系，比背"哪个更好"重要。
+
+---
+
+## 7. AI 时代写样式的最小集
+
+### 你必须把握的部分
+
+- **选型决策**：AI 会写 Tailwind / CSS Modules 的代码，但不知道你的团队历史和项目约束。决定"用哪个"是你的判断。
+- **设计令牌配置**：AI 能生成一堆 Tailwind 类，但不知道你的品牌色、字体栈是什么。你需要把设计令牌配进 `tailwind.config.ts`——这是 AI 协作的基础。
+- **无障碍**：AI 能用 Tailwind 写出好看的 UI，但经常忘记 `focus-visible`、`aria-label`、颜色对比度。你需要审查——特别是自定义颜色。
+
+### 你可以委托 AI 的部分
+
+- **组件样式实现**：给设计稿截图 → AI 输出 Tailwind 代码 → 你 review 无障碍
+- **响应式断点**：AI 知道 `sm:` / `md:` / `lg:` 的用法
+- **shadcn/ui 组件扩展**：基于已有的组件生成变体
+
+### 你对 AI 写的样式代码最容易错的事
+
+1. **AI 会滥用 `!important`**——当 Tailwind 类冲突时 AI 用 `!` 强制覆盖，而不是找出根因
+2. **AI 会忽略暗色模式**——只写亮色主题的样式，`dark:` 变体经常遗漏
+
+---
+
+## 8. 三档归位
+
+| 你应该能                                                     | 对应 Tier |
+| ------------------------------------------------------------ | :-------: |
+| 用 Tailwind 写一个响应式卡片组件                             |   必学    |
+| 解释 Tailwind vs CSS Modules vs styled-components 的适用场景 |   必学    |
+| 配置 Tailwind 设计令牌（颜色/字体/间距）                     |   理解    |
+| 用 shadcn/ui 扩展项目组件库                                  |   理解    |
+| 决定新项目的样式方案选型                                     |   理解    |
+| 审查 AI 生成的 Tailwind 代码中的无障碍问题                   |   理解    |
+| 为 styled-components 项目制定迁移到 Tailwind 的方案          | 可委托 AI |
+| 生成 Tailwind 类名的响应式变体                               | 可委托 AI |
+
+---
+
+## 9. 延伸阅读
+
+- [Tailwind CSS 官方文档](https://tailwindcss.com/docs)
+- [shadcn/ui 官方文档](https://ui.shadcn.com/)
+- [Next.js 官方：CSS-in-JS](https://nextjs.org/docs/app/guides/css-in-js)
+- [styled-components 官方文档](https://styled-components.com/)
+
+---
+
+第 5 章完。前端框架层从心智模型到样式方案的完整判断地图。
+
+下一章：[第 6 章 工程化与构建](/chapter-06)（编写中）——打包、优化、CI/CD。
