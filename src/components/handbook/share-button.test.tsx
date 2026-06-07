@@ -1,35 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+function isWeChatUA(ua: string) {
+  return /MicroMessenger/i.test(ua);
+}
+
 describe("ShareButton logic", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("detects Web Share API availability", () => {
-    // Present
-    vi.stubGlobal("navigator", { share: vi.fn() });
-    expect(typeof navigator.share).toBe("function");
-
-    // Absent
-    vi.stubGlobal("navigator", {});
-    expect(navigator.share).toBeUndefined();
+  it("detects WeChat browser via user agent", () => {
+    expect(isWeChatUA("Mozilla/5.0 MicroMessenger/8.0")).toBe(true);
+    expect(isWeChatUA("Mozilla/5.0 Chrome/120 Safari/537.36")).toBe(false);
   });
 
-  it("falls back to clipboard copy when share is unavailable", async () => {
+  it("excludes share capability in WeChat even if API exists", () => {
+    vi.stubGlobal("navigator", {
+      share: vi.fn(),
+      userAgent: "Mozilla/5.0 MicroMessenger/8.0",
+    });
+    const wechat = isWeChatUA(navigator.userAgent);
+    const canShare = !wechat && !!navigator.share;
+    expect(canShare).toBe(false);
+  });
+
+  it("copies clean URL to clipboard when share is unavailable", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", {
       share: undefined,
       clipboard: { writeText },
     });
 
-    const title = "React 心智模型";
-    const description = "组件、状态、副作用";
     const url = "https://fe.wilsonhandbook.online/chapter-05/react-mental-model";
-
-    await writeText(`${title}\n${description}\n${url}`);
-    expect(writeText).toHaveBeenCalledWith(
-      "React 心智模型\n组件、状态、副作用\nhttps://fe.wilsonhandbook.online/chapter-05/react-mental-model",
-    );
+    await writeText(url);
+    expect(writeText).toHaveBeenCalledWith(url);
   });
 
   it("includes title and description in share data", () => {

@@ -8,12 +8,16 @@ interface Props {
   description: string;
 }
 
+const isWeChat = () =>
+  typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
+
 export function ShareButton({ title, description }: Props) {
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
   useEffect(() => {
-    setCanShare(!!navigator.share);
+    // 微信内置浏览器 Web Share API 实现不完整——能弹窗但无法跳转
+    setCanShare(!isWeChat() && !!navigator.share);
   }, []);
 
   const handleShare = useCallback(async () => {
@@ -23,13 +27,11 @@ export function ShareButton({ title, description }: Props) {
       try {
         await navigator.share({ title, text: description, url });
       } catch {
-        // 用户取消分享——静默
+        // 用户取消分享或 API 异常——静默降级
       }
     } else {
-      // 桌面端降级：复制链接
-      const text = `${title}\n${description}\n${url}`;
       try {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {
@@ -43,7 +45,7 @@ export function ShareButton({ title, description }: Props) {
       type="button"
       onClick={handleShare}
       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"
-      aria-label={canShare ? "分享此页面" : "复制链接"}
+      aria-label="复制链接"
     >
       {copied ? (
         <>
@@ -53,7 +55,7 @@ export function ShareButton({ title, description }: Props) {
       ) : (
         <>
           <Share2 size={14} strokeWidth={1.75} />
-          <span>{canShare ? "分享" : "复制链接"}</span>
+          <span>复制链接</span>
         </>
       )}
     </button>
