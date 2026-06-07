@@ -25,7 +25,7 @@
   --color-bg: oklch(1 0 0);
   --color-bg-elevated: oklch(0.98 0.005 260);
   --color-border: oklch(0.92 0.005 260);
-  --color-accent: oklch(0.55 0.2 250);
+  --color-accent: oklch(0.52 0.2 250);
 }
 
 /* View Transition for page navigation.

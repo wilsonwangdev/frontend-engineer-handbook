@@ -6,7 +6,7 @@ test.describe("handbook chapters", () => {
     await page.goto("/chapter-00");
     await expect(page.getByRole("heading", { name: "如何使用本手册", level: 1 })).toBeVisible();
     await expect(page.getByText("第 0 章")).toBeVisible();
-    await expect(page.getByText("必学")).toBeVisible();
+    await expect(page.getByText("必学").first()).toBeVisible();
     await expect(page.getByText("你是谁")).toBeVisible();
     await expect(page.getByText("三种使用方式")).toBeVisible();
   });

@@ -100,7 +100,7 @@ function PathCard({
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="mt-1 text-xs text-fg-muted">{desc}</p>
-        {note && <p className="mt-2 text-[11px] text-fg-muted/50">{note}</p>}
+        {note && <p className="mt-2 text-[11px] text-fg-muted">{note}</p>}
       </div>
     </div>
   );
