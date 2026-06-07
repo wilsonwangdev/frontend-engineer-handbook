@@ -1,0 +1,264 @@
+---
+title: Next.js App Router
+chapter: 5
+section: 4
+description: 文件系统路由、布局嵌套、数据获取、缓存策略、ISR——Next.js 13.4+ 的全栈架构
+tier: essential
+prerequisites:
+  - /chapter-05/rsc-and-streaming
+paths:
+  sequential: 28
+---
+
+## 0. 一段必要的回顾：从 Pages Router 到 App Router
+
+2016-2022 年，Next.js 的路由系统叫 **Pages Router**——文件名即路由，`pages/about.tsx` 对应 `/about`。这个模型简单直观，但有一个根本限制：**路由和布局绑定在文件级别**——你没法让多个页面共享一个侧边栏而不重复写代码。
+
+2023 年 Next.js 13.4 引入的 **App Router** 是全新架构——基于 React Server Components，把路由从"文件对 URL"升级为**文件系统 + 布局嵌套 + 数据流**三层设计。
+
+> **为什么不直接从"怎么建路由"开始学？** 因为 App Router 的文件约定（`page.tsx` / `layout.tsx` / `loading.tsx`）很容易背，但如果不理解"为什么要有 layout"和"数据流怎么走"，你会把它当成"改名版的 Pages Router"——那就完全错过了它的设计意图。
+
+---
+
+## 1. 文件即路由：一张图看懂
+
+App Router 的核心约定：`app` 目录下的文件结构**直接映射为 URL**，特殊文件名有特殊含义：
+
+```text
+app/
+├── layout.tsx          ← 根布局（所有页面共享）
+├── page.tsx            ← / （首页）
+├── about/
+│   └── page.tsx        ← /about
+├── blog/
+│   ├── layout.tsx      ← /blog/* 的共享布局
+│   ├── page.tsx        ← /blog
+│   └── [slug]/
+│       └── page.tsx    ← /blog/hello-world（动态路由）
+└── dashboard/
+    ├── layout.tsx       ← /dashboard/* 的共享布局
+    ├── page.tsx         ← /dashboard
+    ├── loading.tsx      ← /dashboard 的加载态
+    └── error.tsx        ← /dashboard 的错误边界
+```
+
+关键文件约定：
+
+| 文件名          | 作用                    | 说明                               |
+| --------------- | ----------------------- | ---------------------------------- |
+| `page.tsx`      | 路由对应的页面内容      | 必须有默认导出                     |
+| `layout.tsx`    | 包裹子页面的共享 UI     | 导航切换时**不重新渲染**           |
+| `loading.tsx`   | 页面加载中的 fallback   | 自动包裹在 Suspense 中             |
+| `error.tsx`     | 页面渲染出错的 fallback | 必须是客户端组件（`"use client"`） |
+| `not-found.tsx` | 404 页面                | 可放在任何目录层级                 |
+| `route.tsx`     | API 路由                | 替代 Pages Router 的 `api/` 目录   |
+
+---
+
+## 2. 布局（Layout）：App Router 最大的创新
+
+Pages Router 下，如果你有 5 个页面共享同一个侧边栏，你需要写 5 遍——或者在 `_app.tsx` 里用条件判断"哪些页面显示侧边栏"。维护成本高，而且导航时整个页面重新渲染。
+
+App Router 的 `layout.tsx` 解决了这个问题：
+
+```tsx
+// app/dashboard/layout.tsx
+export default function DashboardLayout({ children }) {
+  return (
+    <div className="flex">
+      <Sidebar /> {/* 导航切换时不重新渲染 */}
+      <main>{children}</main> {/* 只有这部分随路由变化 */}
+    </div>
+  );
+}
+```
+
+**关键特性**：布局在导航时**保持挂载**。从 `/dashboard/analytics` 切换到 `/dashboard/settings` 时，`<Sidebar />` 不卸载、不重新渲染——只有 `{children}` 部分更新。这比 Pages Router 的整页重渲染高效得多，而且保留了客户端状态（侧边栏的展开/折叠不会丢失）。
+
+布局可以**嵌套**：
+
+```text
+app/
+├── layout.tsx          ← 最外层：导航栏 + 页脚（所有页面共享）
+├── dashboard/
+│   ├── layout.tsx      ← 第二层：侧边栏（仅 /dashboard/* 页面共享）
+│   └── settings/
+│       ├── layout.tsx  ← 第三层：设置页标签栏（仅 /dashboard/settings/* 共享）
+│       └── page.tsx
+```
+
+每层布局只负责自己那一层的 UI，层层嵌套。这正是第 4 章讲的**组合（composition）** 在路由架构中的体现。
+
+---
+
+## 3. 数据获取：不再需要 `getServerSideProps`
+
+Pages Router 时代，数据获取通过三个函数：
+
+```tsx
+// Pages Router——每个页面导出一个数据获取函数
+export async function getServerSideProps() { ... }   // 每次请求都跑
+export async function getStaticProps() { ... }        // 构建时跑
+export async function getStaticPaths() { ... }        // 动态路由的静态路径
+```
+
+App Router 把这些全部**统一为 async 组件**——你直接在组件里 `await` 数据：
+
+```tsx
+// App Router——组件本身就是数据获取 + 渲染
+export default async function BlogPage() {
+  const posts = await db.posts.findMany(); // 直接在组件里查数据库
+  return (
+    <ul>
+      {posts.map((p) => (
+        <li key={p.id}>{p.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+**不需要区分 SSR 和 SSG**——Next.js 根据你的数据获取方式自动决定：
+
+- 如果数据在构建时就能确定（没有动态参数），自动静态生成
+- 如果数据依赖动态参数（如 `params.slug`），自动服务端渲染
+- 想强制静态 → 加 `export const dynamic = "force-static"`
+- 想强制动态 → 加 `export const dynamic = "force-dynamic"`
+
+---
+
+## 4. Next.js 的四层缓存体系
+
+Next.js 的缓存是**理解数据流的关键**——搞不清楚缓存，你的页面可能返回过期数据，或者每次请求都重新生成。
+
+| 层级              | 缓存什么              | 在哪里           | 默认行为               |
+| ----------------- | --------------------- | ---------------- | ---------------------- |
+| **数据缓存**      | `fetch()` 的返回值    | 服务端内存       | 永久缓存（跨请求复用） |
+| **完整 RSC 负载** | 服务端组件渲染的输出  | 服务端内存       | 永久缓存               |
+| **路由缓存**      | 路由对应的 HTML       | 浏览器（软导航） | 会话内缓存             |
+| **客户端缓存**    | JS/CSS/图片等静态资源 | 浏览器           | 永久（带哈希）         |
+
+**最常见的坑**：`fetch()` 默认永久缓存——你的博客列表上线后改了数据库，但页面显示的还是旧数据。修复：设置 `cache: "no-store"` 让每次请求都重新获取，或使用 `next.revalidate` 设置重新验证周期。
+
+```tsx
+// 每次请求都重新获取（动态数据）
+fetch(url, { cache: "no-store" });
+
+// 每隔 60 秒重新验证（ISR）
+fetch(url, { next: { revalidate: 60 } });
+```
+
+**选型建议**：
+
+- 博客、文档 → 静态生成 + ISR（`revalidate: 3600`，每小时重建）
+- 用户仪表盘 → `cache: "no-store"`（每个用户看到自己的最新数据）
+- 产品详情页 → ISR（`revalidate: 300`，5 分钟更新一次）
+
+---
+
+## 5. ISR：构建后也能更新内容
+
+ISR（Incremental Static Regeneration）是 Next.js 的杀手功能——**页面在构建时静态生成，在运行时按需重建**。
+
+```tsx
+// 产品详情页——构建时静态生成，之后每 5 分钟检查一次更新
+export const revalidate = 300; // 秒
+
+export default async function ProductPage({ params }: { params: { id: string } }) {
+  const product = await db.products.findById(params.id);
+  return <ProductDetail product={product} />;
+}
+```
+
+工作流程：
+
+1. 首次构建：所有产品页静态生成
+2. 用户访问 `/products/123`：返回构建时生成的静态 HTML
+3. 5 分钟后，另一个用户访问：仍然返回旧 HTML（不阻塞用户），**后台触发重建**——重新查数据库、重新渲染
+4. 重建完成：下一个请求拿到新 HTML
+
+**ISR 的巧妙之处**：旧数据先返回，新数据后台生成。用户不需要等待数据库查询完成——他们拿到的是静态 HTML（毫秒级），更新是异步的。
+
+> **本站在生产中的实际情况**：Cache Components（`cacheComponents: true`）默认处理缓存策略，站点在 Vercel 上构建为静态页面 + PPR（Partial Prerender），构建输出显示 15 分钟 revalidate、1 年 expire——这是 Next.js 的默认行为，无需手动配置。
+
+---
+
+## 6. Proxy（请求拦截）：在请求到达页面之前
+
+> **前置概念：Edge Runtime**。Next.js 有两种运行环境——**Node.js Runtime**（完整 Node API，可读文件/连数据库，默认用于服务端组件）和 **Edge Runtime**（轻量 Web API 子集，运行在全球边缘节点上，离用户更近，毫秒级冷启动）。Edge Runtime **不能**用 Node.js 特有 API（`fs`、`path`、原生模块），只能使用 Web 标准 API（`fetch`、`Request`、`Response`、`crypto` 等）。
+
+> **命名变更**：Next.js 16+ 将 Middleware 重命名为 Proxy，文件也从 `middleware.ts` 改为 `proxy.ts`。概念相同——在请求到达页面之前执行的边缘层拦截器——但 API 和文件名有变化。以下是当前版本（16+）的用法。
+
+Next.js 的 Proxy **必须**运行在 Edge Runtime——它需要在请求到达服务端之前拦截请求，所以必须在边缘网络上执行。适合：A/B 测试、国际化的地理位置重定向、认证检查。
+
+```ts
+// proxy.ts——项目根目录
+import { NextResponse } from "next/server";
+
+export function proxy(request) {
+  // 所有 /dashboard/* 页面需要登录
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    const token = request.cookies.get("token");
+    if (!token) return NextResponse.redirect(new URL("/login", request.url));
+  }
+}
+```
+
+**限制**：Proxy 运行在 Edge，不能访问 Node.js API（不能读文件系统、不能连数据库）。它适合**路由级别的轻量判断**，复杂逻辑留给页面组件。
+
+---
+
+## 7. 设计判断暗线
+
+- **文件系统即声明**：App Router 的 `page.tsx` / `layout.tsx` / `loading.tsx` 不是"Next.js 的魔法文件名"——它们是**声明式路由的表层语法**。你写的不是"当请求这个 URL 时执行哪个函数"，而是"这个目录结构**就是**这个应用的路由结构"。
+- **缓存是分层的**：四层缓存不是"四个独立的开关"——它们是瀑布：数据 → RSC → 路由 → 客户端。上一层更新后下一层才有效。理解这个层级关系是 debug 缓存问题的关键。
+- **静态优先，动态例外**：Next.js 的默认哲学是"能静态就静态"。静态页面零服务端成本、毫秒级响应。只有在确实需要动态数据时才用 ISR 或 `no-store`。
+
+---
+
+## 8. AI 时代写 Next.js 的最小集
+
+### 你必须把握的部分
+
+- **缓存策略选型**：AI 会写 `fetch()` 代码，但不知道你的数据更新频率。你需要决定：这个数据改得有多频繁？用 `revalidate` 还是 `no-store`？
+- **布局边界设计**：AI 会倾向把 layout 写得很大（一个 layout 包含所有共享 UI）或很小（每层只有几行）。你需要根据业务结构设计布局的嵌套层级。
+- **ISR 时机判断**：内容更新后多久用户能看到新版本？这个决策影响 `revalidate` 的值——你的业务判断，不是 AI 能做的。
+
+### 你可以委托 AI 的部分
+
+- **路由文件创建**：`page.tsx` / `layout.tsx` / `loading.tsx`——模板化操作
+- **`fetch()` + `revalidate` 语法**：标准模式，AI 写得快
+- **中间件模板**：认证检查、地理重定向——模板化
+
+### 你对 AI 写的 Next.js 代码最容易错的事
+
+1. **AI 会把 `revalidate: 0` 当动态用**——但其实 `revalidate: 0` 的语义和 `cache: "no-store"` 不同，在 ISR 场景下行为不一致
+2. **AI 会在 `layout.tsx` 里写 `useState`**——layout 默认是服务端组件，不能用 Hook。AI 的处理方式是无脑加 `"use client"`，把整个 layout 变成客户端组件
+
+---
+
+## 9. 三档归位
+
+| 你应该能                                         | 对应 Tier |
+| ------------------------------------------------ | :-------: |
+| 用文件系统约定创建页面和布局                     |   必学    |
+| 解释 layout 在导航时保持挂载的行为               |   必学    |
+| 用 async 组件替代 `getServerSideProps`           |   必学    |
+| 根据数据场景选择 `revalidate` vs `no-store`      |   必学    |
+| 设计合理的 layout 嵌套层级                       |   理解    |
+| 配置 ISR 让静态页面按需更新                      |   理解    |
+| 写一个简单的中间件（认证 / 重定向）              |   理解    |
+| 为现有 Pages Router 项目规划 App Router 迁移方案 | 可委托 AI |
+
+---
+
+## 10. 延伸阅读
+
+- [Next.js 官方：App Router](https://nextjs.org/docs/app)
+- [Next.js 官方：Caching](https://nextjs.org/docs/app/building-your-application/caching)
+- [Next.js 官方：Proxy](https://nextjs.org/docs/app/getting-started/proxy)
+- [Smashing Magazine: A Complete Guide to ISR](https://www.smashingmagazine.com/2021/04/incremental-static-regeneration-nextjs/) —— ISR 原理与最佳实践
+
+---
+
+下一节：[§5.5 状态管理](/chapter-05/state-management)（编写中）——Zustand / Jotai / Redux Toolkit 对比。
