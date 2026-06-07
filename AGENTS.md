@@ -129,6 +129,13 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
       最佳选项可能不同（参 Apple HIG），通用实现≠好体验
 
     四问全 No 也合格，但要显式答；详见
+
+11. **新组件必须有测试**：新建 `src/components/` 下的 `.tsx` 文件时，
+    同一 commit 内必须包含对应的 `.test.tsx` 文件。交互组件额外需要
+    E2E（`e2e/*.spec.ts`）。最低门槛：核心逻辑函数单测 + DOM 行为断言。
+    详见 [SPEC-0005](specs/0005-companion-tracks-and-test-strategy/spec.md)。
+
+    四问全 No 也合格，但要显式答；详见
     [SPEC-0010](specs/0010-progressive-ssg-distillation/spec.md) §Confirmation。
 
 ## 代码风格
