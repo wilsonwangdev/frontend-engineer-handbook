@@ -130,3 +130,21 @@ MDX 编译结果被二次缓存。
   可以接受
 
 **同类参考**：`journal/2026-06-07-cdp-driven-ui-debugging.md`（HMR 相关讨论）
+
+### G.7 Edge Runtime 与 Cache Components 不兼容
+
+**症状**：`pnpm build` 报 `Route segment config "runtime" is not compatible with
+nextConfig.cacheComponents. Please remove it.`
+
+**修复**：去掉 `export const runtime = "edge"`——在已启用 `cacheComponents: true`
+的项目中，API 路由不能声明 Edge Runtime。OG Image 生成等场景改用默认 Node.js
+Runtime。
+
+**原因**：`cacheComponents: true` 要求服务端 Runtime 支持静态缓存，Edge Runtime
+的轻量环境不提供这一能力。两者互斥——要么关 cacheComponents，要么不用 Edge。
+对静态站而言，OG 图片生成在 Node.js Runtime 下执行即可——首次请求后有 CDN 缓存，
+性能差异可忽略。
+
+**内容价值**：这是 Next.js 16 项目的常见配置冲突，可作为第 6/7 章工程化素材。
+Edge vs Node.js Runtime 的选型决策（包括各自的 API 限制、冷启动差异、成本差异）
+值得用单独一节展开。
