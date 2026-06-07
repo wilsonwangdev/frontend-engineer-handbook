@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { SearchIcon, CornerDownLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
-
-interface IndexEntry {
-  title: string;
-  description: string;
-  url: string;
-  type: "chapter" | "section" | "term" | "playground";
-  text: string;
-}
+import { search, type IndexEntry } from "@/lib/search";
 
 const TYPE_LABELS: Record<string, string> = {
   chapter: "章节",
@@ -22,79 +15,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 type FilterType = "all" | IndexEntry["type"];
-
-/** CJK-aware tokenizer: bigrams for Chinese, word-level for ASCII */
-function tokenize(s: string): string[] {
-  const tokens: string[] = [];
-  let i = 0;
-  while (i < s.length) {
-    const ch = s[i]!;
-    if (/[一-鿿㐀-䶿]/.test(ch)) {
-      // CJK character: emit character itself + bigram with next
-      tokens.push(ch);
-      if (i + 1 < s.length && /[一-鿿㐀-䶿]/.test(s[i + 1]!)) {
-        tokens.push(ch + s[i + 1]!);
-      }
-      i++;
-    } else if (/[a-zA-Z0-9]/.test(ch)) {
-      // word character: accumulate into word
-      let word = "";
-      while (i < s.length && /[a-zA-Z0-9]/.test(s[i]!)) {
-        word += s[i]!.toLowerCase();
-        i++;
-      }
-      tokens.push(word);
-    } else {
-      i++;
-    }
-  }
-  return tokens;
-}
-
-function search(query: string, entries: IndexEntry[]): IndexEntry[] {
-  if (!query.trim()) return [];
-  const qTokens = tokenize(query.trim());
-  if (qTokens.length === 0) return [];
-
-  const results: { entry: IndexEntry; score: number }[] = [];
-
-  for (const entry of entries) {
-    const titleLower = entry.title.toLowerCase();
-    const titleTokens = tokenize(entry.title);
-    const descTokens = tokenize(entry.description);
-    const textTokens = tokenize(entry.text);
-
-    let score = 0;
-
-    // Exact match bonus
-    if (titleLower === query.trim().toLowerCase()) {
-      score += 100;
-    }
-    if (titleLower.includes(query.trim().toLowerCase())) {
-      score += 50;
-    }
-
-    for (const qt of qTokens) {
-      // Title match
-      const titleMatch = titleTokens.filter((t) => t.includes(qt)).length;
-      score += titleMatch * 10;
-
-      // Description match
-      const descMatch = descTokens.filter((t) => t.includes(qt)).length;
-      score += descMatch * 3;
-
-      // Text match
-      const textMatch = textTokens.filter((t) => t.includes(qt)).length;
-      score += textMatch;
-    }
-
-    if (score > 0) {
-      results.push({ entry, score });
-    }
-  }
-
-  return results.toSorted((a, b) => b.score - a.score).map((r) => r.entry);
-}
 
 export function SearchTrigger() {
   const [open, setOpen] = useState(false);
