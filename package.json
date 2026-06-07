@@ -19,7 +19,8 @@
     "smoke": "node scripts/smoke.mjs",
     "links": "node scripts/check-links.mjs",
     "check-seq": "node scripts/check-sequential.mjs",
-    "ci": "pnpm run check-seq && pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
+    "check-fm": "node scripts/check-frontmatter.mjs",
+    "ci": "pnpm run check-seq && pnpm run check-fm && pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
     "prepare": "husky"
   },
   "dependencies": {
