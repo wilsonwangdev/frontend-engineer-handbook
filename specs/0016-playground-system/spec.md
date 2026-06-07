@@ -264,3 +264,6 @@ export const demoRegistry: DemoMeta[] = [
 
 - 2026-06-04：初次落地。选 A——registry 驱动 + 双模式互补。
   分两阶段实施。
+- 2026-06-07：阶段 1 完成。registry + /playground 索引 +
+  /playground/animations（4 个 demo）+ /playground/layout（3 个 demo）。
+  阶段 2（7 个新 demo + 难度筛选）仍 pending。

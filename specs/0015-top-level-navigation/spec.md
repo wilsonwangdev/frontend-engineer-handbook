@@ -1,7 +1,7 @@
 ---
 id: 0015
 title: 顶级导航与公共页面入口
-status: proposed
+status: accepted
 date: 2026-06-04
 ---
 
@@ -178,3 +178,4 @@ date: 2026-06-04
 ## Changelog
 
 - 2026-06-04：初次落地。三选一选 A。包含桌面 / 移动 / 活动状态三段实施细节。
+- 2026-06-07：实施完成。header 术语/示例/资源入口 + 移动端抽屉分组 + 活动态高亮。status → accepted。
