@@ -74,6 +74,25 @@ async function main() {
 
   if (hasError) process.exit(1);
   console.log(`[sequential] OK — ${entries.length} entries, no duplicates`);
+
+  // Also check chapter-plan.ts is consistent with content/
+  console.log("[sequential] checking chapter-plan consistency...");
+  const contentChapters = new Set(
+    entries.map((e) => e.file.split("/")[0]).filter((d) => d && d.startsWith("chapter-")),
+  );
+  // Parse chapter-plan.ts to find chapters marked unpublished
+  const planPath = resolve(REPO_ROOT, "src/lib/chapter-plan.ts");
+  const planSrc = await readFile(planPath, "utf-8");
+  const publishedPattern = /\{[^}]*id:\s*"(\d+)"[^}]*published:\s*false[^}]*\}/g;
+  let match;
+  while ((match = publishedPattern.exec(planSrc)) !== null) {
+    const dirName = `chapter-${String(match[1]).padStart(2, "0")}`;
+    if (contentChapters.has(dirName)) {
+      console.warn(
+        `[sequential] STALE: ${dirName} has content but chapter-plan says published=false — update src/lib/chapter-plan.ts`,
+      );
+    }
+  }
 }
 
 main().catch((err) => {

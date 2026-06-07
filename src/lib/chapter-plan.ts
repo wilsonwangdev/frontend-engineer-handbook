@@ -32,7 +32,7 @@ export const chapterPlan: PlannedChapter[] = [
     published: true,
     url: "/chapter-04",
   },
-  { id: "05", title: "React 与 Next.js", type: "chapter", published: false },
+  { id: "05", title: "React 与 Next.js", type: "chapter", published: true, url: "/chapter-05" },
   { id: "06", title: "工程化与构建", type: "chapter", published: false },
   { id: "07", title: "质量与交付", type: "chapter", published: false },
   { id: "08", title: "现代前沿话题", type: "chapter", published: false },
