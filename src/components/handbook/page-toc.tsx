@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 interface HeadingItem {
   id: string;
@@ -8,48 +9,53 @@ interface HeadingItem {
   level: 2;
 }
 
-export function PageTOC() {
+export function PageTOCWrapper() {
+  const pathname = usePathname();
+  return <PageTOC key={pathname} />;
+}
+
+function scanHeadings(): HeadingItem[] {
+  // Only scan the first article — during SPA navigation, Next.js keeps
+  // the old page's <article> in the DOM briefly alongside the new one.
+  // querySelector returns the first match, which is always the new page.
+  const article = document.querySelector("main article.prose-cn");
+  if (!article) return [];
+  const els = article.querySelectorAll("h2");
+  const items: HeadingItem[] = [];
+  els.forEach((el) => {
+    const id = el.id;
+    if (!id) return;
+    items.push({ id, text: el.textContent || "", level: 2 });
+  });
+  return items;
+}
+
+function PageTOC() {
   const [headings, setHeadings] = useState<HeadingItem[]>([]);
   const [activeId, setActiveId] = useState<string>("");
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const scrollObserverRef = useRef<IntersectionObserver | null>(null);
   const listRef = useRef<HTMLOListElement>(null);
 
+  // key={pathname} in wrapper ensures clean unmount/remount.
+  // setTimeout lets React finish rendering new page content before we scan.
   useEffect(() => {
-    const main = document.querySelector("main");
-    if (!main) return;
-
-    const els = main.querySelectorAll("h2");
-    const items: HeadingItem[] = [];
-
-    els.forEach((el) => {
-      const id = el.id;
-      if (!id) return;
-      items.push({
-        id,
-        text: el.textContent || "",
-        level: 2,
-      });
-    });
-
-    if (items.length < 2) return;
-    setHeadings(items);
+    const timer = setTimeout(() => {
+      const items = scanHeadings();
+      if (items.length >= 2) setHeadings(items);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
+  // IntersectionObserver for active heading
   useEffect(() => {
     if (headings.length === 0) return;
-
-    observerRef.current?.disconnect();
+    scrollObserverRef.current?.disconnect();
 
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.filter((e) => e.isIntersecting);
         if (visible.length > 0) {
-          const top = visible.reduce((best, cur) => {
-            const bestTop = best.boundingClientRect.top;
-            const curTop = cur.boundingClientRect.top;
-            return curTop < bestTop ? cur : best;
-          });
-          setActiveId(top.target.id);
+          setActiveId(visible[0]!.target.id);
         }
       },
       { rootMargin: "-80px 0px -70% 0px" },
@@ -57,12 +63,12 @@ export function PageTOC() {
 
     const els = headings.map((h) => document.getElementById(h.id)).filter(Boolean) as HTMLElement[];
     els.forEach((el) => observer.observe(el));
-    observerRef.current = observer;
+    scrollObserverRef.current = observer;
 
     return () => observer.disconnect();
   }, [headings]);
 
-  // Scroll active TOC item into view within the sidebar
+  // Auto-scroll active item into view
   useEffect(() => {
     if (!activeId || !listRef.current) return;
     const item = listRef.current.querySelector(`[data-toc="${activeId}"]`);

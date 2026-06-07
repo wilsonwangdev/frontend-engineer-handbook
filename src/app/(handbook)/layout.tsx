@@ -7,7 +7,7 @@ import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
 import { ThemeToggle } from "@/components/handbook/theme-toggle";
 import { SearchTrigger } from "@/components/handbook/search";
 import { ReadingProgress } from "@/components/handbook/reading-progress";
-import { PageTOC } from "@/components/handbook/page-toc";
+import { PageTOCWrapper } from "@/components/handbook/page-toc";
 import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
 
@@ -63,7 +63,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
         </main>
         <aside className="hidden xl:block">
           <div className="sticky top-20">
-            <PageTOC />
+            <PageTOCWrapper />
           </div>
         </aside>
       </div>
