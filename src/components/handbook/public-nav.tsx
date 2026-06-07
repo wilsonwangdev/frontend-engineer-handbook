@@ -14,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "术语", href: "/glossary" },
   { label: "示例", href: "/playground" },
   { label: "资源", href: "/resources" },
+  { label: "避坑", href: "/appendix-d" },
 ];
 
 export function PublicNav({ className }: { className?: string }) {

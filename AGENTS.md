@@ -84,6 +84,9 @@ Conventional Commits，原子化。Subject ≤ 72 字符、小写、祈使语态
 前缀：`feat` / `fix` / `build` / `chore` / `docs` / `refactor` / `test` /
 `perf` / `style` / `ci`。Body 用中文解释 why。
 
+**禁止 `git commit --amend` 已推送的 commit**。push 后需要修改就建新 commit，
+不要改写已推送的历史。amend 导致本地和远程分叉，引发不必要的 merge 冲突。
+
 ## 协作准则
 
 > **任务起步元反射**：用户给出新目标前，先过
