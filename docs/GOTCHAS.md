@@ -108,3 +108,25 @@ const isoDateString = z
 ```
 
 **何时触发**：当粗体内容包含 CJK 全角括号且括号内有英文单词。
+
+### G.6 编辑 MDX 内容后 dev server 不热更新
+
+**现象**：修改 `content/` 下的 `.mdx` 文件后，浏览器不自动刷新——必须手动
+Cmd+Shift+R 硬刷新才能看到新内容。
+
+**原因**：`src/lib/content.ts` 的 `getAllDocs()` / `getDocBySlug()` 使用了
+`"use cache"` 指令（Cache Components 需要），文件读取被缓存在内存中。修改源
+文件后缓存不失效，服务端仍返回旧内容。同时 `MdxBody` 组件也有 `"use cache"`，
+MDX 编译结果被二次缓存。
+
+**为什么不能去掉**：`"use cache"` 是 `next.config.ts` 中 `cacheComponents: true`
+的必要条件——去掉会导致生产构建（`pnpm build`）prerender 报错。
+
+**已知解法**：
+
+- **Fumadocs 方案**：用 `local-md dev -- npm next dev` 在 Next.js 之前启动
+  一个独立的文件监听进程，绕过 Turbo​pack 的缓存
+- **本项目当前做法**：硬刷新（Cmd+Shift+R）。内容编辑频率远低于组件开发，
+  可以接受
+
+**同类参考**：`journal/2026-06-07-cdp-driven-ui-debugging.md`（HMR 相关讨论）
