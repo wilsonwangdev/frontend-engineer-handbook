@@ -1,0 +1,284 @@
+---
+title: 状态管理
+chapter: 5
+section: 5
+description: Zustand（推荐）/ Jotai / Redux Toolkit 对比——选什么、为什么、何时换
+tier: essential
+prerequisites:
+  - /chapter-05/react-mental-model
+paths:
+  sequential: 29
+---
+
+## 0. 一段必要的回顾：从 Redux 一家独大到三足鼎立
+
+2015-2019 年，React 状态管理几乎等同于 Redux。不管你做什么项目——博客、后台、仪表盘——先 `npm install redux react-redux`。这种"一个方案打所有场景"的模式在 2020 年后被打破了，原因有三个：
+
+1. **React 自己的状态管理能力增强了**。`useReducer` + Context 覆盖了大量原本必须用 Redux 的场景——简单的全局状态不再需要第三方库。
+2. **服务端组件的出现**。RSC 把"数据获取"从客户端移到了服务端——很多以前放在 store 里的数据（用户信息、文章列表）现在直接从服务端传到组件，不需要客户端状态管理。
+3. **新库提供了更轻量的 API**。Zustand 的 `create` 比 Redux Toolkit 的 `createSlice` 少写 70% 的模板代码。Jotai 的原子化模型比 Redux 的单 store 更适合细粒度更新。
+
+到 2025 年，React 状态管理形成了清晰的**三层结构**：
+
+| 层级         | 场景                     | 推荐                      |
+| ------------ | ------------------------ | ------------------------- |
+| 组件内状态   | 单个组件自己的状态       | `useState` / `useReducer` |
+| 共享状态     | 多个组件共享、中等复杂度 | Zustand（首选）/ Jotai    |
+| 复杂全局状态 | 大型应用、团队协作       | Redux Toolkit             |
+
+> **为什么不直接从"Zustand API"开始学？** 因为如果不知道 Redux 为什么衰落、Zustand 解决了什么问题，你会把 Zustand 当成"另一种 Redux"——那就完全错过了它设计上的取舍。<strong>选型不是"哪个 API 更好写"，是"我的状态长什么样，哪种模型更适合"。</strong>
+
+---
+
+## 1. Zustand：最小 API，最大灵活
+
+Zustand 是 2023 年后 React 社区增长最快的状态管理库。核心哲学：**状态就是一个普通的 JS 对象，通过一个简单的 hook 来读写**。
+
+```tsx
+import { create } from "zustand";
+
+// 1. 定义一个 store——就是一个普通对象 + 方法
+const useCounterStore = create((set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  decrement: () => set((state) => ({ count: state.count - 1 })),
+  reset: () => set({ count: 0 }),
+}));
+
+// 2. 在组件里用——和 useState 一样自然
+function Counter() {
+  const count = useCounterStore((s) => s.count);
+  const increment = useCounterStore((s) => s.increment);
+  return <button onClick={increment}>{count}</button>;
+}
+```
+
+**为什么比 Redux 简单？** Redux 需要 `createSlice` → `configureStore` → `Provider` → `useSelector` → `useDispatch` 五步。Zustand 两步：`create` → `useStore`。不需要 Provider、不需要 dispatch、不需要 action type 常量。
+
+**Zustand 的适用边界**：
+
+- ✅ 中小型应用的全局状态（用户信息、购物车、UI 状态）
+- ✅ 不需要中间件的简单场景
+- ✅ 渐进式采用——可以一个组件先开始用，不需要全局 Provider 重构
+- ❌ 大型应用需要强约束的状态更新模式（这时候 Redux Toolkit 的类型安全中间件更有价值）
+
+---
+
+## 2. Jotai：状态原子化
+
+Jotai 的思路和 Zustand 完全相反。Zustand 是你自己管理一个大对象，Jotai 是你定义很多个**原子（atom）**——每个原子是一个独立的状态单元。
+
+```tsx
+import { atom, useAtom } from "jotai";
+
+// 每个 atom 独立——它们可以互相依赖
+const countAtom = atom(0);
+const doubleCountAtom = atom((get) => get(countAtom) * 2); // 派生 atom
+
+function Counter() {
+  const [count, setCount] = useAtom(countAtom);
+  const [double] = useAtom(doubleCountAtom);
+  return (
+    <div>
+      <button onClick={() => setCount((c) => c + 1)}>{count}</button>
+      <p>翻倍：{double}</p>
+    </div>
+  );
+}
+```
+
+**Jotai vs Zustand 的选型判断**：
+
+| 场景                                             | 推荐    |
+| ------------------------------------------------ | ------- |
+| 状态之间有复杂的依赖关系（A 变 B 自动变）        | Jotai   |
+| 状态是扁平的结构，互相独立                       | Zustand |
+| 需要 selector（精确订阅某个字段）                | Zustand |
+| 需要细粒度更新（只重新渲染用到那个 atom 的组件） | Jotai   |
+| 简单场景，不想引入新概念                         | Zustand |
+
+> **对于大多数项目**：Zustand 就够了。Jotai 的原子模型在"一个值的变化触发另一个值的变化"这类场景里优势明显（比如表单联动、筛选条件同步），但普通项目很少遇到这种复杂度。
+
+---
+
+## 3. Redux Toolkit：曾经的霸主，现在的位置
+
+2015 年的 Redux 有三个痛点：太多模板代码（action type 常量 + action creator + reducer switch）、不可变更新心智负担（`...state` 嵌套）、异步处理需要中间件（redux-thunk / redux-saga）。2019 年 Redux Toolkit 用 `createSlice` + Immer 解决了前两个，用 `createAsyncThunk` 解决了第三个。
+
+```tsx
+import { createSlice, configureStore } from "@reduxjs/toolkit";
+import { Provider, useSelector, useDispatch } from "react-redux";
+
+const counterSlice = createSlice({
+  name: "counter",
+  initialState: { count: 0 },
+  reducers: {
+    increment: (state) => {
+      state.count += 1;
+    }, // Immer 让你直接"改" state
+  },
+});
+
+const store = configureStore({ reducer: { counter: counterSlice.reducer } });
+
+function App() {
+  return (
+    <Provider store={store}>
+      <Counter />
+    </Provider>
+  );
+}
+```
+
+**Redux Toolkit 在 2025 年的位置**：
+
+- ✅ 大型项目，需要集中管理 + 强类型约束 + Redux DevTools 时间旅行调试
+- ✅ 团队已有 Redux 经验，不愿意换
+- ❌ 新项目的一般状态管理——Zustand 更轻
+- ❌ 服务端数据（API 响应缓存）——React Query / SWR 更合适
+
+**Redux 没有死**——它在企业级应用中仍然有价值。但如果你今天开始一个新项目，不需要自动选 Redux 了。
+
+---
+
+## 4. Zustand 和服务端组件：怎么搭配
+
+Zustand 是纯客户端库——依赖 React Hooks，不能在服务端组件里使用。在 Next.js App Router 中，这意味着：
+
+**服务端组件拿数据 → 传给客户端组件 → 客户端组件初始化 Zustand store**。
+
+```tsx
+// 服务端组件：拿数据
+async function ShopPage() {
+  const products = await db.products.findMany();
+  return <ShopClient products={products} />;
+}
+
+// 客户端组件：用服务端数据初始化 store
+("use client");
+function ShopClient({ products }) {
+  // 用初始数据创建/更新 store
+  const store = useCartStore((s) => s.init(products));
+  return <ProductList />;
+}
+```
+
+**关键规则**：服务端数据作为 **props** 流入客户端，客户端用这些 props 初始化 Zustand store。不要试图在服务端组件里调用 Zustand——做不到。
+
+**常见踩坑**：服务端渲染的 HTML 和客户端水合后的 UI 不一致（hydration mismatch）。原因：服务端没有 Zustand store，渲染的是初始状态；客户端水合后 Zustand 有新的默认值。修复：确保 Zustand store 的初始值和传入 props 一致。
+
+```tsx
+// ❌ 水合不一致
+const useStore = create(() => ({ theme: "dark" })); // 默认黑暗
+// 服务端渲染亮色 → 客户端水合后突然变暗
+
+// ✅ 用 props 初始化
+const useStore = create(() => ({ theme: "light" })); // 与服务端一致
+```
+
+---
+
+## 5. 服务端数据 vs 客户端状态：别再混在一起
+
+这是 2020 年代状态管理最大的观念转变：**以前我们把"从 API 拿到的数据"放在 Redux/Zustand 里，现在我们用专门的缓存库**。
+
+```tsx
+// 旧世界：Redux 管一切——API 数据也放 store
+dispatch(fetchPosts()); // thunk 发请求 → reducer 存数据
+
+// 新世界：缓存库管服务端数据，状态管理只管客户端状态
+const { data: posts } = useQuery({ queryKey: ["posts"], queryFn: fetchPosts });
+// Zustand 只管客户端状态（UI 状态、用户偏好、购物车）
+const theme = useStore((s) => s.theme);
+```
+
+| 数据类型               | 用什么                         | 举例                         |
+| ---------------------- | ------------------------------ | ---------------------------- |
+| 服务端数据（API 响应） | React Query / SWR              | 文章列表、用户信息、搜索结果 |
+| 客户端状态             | Zustand / Jotai                | 主题偏好、购物车、表单草稿   |
+| URL 状态               | `useSearchParams` / App Router | 搜索关键词、分页、筛选       |
+
+**一条简单的判断线**：如果数据是"从服务器来的、需要和服务器同步的"——用 React Query（或 SWR），不要放 Zustand。Zustand 只管"浏览器里产生的、不需要和服务端同步"的数据。
+
+---
+
+## 6. 一张选型决策图
+
+```text
+你的数据属于哪种？
+
+├─ 从服务端获取、需要缓存和重新验证
+│  └─ React Query / SWR
+│     不是 Zustand，不是 Redux——缓存库比手写 fetch cache 强很多
+│
+├─ 只在单个组件内使用
+│  └─ useState / useReducer
+│     不需要任何第三方库
+│
+├─ 多个组件共享、纯客户端数据
+│  ├─ 小型应用 / 简单场景 → Zustand
+│  ├─ 复杂依赖（A 变 B 自动变） → Jotai
+│  └─ 大型团队 / 需要强约束 → Redux Toolkit
+│
+└─ URL 参数（搜索词、分页、筛选）
+   └─ App Router searchParams / useSearchParams
+      把状态放在 URL 里——可分享、可书签、浏览器前进后退可用
+```
+
+---
+
+## 7. 设计判断暗线
+
+- **最小化状态**：React 社区十几年学到的第一条教训——**不是所有数据都需要放 store**。能用 props 传的不用 Context，能用 Context 的不用 Zustand，能用 Zustand 的不用 Redux。每一步升级都增加了复杂度，只在必要的时候才升级。
+- **关注点分离**：服务端数据（缓存同步）和客户端状态（UI 状态）是两个不同的问题域——用不同的工具解决。在 Redux 时代这俩混在一起，现在是分离的。
+- **API 表面积**：库的"学习成本"不是文档页数——是"你为了用它必须写的模板代码量"。Zustand 的 `create` 比 Redux Toolkit 的 `createSlice + configureStore + Provider` 少写 70% 的代码——这不是"Redux 不好"，是"你的项目复杂度和工具复杂度不匹配"。
+
+---
+
+## 8. AI 时代写状态管理的最小集
+
+### 你必须把握的部分
+
+- **选型决策**：AI 会写 Zustand / Redux 的代码，但不知道你的项目规模和团队情况。决定"用哪个"是你的判断。
+- **状态归属**：AI 会倾向把所有状态放在最近的可写位置——你需要判断"这个数据该放服务端缓存还是客户端 store"。AI 不知道你的数据同步策略。
+- **派生状态**：AI 可能把"可以计算出来的值"存成 state。`const fullName = firstName + ' ' + lastName`——这是派生值，不需要 `useState`。AI 经常在这里犯错。
+
+### 你可以委托 AI 的部分
+
+- **Zustand store 定义**：`create((set) => ({ ... }))`——模板化操作
+- **Redux Toolkit slice**：`createSlice` 语法——AI 能完整生成
+- **React Query 配置**：`useQuery` 参数——标准模式
+
+### 你对 AI 写的状态管理代码最容易错的事
+
+1. **AI 会过度设计**——一个只有 3 个页面的应用，AI 可能写完整的 Redux Toolkit + createSlice + middleware 架构。你的任务是**对复杂度说不**——三页的 app 不需要 Redux。
+2. **AI 会混用模式**——同一个项目里既有 Zustand 又有 Context 又有 Redux——因为训练数据里不同项目的代码混合了。你需要保证一个项目只选一套。
+
+---
+
+## 9. 三档归位
+
+| 你应该能                                     | 对应 Tier |
+| -------------------------------------------- | :-------: |
+| 用 Zustand 定义一个 store 并在组件里使用     |   必学    |
+| 区分服务端数据和客户端状态（各自用什么工具） |   必学    |
+| 根据项目规模选择 Zustand vs Redux Toolkit    |   理解    |
+| 解释 Jotai 的原子模型和 Zustand 的区别       |   理解    |
+| 用 React Query 替代"手写 fetch + 存 store"   |   理解    |
+| 审查 AI 生成的状态管理代码是否有过度设计     |   理解    |
+| 为已有 Redux 应用制定迁移到 Zustand 的方案   | 可委托 AI |
+| 写 Zustand store 定义（含 TypeScript 类型）  | 可委托 AI |
+
+---
+
+## 10. 延伸阅读
+
+- [Zustand 官方文档](https://docs.pmnd.rs/zustand)
+- [Jotai 官方文档](https://jotai.org/)
+- [Redux Toolkit 官方文档](https://redux-toolkit.js.org/)
+- [React Query 官方文档](https://tanstack.com/query/latest)
+- [Mark Erikson: The Evolution of Redux Async Logic](https://blog.isquaredsoftware.com/2022/05/presentations-evolution-redux-async-logic/) —— Redux 维护者对异步状态管理的演进回顾
+
+---
+
+下一节：§5.6 样式方案（编写中）——Tailwind CSS / CSS Modules / styled-components 对比。
