@@ -35,6 +35,7 @@ export function SearchTrigger() {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        data-testid="search-trigger"
         aria-label="搜索（⌘K）"
         title="搜索（⌘K）"
         className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]"

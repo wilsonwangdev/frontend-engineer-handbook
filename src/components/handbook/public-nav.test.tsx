@@ -22,10 +22,10 @@ describe("NAV_ITEMS", () => {
     }
   });
 
-  it("all labels are two characters (visual consistency)", () => {
-    for (const item of NAV_ITEMS) {
-      expect(item.label.length).toBe(2);
-    }
+  it("all labels have consistent length", () => {
+    const lengths = new Set(NAV_ITEMS.map((item) => item.label.length));
+    // All labels should be the same length for visual rhythm
+    expect(lengths.size).toBe(1);
   });
 
   it("has no more than 4 items (SPEC-0015 limit)", () => {

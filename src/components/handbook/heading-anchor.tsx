@@ -23,6 +23,7 @@ export function HeadingAnchor() {
       const btn = document.createElement("button");
       btn.className =
         "heading-anchor-btn absolute -left-7 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-6 h-6 rounded opacity-30 hover:opacity-100 transition-opacity text-fg-muted hover:text-[var(--color-accent)]";
+      btn.setAttribute("data-testid", "heading-anchor");
       btn.setAttribute("aria-label", "复制此节链接");
       btn.setAttribute("title", "复制此节链接");
       btn.innerHTML =

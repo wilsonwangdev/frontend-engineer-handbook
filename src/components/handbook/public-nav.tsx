@@ -40,6 +40,7 @@ export function PublicNav({ className }: { className?: string }) {
           <Link
             key={item.href}
             href={item.href}
+            data-testid={`nav-${item.label}`}
             aria-current={active ? "page" : undefined}
             className={
               "inline-flex items-center rounded-md px-2.5 py-1.5 text-sm transition-colors " +
