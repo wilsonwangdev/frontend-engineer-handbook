@@ -2,7 +2,7 @@
 
 > 围绕 agent 协作的前端工程师中文精编手册。
 
-🌐 **Live**: https://frontend-engineer-handbook.vercel.app/
+🌐 **Live**: https://fe.wilsonhandbook.online/
 
 [![CI](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml/badge.svg)](https://github.com/wilsonwangdev/frontend-engineer-handbook/actions/workflows/ci.yml)
 
@@ -27,13 +27,28 @@
 
 ## 当前进度
 
-施工中，本着 build in public 的精神先发布、再迭代：
+第 0–4 章完整上线，第 5 章编写中。附录 B（精选资源）和术语表（/glossary）已上线。
+
+**已上线内容**：
 
 - ✅ 第 0 章 如何使用本手册
 - ✅ 第 1 章 AI 时代前端工程师的能力地图
-- 🚧 第 2 章 Web 平台基石
-- ⏳ 第 3–10 章
-- ⏳ 附录 A/B/C/D
+- ✅ 第 2 章 Web 平台基石（HTTP / URL / 渲染 / 事件循环 / 存储 / 安全）
+- ✅ 第 3 章 HTML / CSS / 现代布局（含 4 个动画 demo + 3 个布局 demo）
+- ✅ 第 4 章 JavaScript 与 TypeScript
+- 🚧 第 5 章 React 与 Next.js（§5.1 已上线）
+- ⏳ 第 6–10 章
+- ✅ 附录 B 精选一手资源 + 经典书目（/resources）
+- ✅ 术语表（/glossary，10 个术语，hover 浮窗 + 搜索可检索）
+- ⏳ 附录 A / D
+
+**站点功能**：
+
+- 🔍 站内搜索（⌘K 命令面板，全文索引）
+- 📖 术语表（hover 浮窗 + 底部弹窗）
+- 🏗️ 演练场（/playground，7 个可调试 demo）
+- 🌓 暗色模式（View Transition 圆形扩散切换）
+- 📊 阅读进度条 + 章节完成标记
 
 完整目录见 [specs/0003-table-of-contents/spec.md](specs/0003-table-of-contents/spec.md)。
 
@@ -47,17 +62,14 @@
 
 ## 站点本身就是手册的活教材
 
-技术栈与手册第 5–9 章教学完全一致：
+技术栈与手册第 5–9 章教学一致，站点功能覆盖第 3 章动画 / View Transitions 教学案例：
 
-- **Next.js 16** + React 19.2 + React Compiler（stable）
-- **Cache Components + PPR**（Partial Prerender）
-- **Tailwind CSS 4**（CSS-first 配置）
-- **OXC 工具链**（oxlint + oxfmt）
-- **Turbopack**（默认）
-- **next-devtools-mcp**（agent 集成）
-- **Vercel** 部署 + Speed Insights + Web Analytics
+- **Next.js 16** + React 19.2 + React Compiler + Cache Components
+- **Tailwind CSS** + OXC 工具链（oxlint + oxfmt）
+- **Turbopack**（开发）+ **Vercel**（部署 + Analytics）
+- **MCP**（next-devtools-mcp agent 集成）
 
-第 10 章动手实践会直接参照本项目源码做对照分析。
+站点功能（搜索 / 暗色切换 / 页面过渡 / 阅读进度）本身就是 View Transitions、IntersectionObserver 的教学案例。第 10 章动手实践会直接参照本项目源码做对照分析。
 
 ## 本地开发
 

@@ -64,7 +64,9 @@ async function collectMdxFiles() {
           description: data.description || "",
           url: `/${dir.name}/${slug}`,
           type: "section",
-          text: [data.description, extractHeadings(content), stripMarkdown(content)].filter(Boolean).join(" "),
+          text: [data.description, extractHeadings(content), stripMarkdown(content)]
+            .filter(Boolean)
+            .join(" "),
         });
       }
     } catch {
