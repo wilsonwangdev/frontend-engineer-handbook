@@ -1,18 +1,13 @@
 import { ImageResponse } from "next/og";
-import { getDocBySlug } from "@/lib/content";
+import { type NextRequest } from "next/server";
 
 export const runtime = "edge";
-export const alt = "前端工程师手册";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
 
-export default async function Image({ params }: { params: { slug: string[] } }) {
-  const { slug } = params;
-  const doc = await getDocBySlug(slug);
-  if (!doc) return new Response("Not found", { status: 404 });
-
-  const title = doc.frontmatter.title;
-  const description = doc.frontmatter.description;
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
+  const title = searchParams.get("title") || "前端工程师手册";
+  const chapter = searchParams.get("chapter") || "";
+  const desc = searchParams.get("desc") || "AI 时代的中文精编手册";
 
   const fontRes = await fetch(
     "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap",
@@ -24,8 +19,8 @@ export default async function Image({ params }: { params: { slug: string[] } }) 
   const element = (
     <div
       style={{
-        width: "100%",
-        height: "100%",
+        width: 1200,
+        height: 630,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -35,16 +30,11 @@ export default async function Image({ params }: { params: { slug: string[] } }) 
         padding: 80,
       }}
     >
-      <p
-        style={{
-          fontSize: 22,
-          fontWeight: 400,
-          color: "#94a3b8",
-          margin: 0,
-        }}
-      >
-        第 {doc.frontmatter.chapter} 章 · 前端工程师手册
-      </p>
+      {chapter && (
+        <p style={{ fontSize: 22, fontWeight: 400, color: "#94a3b8", margin: 0 }}>
+          第 {chapter} 章 · 前端工程师手册
+        </p>
+      )}
       <h1
         style={{
           fontSize: 64,
@@ -56,22 +46,15 @@ export default async function Image({ params }: { params: { slug: string[] } }) 
       >
         {title}
       </h1>
-      <p
-        style={{
-          fontSize: 28,
-          color: "#94a3b8",
-          margin: 0,
-          maxWidth: 800,
-          lineHeight: 1.4,
-        }}
-      >
-        {description}
+      <p style={{ fontSize: 28, color: "#94a3b8", margin: 0, maxWidth: 800, lineHeight: 1.4 }}>
+        {desc}
       </p>
     </div>
   );
 
   return new ImageResponse(element, {
-    ...size,
+    width: 1200,
+    height: 630,
     ...(fontData
       ? {
           fonts: [
