@@ -2,7 +2,7 @@
 title: 样式方案
 chapter: 5
 section: 6
-description: Tailwind CSS（推荐）/ CSS Modules / styled-components 对比——2025 年 React 项目怎么写样式
+description: Tailwind CSS（推荐）/ CSS Modules / styled-components 对比——现代 React 项目怎么写样式
 tier: essential
 prerequisites:
   - /chapter-05/react-mental-model
@@ -13,13 +13,13 @@ paths:
 
 ## 0. 一段必要的回顾：从 CSS-in-JS 到原子化 CSS
 
-第 3 章 §3.5 讲了 CSS 语言层的样式方案选型——原生 CSS vs 预处理器 vs CSS-in-JS vs 设计令牌。那一节是**语言层取舍**：不管你用什么框架，写 CSS 都要面对这些选择。
+[第 3 章 §3.5](/chapter-03/styling-systems) 讲了 CSS 语言层的样式方案选型——原生 CSS vs 预处理器 vs CSS-in-JS vs 设计令牌。那一节是**语言层取舍**：不管你用什么框架，写 CSS 都要面对这些选择。
 
 这一节讲**框架层集成**——React 项目里 Tailwind / CSS Modules / styled-components 分别怎么用、怎么选。和第 3 章不同：这里不纠结"原生 CSS 语法够不够"，而是聚焦**React 组件模型下的样式组织方式**。
 
-2020-2025 年最大的变化：社区从 CSS-in-JS（styled-components 主导）转向原子化 CSS（Tailwind 主导）。这个转变的驱动力是 React 本身的变化——服务端组件不支持运行时 CSS-in-JS，而 Tailwind 在编译时生成 CSS，天然兼容 RSC。
+近几年最大的变化：社区从 CSS-in-JS（styled-components 主导）转向原子化 CSS（Tailwind 主导）。这个转变的驱动力是 React 本身的变化——服务端组件不支持运行时 CSS-in-JS，而 Tailwind 在编译时生成 CSS，天然兼容 RSC。
 
-> **如果你只记得一件事**：2025 年开始一个新 React 项目，默认选 Tailwind + shadcn/ui。除非有明确的理由选别的——团队已有 CSS Modules 成熟实践、或设计师不接受原子化类名、或项目是高度动态样式的编辑器类应用。
+> **如果你只记得一件事**：开始一个新 React 项目，默认选 Tailwind + shadcn/ui。除非有明确的理由选别的——团队已有 CSS Modules 成熟实践、或设计师不接受原子化类名、或项目是高度动态样式的编辑器类应用。
 
 ---
 
@@ -115,9 +115,9 @@ const Button = styled.button`
 
 - ✅ 编辑器、设计工具等需要高度动态样式（颜色取色器、主题实时切换）的应用
 - ✅ 老项目维护——不加新东西，不需迁移
-- ❌ 2025 年新项目——不推荐作为起点
+- ❌ 新项目——不推荐作为起点
 
-> **和 §4.3 的关系**：第 4 章 §4.4 介绍了 ES2020+ 新特性，其中的 Tagged Templates（`styled.button\`...\``）就是 styled-components 的底层机制。
+> **和 §4.3 的关系**：[第 4 章 §4.4](/chapter-04/modern-features) 介绍了 ES2020+ 新特性，其中的 Tagged Templates（`styled.button\`...\``）就是 styled-components 的底层机制。
 
 ---
 
