@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo, type KeyboardEvent } from "react";
+import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { SearchIcon, CornerDownLeft } from "lucide-react";
+import { SearchIcon, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { search, type IndexEntry } from "@/lib/search";
 
@@ -57,7 +57,6 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
   const listRef = useRef<HTMLUListElement>(null);
   const router = useRouter();
 
-  // Load index on first open
   useEffect(() => {
     if (loaded) return;
     fetch("/search-index.json")
@@ -67,12 +66,10 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       .catch(() => setLoaded(true));
   }, [loaded]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -85,18 +82,14 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
     return filter === "all" ? matched : matched.filter((e) => e.type === filter);
   }, [query, index, filter]);
 
-  // Reset cursor when results change
   useEffect(() => {
     setCursor(0);
   }, [query, filter]);
 
-  const navigate = useCallback(
-    (url: string) => {
-      onClose();
-      router.push(url);
-    },
-    [onClose, router],
-  );
+  function navigate(url: string) {
+    onClose();
+    router.push(url);
+  }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
@@ -120,7 +113,6 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // Scroll cursor into view
   useEffect(() => {
     listRef.current?.children[cursor]?.scrollIntoView({ block: "nearest" });
   }, [cursor]);
@@ -129,16 +121,12 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[15vh]"
+      onClick={() => onClose()}
     >
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
 
-      {/* Panel */}
-      <div className="relative z-10 mx-4 w-full max-w-lg rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl">
+      <div className="relative z-10 mx-2 w-full max-w-lg rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl sm:mx-4">
         {/* Search input */}
         <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3">
           <SearchIcon size={18} strokeWidth={1.75} className="shrink-0 text-fg-muted" />
@@ -149,24 +137,29 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="搜索章节、术语..."
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-fg-muted/60"
+            className="flex-1 bg-transparent text-base outline-none placeholder:text-fg-muted/60"
             aria-label="搜索"
           />
-          <kbd className="hidden rounded border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[10px] text-fg-muted sm:inline">
-            esc
-          </kbd>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="关闭搜索"
+            className="shrink-0 rounded p-1 text-fg-muted hover:text-[var(--color-fg)]"
+          >
+            <X size={18} strokeWidth={1.75} />
+          </button>
         </div>
 
         {/* Filter tabs */}
         {query && (
-          <div className="flex gap-1 border-b border-[var(--color-border)] px-3 py-2">
+          <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] px-3 py-2">
             {types.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setFilter(t)}
                 className={cn(
-                  "rounded px-2 py-0.5 text-xs transition-colors",
+                  "shrink-0 rounded px-2 py-0.5 text-xs transition-colors",
                   filter === t
                     ? "bg-[var(--color-bg-elevated)] font-medium text-[var(--color-accent)]"
                     : "text-fg-muted hover:text-[var(--color-fg)]",
@@ -180,7 +173,11 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
 
         {/* Results */}
         {query && (
-          <ul ref={listRef} className="max-h-[320px] overflow-y-auto p-2" role="listbox">
+          <ul
+            ref={listRef}
+            className="max-h-[50vh] overflow-y-auto p-2 sm:max-h-[320px]"
+            role="listbox"
+          >
             {!loaded && <li className="px-3 py-6 text-center text-sm text-fg-muted">加载中...</li>}
             {loaded && results.length === 0 && (
               <li className="px-3 py-6 text-center text-sm text-fg-muted">无结果</li>
@@ -192,7 +189,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                   onClick={() => navigate(entry.url)}
                   onMouseEnter={() => setCursor(i)}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                    "flex w-full items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors",
                     i === cursor
                       ? "bg-[var(--color-bg-elevated)] text-[var(--color-fg)]"
                       : "text-fg-muted",
@@ -212,14 +209,6 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                     <div className="truncate text-sm font-medium">{entry.title}</div>
                     <div className="truncate text-xs">{entry.description}</div>
                   </div>
-                  {i === cursor && (
-                    <CornerDownLeft
-                      size={14}
-                      strokeWidth={1.75}
-                      className="mt-0.5 shrink-0 text-fg-muted/60"
-                      aria-hidden="true"
-                    />
-                  )}
                 </button>
               </li>
             ))}
