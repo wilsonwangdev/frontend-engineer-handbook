@@ -7,10 +7,17 @@ import { Menu, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { NAV_ITEMS } from "./public-nav";
 import type { ChapterMeta } from "@/lib/content";
+import type { ReadingPath, ReadingPathId } from "@/lib/reading-path";
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function MobileNav({ tree }: { tree: ChapterMeta[] }) {
+export function MobileNav({
+  tree,
+  paths,
+}: {
+  tree: ChapterMeta[];
+  paths?: Record<ReadingPathId, ReadingPath>;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -95,7 +102,7 @@ export function MobileNav({ tree }: { tree: ChapterMeta[] }) {
             <div className="flex-1 overflow-y-auto p-4">
               <MobilePublicNav />
               <hr className="my-3 border-[var(--color-border)]" />
-              <Sidebar tree={tree} />
+              <Sidebar tree={tree} paths={paths} />
             </div>
           </aside>
         </>

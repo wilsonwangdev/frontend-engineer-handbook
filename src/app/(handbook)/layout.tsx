@@ -4,15 +4,18 @@ import { Sidebar } from "@/components/handbook/sidebar";
 import { MobileNav } from "@/components/handbook/mobile-nav";
 import { PublicNav } from "@/components/handbook/public-nav";
 import { ReadingWidthToggle } from "@/components/handbook/reading-width-toggle";
+import { ReadingPathSelector } from "@/components/handbook/reading-path-selector";
 import { ThemeToggle } from "@/components/handbook/theme-toggle";
 import { SearchTrigger } from "@/components/handbook/search";
 import { ReadingProgress } from "@/components/handbook/reading-progress";
 import { PageTOCWrapper } from "@/components/handbook/page-toc";
 import { BackToTop } from "@/components/handbook/back-to-top";
 import { getChapterTree } from "@/lib/content";
+import { getReadingPaths } from "@/lib/reading-path";
 
 export default async function HandbookLayout({ children }: { children: React.ReactNode }) {
   const tree = await getChapterTree();
+  const paths = await getReadingPaths();
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -26,7 +29,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-bg)]/85 backdrop-blur">
         <div className="handbook-container mx-auto flex h-14 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <MobileNav tree={tree} />
+            <MobileNav tree={tree} paths={paths} />
             <Link
               href="/"
               className="font-semibold tracking-tight transition-opacity hover:opacity-75"
@@ -37,6 +40,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
           <div className="flex items-center gap-1">
             <PublicNav className="hidden md:flex items-center gap-1" />
             <ReadingWidthToggle />
+            <ReadingPathSelector />
             <ThemeToggle />
             <SearchTrigger />
             <a
@@ -55,7 +59,7 @@ export default async function HandbookLayout({ children }: { children: React.Rea
       <div className="handbook-container handbook-shell mx-auto grid grid-cols-1 gap-8 px-4 py-6 sm:px-6 sm:py-10 md:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_14rem]">
         <aside className="handbook-aside hidden md:block">
           <div className="sticky top-20">
-            <Sidebar tree={tree} />
+            <Sidebar tree={tree} paths={paths} />
           </div>
         </aside>
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">

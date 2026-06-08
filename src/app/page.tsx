@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChapterPlan } from "@/components/landing/chapter-plan";
+import { PathLink } from "@/components/handbook/path-activator";
 import { SearchIcon, BookOpen, Code2, Moon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -20,12 +21,14 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-3 pt-4">
           <Link
             href="/chapter-00"
+            prefetch={false}
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-white font-medium transition-transform hover:scale-[1.02]"
           >
             开始阅读
           </Link>
           <Link
             href="/chapter-01"
+            prefetch={false}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-5 py-2.5 font-medium transition-colors hover:bg-[var(--color-bg-elevated)]"
           >
             AI 时代能力地图
@@ -33,8 +36,22 @@ export default function HomePage() {
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
-          <PathCard tag="A" title="系统学习" desc="从头到尾建立完整知识体系" tone="essential" />
-          <PathCard tag="B" title="按需查阅" desc="查漏补缺，快速复习" tone="understand" />
+          <PathCard
+            tag="A"
+            title="系统学习"
+            desc="从头到尾建立完整知识体系"
+            tone="essential"
+            href="/chapter-00"
+            path="beginner"
+          />
+          <PathCard
+            tag="B"
+            title="按需查阅"
+            desc="查漏补缺，快速复习"
+            tone="understand"
+            href="/chapter-00"
+            path="intermediate"
+          />
           <PathCard
             tag="C"
             title="实践驱动"
@@ -79,15 +96,19 @@ function PathCard({
   desc,
   tone,
   note,
+  href,
+  path,
 }: {
   tag: string;
   title: string;
   desc: string;
   tone: "essential" | "understand" | "delegatable";
   note?: string;
+  href?: string;
+  path?: "beginner" | "intermediate";
 }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--color-border)] p-5 text-center">
+  const inner = (
+    <>
       <div
         className="inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold"
         style={{
@@ -102,8 +123,36 @@ function PathCard({
         <p className="mt-1 text-xs text-fg-muted">{desc}</p>
         {note && <p className="mt-2 text-[11px] text-fg-muted">{note}</p>}
       </div>
-    </div>
+    </>
   );
+
+  const className =
+    "flex flex-col items-center gap-3 rounded-lg border border-[var(--color-border)] p-5 text-center";
+
+  if (href && path) {
+    return (
+      <PathLink
+        path={path}
+        href={href}
+        className={`${className} transition-colors hover:bg-[var(--color-bg-elevated)]`}
+      >
+        {inner}
+      </PathLink>
+    );
+  }
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${className} transition-colors hover:bg-[var(--color-bg-elevated)]`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
 }
 
 function FeatureCard({

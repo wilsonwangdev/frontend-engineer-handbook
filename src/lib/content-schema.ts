@@ -14,6 +14,7 @@ export const frontmatterSchema = z.object({
   paths: z
     .object({
       sequential: z.number().int().positive().optional(),
+      reading: z.array(z.enum(["beginner", "intermediate", "senior"])).optional(),
       practice: z
         .array(
           z.object({

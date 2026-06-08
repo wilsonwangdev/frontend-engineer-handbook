@@ -33,6 +33,7 @@ export interface SectionMeta {
   url: string;
   title: string;
   description: string;
+  tier: import("./content-schema").Tier;
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -151,7 +152,7 @@ export async function getChapterTree(): Promise<ChapterMeta[]> {
     } else {
       const existing = byChapter.get(chapter);
       if (existing) {
-        existing.sections?.push({ url: doc.url, title, description });
+        existing.sections?.push({ url: doc.url, title, description, tier: doc.frontmatter.tier });
       }
     }
   }

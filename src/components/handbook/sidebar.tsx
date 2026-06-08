@@ -3,9 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ChapterMeta } from "@/lib/content";
+import type { ReadingPath, ReadingPathId } from "@/lib/reading-path";
+import { useReadingPath } from "./reading-path-selector";
+import { PathSidebarClient } from "./path-sidebar-client";
 
-export function Sidebar({ tree }: { tree: ChapterMeta[] }) {
+export function Sidebar({
+  tree,
+  paths,
+}: {
+  tree: ChapterMeta[];
+  paths?: Record<ReadingPathId, ReadingPath>;
+}) {
   const pathname = usePathname();
+  const readingPath = useReadingPath();
+
+  if (readingPath && paths) {
+    return <PathSidebarClient paths={paths} />;
+  }
 
   return (
     <nav aria-label="章节导航" className="text-sm">
@@ -45,7 +59,7 @@ export function Sidebar({ tree }: { tree: ChapterMeta[] }) {
                           href={s.url}
                           aria-current={sectionActive ? "page" : undefined}
                           className={
-                            "block rounded px-2 py-1 text-xs transition-colors " +
+                            "block truncate rounded px-2 py-1 text-xs transition-colors " +
                             (sectionActive
                               ? "bg-[var(--color-bg-elevated)] font-medium text-[var(--color-accent)]"
                               : "text-fg-muted hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-fg)]")

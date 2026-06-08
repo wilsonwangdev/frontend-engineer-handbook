@@ -83,7 +83,7 @@ function ChapterRow({ chapter, isLast }: { chapter: PlannedChapter; isLast: bool
   return (
     <li className={className}>
       {chapter.published && chapter.url ? (
-        <Link href={chapter.url} className="block">
+        <Link href={chapter.url} prefetch={false} className="block">
           {inner}
         </Link>
       ) : (
