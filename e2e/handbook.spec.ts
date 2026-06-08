@@ -5,7 +5,7 @@ test.describe("handbook chapters", () => {
   test("chapter 0 renders title and content", async ({ page }) => {
     await page.goto("/chapter-00");
     await expect(page.getByRole("heading", { name: "如何使用本手册", level: 1 })).toBeVisible();
-    await expect(page.locator('[data-testid="nav-术语"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-术语表"]')).toBeVisible();
   });
 
   test("chapter 1 renders the AI delegation table", async ({ page }) => {
