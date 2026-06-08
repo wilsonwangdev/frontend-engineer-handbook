@@ -119,6 +119,13 @@ Cmd+Shift+R 硬刷新才能看到新内容。
 文件后缓存不失效，服务端仍返回旧内容。同时 `MdxBody` 组件也有 `"use cache"`，
 MDX 编译结果被二次缓存。
 
+**变体——改 `"use cache"` 函数的返回值结构**：如果改的不是数据文件，而是函数
+本身的逻辑（如返回对象新增字段），缓存同样不失效——磁盘上存的是旧结构的序列化
+数据。表现为 TypeScript 类型正确、直接 import 调用返回正确数据，但浏览器中
+RSC 序列化数据不含新字段，且控制台无任何错误。修复：`find .next/dev -type f -delete`
+或移除轻量函数的 `"use cache"`。详见
+[journal/2026-06-07-use-cache-stale-output-on-function-change.md](../journal/2026-06-07-use-cache-stale-output-on-function-change.md)。
+
 **为什么不能去掉**：`"use cache"` 是 `next.config.ts` 中 `cacheComponents: true`
 的必要条件——去掉会导致生产构建（`pnpm build`）prerender 报错。
 
@@ -128,6 +135,7 @@ MDX 编译结果被二次缓存。
   一个独立的文件监听进程，绕过 Turbo​pack 的缓存
 - **本项目当前做法**：硬刷新（Cmd+Shift+R）。内容编辑频率远低于组件开发，
   可以接受
+- **函数体改动后**：清 `.next/dev` 磁盘缓存，或对轻量函数不加 `"use cache"`
 
 **同类参考**：`journal/2026-06-07-cdp-driven-ui-debugging.md`（HMR 相关讨论）
 
@@ -148,3 +156,91 @@ Runtime。
 **内容价值**：这是 Next.js 16 项目的常见配置冲突，可作为第 6/7 章工程化素材。
 Edge vs Node.js Runtime 的选型决策（包括各自的 API 限制、冷启动差异、成本差异）
 值得用单独一节展开。
+
+### G.8 Turbopack 持久化缓存损坏导致 dev server 崩溃或无限刷新
+
+**症状**：`pnpm dev` 后 Turbopack 崩溃并报 `Unable to open static sorted file`
+/ `No such file or directory (os error 2)` 等 SST 文件错误；或每次修改源码
+后无限 Fast Refresh 循环。
+
+**修复**：**先 kill dev server，再** `rm -r .next/dev/cache/turbopack`，然后重启。
+
+**原因**：Turbopack 在 `.next/dev/cache/turbopack/` 下维护持久化文件缓存
+（SST/META 文件）。当 dev server 被非正常终止（如 `kill -9`）、磁盘空间不足、
+或多个 dev server 实例并发写同一缓存目录时，缓存文件会损坏。之后每次
+Turbopack 启动都会尝试读取损坏的缓存 → 编译失败或 HMR 异常。
+
+**⚠️ 严禁在 dev server 运行时删 `.next`**：Turbopack 正在读写缓存文件，
+此时删除会直接破坏正在使用的 SST/META → 进程内 panic → 无限报错循环。
+正确顺序：`kill` → `rm` → `pnpm dev`。
+
+**预防**：正常终止 dev server（Ctrl+C），不要 `kill -9`。
+
+### G.9 `next/link` `<Link>` 在静态页面触发浏览器交替刷新
+
+**症状**：`pnpm dev` 后首次访问首页（`/`），浏览器不停在 `/` 和 `/chapter-00`
+（或其他 handbook 页面）之间交替刷新。服务器日志显示两个 URL 各 200，每秒
+3-4 次请求。Curl 单独请求任一 URL 均正常（HTTP 200），仅在浏览器中出现。
+
+**修复**：首页上所有 `<Link>` 加 `prefetch={false}`——不只是新加的 PathLink，
+也包括已有的 CTA 按钮和 ChapterPlan 中的章节链接。用原生 `<a>` + `window.location.href`
+替代 `<Link>` 也可行，但 `prefetch={false}` 更简洁且保留客户端导航。
+
+```tsx
+// ❌ 静态首页上不加 prefetch={false} 的 <Link>
+<Link href="/chapter-00">开始阅读</Link>
+
+// ✅ 加 prefetch={false}
+<Link href="/chapter-00" prefetch={false}>开始阅读</Link>
+```
+
+**原因**：Next.js `<Link>` 组件在浏览器中会自动 prefetch 目标页面的 RSC 负载。
+当 `<Link>` 在**静态页面**（没有 `useSearchParams`、cookies、headers 等动态
+函数的 route）上使用时，prefetch 请求可能触发 Next.js 路由器的内部状态变更，
+导致浏览器在源页面和目标页面之间反复导航。
+
+**容易误判的方向**（本问题实际排查过程）：
+
+- ❌ `cacheComponents: true` 导致 `"use cache"` 缓存失效 → 改了 next.config
+- ❌ Turbopack 文件缓存损坏 → 清了 `.next/dev/cache`
+- ❌ 残留 dev server 进程 → kill 了多次
+- ❌ `usePath()` 跨 RSC 边界抛异常 → 改了 hook 实现
+- ❌ `useSearchParams()` 导致 layout 动态化 → 去掉 Suspense 边界
+- ❌ `PathSidebar` 和 `Sidebar` DOM 切换 → 合并为单组件
+
+**识别特征**（区别于其他刷新问题）：
+
+- Curl 正常（HTTP 200），浏览器才出现
+- 两个固定 URL 之间交替，不是随机或同一 URL
+- 与 `<Link>` 的 `href` 指向相同目标
+- 仅在 dev mode（`pnpm dev`）出现，生产构建（`pnpm build && pnpm start`）正常
+
+**同类参考**：`journal/2026-06-07-use-cache-stale-output-on-function-change.md`
+（同一轮排查中踩过的其他坑）
+
+### G.10 残留 Service Worker 导致 dev 模式无限刷新
+
+**症状**：`pnpm dev` 后浏览器访问 `localhost:3000` 无限刷新，curl 正常（HTTP 200），
+换一个浏览器（或无痕窗口）正常。服务器日志显示连续 GET / 请求，响应时间递增。
+
+**修复**：浏览器 DevTools → Application → Service Workers → Unregister。
+或在项目里加防护——localhost 下主动注销所有已注册的 SW：
+
+```js
+// 在 <head> 内联脚本中
+if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+  navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+}
+```
+
+**原因**：SW 注册后按 origin 持久化。如果用 `127.0.0.1` 或局域网 IP 访问过，
+SW 注册在 `localhost` origin 下。之后即使代码里加了 `hostname !== 'localhost'`
+不注册新的，已存在的 SW 仍会拦截请求。SW 的 stale-while-revalidate 策略在
+dev 模式下与 Turbopack 的 HMR 时序冲突 → 缓存/网络响应不一致 → 浏览器重载。
+
+**识别特征**（区别于 G.9 的 `<Link>` prefetch 问题）：
+
+- 同一个 URL 反复请求（不是两个 URL 交替）
+- 换浏览器/无痕窗口正常
+- 标签页最终卡死，关闭按钮无响应
+- 请求全部指向同一个 URL

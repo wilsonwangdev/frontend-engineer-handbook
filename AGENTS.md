@@ -64,6 +64,21 @@ guide、knowledge base），不要凭印象。文档：
 本项目特定的高频踩坑（Cache Components、YAML 日期 coerce、TUN 代理）
 见 [docs/GOTCHAS.md](docs/GOTCHAS.md)，每条带一行修复。
 
+## Next.js 16 防踩坑速查
+
+> 不是 bug，但 dev 模式下的行为不符合直觉且报错信息没有指向根因。
+> 完整记录见 GOTCHAS G.1–G.9，这里只放**写代码前必查**的三条。
+
+1. **静态页面（含首页）上所有 `<Link>` 必须加 `prefetch={false}`**
+   ——否则 dev 模式下多个 `<Link>` 的 prefetch 请求会触发浏览器在页面间交替刷新，
+   服务端日志正常（HTTP 200），但浏览器无限循环。生产构建不出现，curl 看不出来。
+2. **改 `"use cache"` 函数的返回值结构后，必须清 `.next` 重编译**
+   ——函数体改动不会使持久化缓存失效。类型检查通过但运行时数据缺失。
+   轻量函数（纯 map/filter）不加 `"use cache"`，把缓存留给昂贵 I/O。
+3. **`useSearchParams()` 不能出现在 layout 的 client component 中**
+   ——会迫使 layout 变为动态渲染，与静态生成冲突 → `enqueueModel` 为 null。
+   改用 `page.tsx` 的 searchParams prop 或通过 props 下传。
+
 ## 语言约定
 
 **全项目以简体中文为主**。英文仅限：专有名词（`Next.js` / `React` 等）、
