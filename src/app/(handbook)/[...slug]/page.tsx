@@ -11,6 +11,9 @@ import { TierBadge } from "@/components/handbook/tier-badge";
 import { SITE_URL } from "@/lib/site-url";
 import { ShareButton } from "@/components/handbook/share-button";
 import { HeadingAnchor } from "@/components/handbook/heading-anchor";
+import { Breadcrumbs } from "@/components/handbook/breadcrumbs";
+import { PathProgress } from "@/components/handbook/path-progress";
+import { PathStartButton } from "@/components/mdx/path-start-button";
 
 const prettyCodeOptions = {
   // 双主题——CSS 通过 [data-theme] 切换；与本站现有 :root[data-theme="dark"] 暗色变量一致
@@ -72,8 +75,15 @@ export default async function HandbookPage({ params }: PageProps) {
 
   const { prev, next } = await getAdjacentDocs(doc);
 
+  const isSection = typeof doc.frontmatter.section === "number" && doc.frontmatter.section > 0;
+
   return (
     <article className="prose-cn">
+      <Breadcrumbs
+        chapterNumber={doc.frontmatter.chapter}
+        sectionTitle={isSection ? doc.frontmatter.title : undefined}
+      />
+      <PathProgress />
       <header className="not-prose mb-8 border-b border-[var(--color-border)] pb-6 sm:mb-10">
         <p className="font-mono text-xs tabular-nums text-fg-muted uppercase tracking-widest">
           第 {doc.frontmatter.chapter} 章
@@ -93,6 +103,34 @@ export default async function HandbookPage({ params }: PageProps) {
       </header>
 
       <MdxBody slug={slug} source={doc.source} />
+      {!isSection && doc.frontmatter.chapter === 4 && (
+        <div className="not-prose mt-8 flex flex-wrap gap-3 border-t border-[var(--color-border)] pt-6">
+          <PathStartButton
+            path="beginner"
+            href="/chapter-04/js-core"
+            label="按「系统学习」路径阅读本章"
+          />
+          <PathStartButton
+            path="intermediate"
+            href="/chapter-04/modules"
+            label="按「按需查阅」路径阅读本章"
+          />
+        </div>
+      )}
+      {!isSection && doc.frontmatter.chapter === 5 && (
+        <div className="not-prose mt-8 flex flex-wrap gap-3 border-t border-[var(--color-border)] pt-6">
+          <PathStartButton
+            path="beginner"
+            href="/chapter-05/react-mental-model"
+            label="按「系统学习」路径阅读本章"
+          />
+          <PathStartButton
+            path="intermediate"
+            href="/chapter-05/concurrent-suspense"
+            label="按「按需查阅」路径阅读本章"
+          />
+        </div>
+      )}
       <HeadingAnchor />
 
       <nav
